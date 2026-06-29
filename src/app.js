@@ -69,6 +69,7 @@
     hist: [],
     routine: null,
     editing: null,    // name of the exercise being edited, or null
+    routineKg: {},    // name -> kg override for the current routine display
   };
   const clone = e => Object.assign({}, e, { equipment: e.equipment.slice() });
   const isBaseExercise = n => F.BASE_CATALOG.some(e => e.name === n);
@@ -130,7 +131,7 @@
   const dose = p => p.exercise.dynamics === F.DIN.ISO ? `${p.sets}x ~35s` : `${p.sets}x${p.reps}`;
 
   // ---- Render: routine
-  function renderRoutine(r, into, range) {
+  function renderRoutine(r, into, range, editable) {
     into.innerHTML = "";
     if (!r) return;
     range = range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
@@ -155,19 +156,54 @@
         tag.appendChild(el("span", "quality q-" + item.quality, F.QUALITY_NAME[item.quality]));
         node.appendChild(tag);
         item.prescriptions.forEach(p => {
+          const name = p.exercise.name;
           const ex = el("div", "exercise");
           const st = el("div", "stripe"); st.style.background = STRIPE[p.exercise.pattern] || "#6b7280";
           ex.appendChild(st);
           const body = el("div", "ex-body");
           const star = p.exercise.tier === "FUNDAMENTAL" ? '<span class="star">★</span> ' : "";
-          body.appendChild(el("div", "ex-name", star + p.exercise.name));
+          body.appendChild(el("div", "ex-name", star + name));
           body.appendChild(el("div", "ex-meta", `${F.PAT_LABEL[p.exercise.pattern]} · SNC ${p.exercise.cns}`));
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, dose(p)));
-          const kg = F.suggestKg(p.exercise.load, range.min, range.max);
-          if (kg != null) doseEl.appendChild(el("div", "ex-kg", kg + " kg"));
+          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max);
+          if (baseKg != null) {
+            if (editable) {
+              let curKg = state.routineKg[name] != null ? state.routineKg[name] : baseKg;
+              const kgRow = el("div", "ex-kg-row");
+              const dec = el("button", "kg-adj", "−");
+              const kgSpan = el("span", "ex-kg", curKg + " kg");
+              const inc = el("button", "kg-adj", "+");
+              dec.onclick = () => { curKg = Math.max(range.min, curKg - 2); state.routineKg[name] = curKg; kgSpan.textContent = curKg + " kg"; };
+              inc.onclick = () => { curKg = Math.min(range.max, curKg + 2); state.routineKg[name] = curKg; kgSpan.textContent = curKg + " kg"; };
+              kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
+              doseEl.appendChild(kgRow);
+            } else {
+              doseEl.appendChild(el("div", "ex-kg", baseKg + " kg"));
+            }
+          }
           ex.appendChild(doseEl);
+          if (editable) {
+            const isPinned = pinnedIndex(name) >= 0;
+            const pinBtn = el("button", "icon-btn pin-ex" + (isPinned ? " on" : ""), "★");
+            pinBtn.title = isPinned ? "Desfijar" : "Fijar para regenerar";
+            pinBtn.onclick = () => {
+              const idx = pinnedIndex(name);
+              if (idx >= 0) {
+                state.cfg.pinned.splice(idx, 1);
+                pinBtn.className = "icon-btn pin-ex";
+                pinBtn.title = "Fijar para regenerar";
+              } else {
+                state.cfg.pinned.push({ name, block: br.block });
+                pinBtn.className = "icon-btn pin-ex on";
+                pinBtn.title = "Desfijar";
+              }
+              updatePinnedCount();
+              saveConfig();
+            };
+            ex.appendChild(pinBtn);
+          }
           node.appendChild(ex);
         });
         node.appendChild(el("div", "el-note", item.note));
@@ -199,7 +235,7 @@
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
-    renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax });
+    renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#save-row").classList.remove("hidden");
     saveConfig();
   }
