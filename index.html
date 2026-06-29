@@ -34,15 +34,16 @@
     </div>
 
     <div class="card">
-      <div class="label">Foco</div>
-      <div class="seg" id="seg-focus" style="flex-wrap:wrap">
-        <button data-val="FULL" aria-pressed="true">Full</button>
-        <button data-val="LEGS" aria-pressed="false">Piernas</button>
-        <button data-val="PUSH" aria-pressed="false">Empuje</button>
-        <button data-val="PULL" aria-pressed="false">Pull</button>
-        <button data-val="SHOULDERS" aria-pressed="false">Hombros</button>
-        <button data-val="CHEST" aria-pressed="false">Pecho</button>
-        <button data-val="CORE" aria-pressed="false">Core</button>
+      <div class="label">Foco <span style="font-weight:400;color:var(--ink-faint)">(sin selección = full-body)</span></div>
+      <div class="chips" id="focus-chips">
+        <button class="chip" data-val="LEGS,CORE" aria-pressed="false">Tren inferior</button>
+        <button class="chip" data-val="PUSH,PULL,SHOULDERS,CHEST" aria-pressed="false">Tren superior</button>
+        <button class="chip" data-val="LEGS" aria-pressed="false">Piernas</button>
+        <button class="chip" data-val="PUSH" aria-pressed="false">Empuje</button>
+        <button class="chip" data-val="PULL" aria-pressed="false">Pull</button>
+        <button class="chip" data-val="SHOULDERS" aria-pressed="false">Hombros</button>
+        <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
+        <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
       </div>
     </div>
 

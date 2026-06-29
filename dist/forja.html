@@ -245,15 +245,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     </div>
 
     <div class="card">
-      <div class="label">Foco</div>
-      <div class="seg" id="seg-focus" style="flex-wrap:wrap">
-        <button data-val="FULL" aria-pressed="true">Full</button>
-        <button data-val="LEGS" aria-pressed="false">Piernas</button>
-        <button data-val="PUSH" aria-pressed="false">Empuje</button>
-        <button data-val="PULL" aria-pressed="false">Pull</button>
-        <button data-val="SHOULDERS" aria-pressed="false">Hombros</button>
-        <button data-val="CHEST" aria-pressed="false">Pecho</button>
-        <button data-val="CORE" aria-pressed="false">Core</button>
+      <div class="label">Foco <span style="font-weight:400;color:var(--ink-faint)">(sin selección = full-body)</span></div>
+      <div class="chips" id="focus-chips">
+        <button class="chip" data-val="LEGS,CORE" aria-pressed="false">Tren inferior</button>
+        <button class="chip" data-val="PUSH,PULL,SHOULDERS,CHEST" aria-pressed="false">Tren superior</button>
+        <button class="chip" data-val="LEGS" aria-pressed="false">Piernas</button>
+        <button class="chip" data-val="PUSH" aria-pressed="false">Empuje</button>
+        <button class="chip" data-val="PULL" aria-pressed="false">Pull</button>
+        <button class="chip" data-val="SHOULDERS" aria-pressed="false">Hombros</button>
+        <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
+        <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
       </div>
     </div>
 
@@ -1092,8 +1093,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     template.maxCns = base.maxCns; template.maxGrip = base.maxGrip;
     template.__pool = pool || BASE_CATALOG;
 
-    const focusKey = (opts.focus || "FULL").toUpperCase();
-    const focus = FOCUS_PAT[focusKey] ? new Set(FOCUS_PAT[focusKey]) : null;
+    // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
+    const focusKeys = Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"];
+    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k.toUpperCase()] || []);
+    const focus = allPats.length ? new Set(allPats) : null;
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
@@ -1184,7 +1187,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     PUSH_H:"#b98cc9", PUSH_V:"#a978bf", CORE:"#7fae6a", HYBRID:"#d9533b" };
 
   const state = {
-    cfg: { objective:"STRENGTH", focus:"FULL", equipment:["KB"], weightMin:12, weightMax:32,
+    cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true },
     custom: [],       // exercises added by the user
@@ -1355,7 +1358,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   function generateRoutine() {
     const c = state.cfg;
-    const opts = { objective: c.objective, focus: c.focus, equipment: c.equipment,
+    const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
@@ -1366,7 +1369,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   function applyFocusUI() {
-    const off = state.cfg.focus !== "FULL";
+    const off = state.cfg.focus.length > 0;
     $("#card-balance").classList.toggle("disabled", off);
     $("#balance-note").classList.toggle("hidden", !off);
   }
@@ -1644,7 +1647,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
     // reflect cfg in controls
     setSeg("#seg-objective", state.cfg.objective);
-    setSeg("#seg-focus", state.cfg.focus);
+    // focus chips — reflect saved state
+    document.querySelectorAll("#focus-chips .chip").forEach(ch => {
+      const keys = (ch.dataset.val || "").split(",");
+      const active = keys.some(k => state.cfg.focus.includes(k));
+      ch.setAttribute("aria-pressed", String(active));
+    });
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
@@ -1657,7 +1665,26 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
     wireSeg("#seg-objective", v => { state.cfg.objective = v; saveConfig(); });
-    wireSeg("#seg-focus", v => { state.cfg.focus = v; applyFocusUI(); saveConfig(); });
+    // focus chips — multi-select, shortcuts expand to multiple keys
+    document.querySelectorAll("#focus-chips .chip").forEach(ch => {
+      ch.onclick = () => {
+        const keys = (ch.dataset.val || "").split(",");
+        const isOn = ch.getAttribute("aria-pressed") === "true";
+        if (isOn) {
+          // deselect: remove all keys this chip covers
+          state.cfg.focus = state.cfg.focus.filter(k => !keys.includes(k));
+        } else {
+          // select: add keys not already present
+          keys.forEach(k => { if (!state.cfg.focus.includes(k)) state.cfg.focus.push(k); });
+        }
+        // re-render all chip states (a key may belong to multiple chips)
+        document.querySelectorAll("#focus-chips .chip").forEach(c => {
+          const ks = (c.dataset.val || "").split(",");
+          c.setAttribute("aria-pressed", String(ks.some(k => state.cfg.focus.includes(k))));
+        });
+        applyFocusUI(); saveConfig();
+      };
+    });
     wireSeg("#seg-vol", v => { state.cfg.volumeMode = v; applyVolumeUI(); saveConfig(); });
     wireSeg("#seg-balance", v => {
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();

@@ -601,8 +601,10 @@
     template.maxCns = base.maxCns; template.maxGrip = base.maxGrip;
     template.__pool = pool || BASE_CATALOG;
 
-    const focusKey = (opts.focus || "FULL").toUpperCase();
-    const focus = FOCUS_PAT[focusKey] ? new Set(FOCUS_PAT[focusKey]) : null;
+    // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
+    const focusKeys = Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"];
+    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k.toUpperCase()] || []);
+    const focus = allPats.length ? new Set(allPats) : null;
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 

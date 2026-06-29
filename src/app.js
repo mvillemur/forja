@@ -59,7 +59,7 @@
     PUSH_H:"#b98cc9", PUSH_V:"#a978bf", CORE:"#7fae6a", HYBRID:"#d9533b" };
 
   const state = {
-    cfg: { objective:"STRENGTH", focus:"FULL", equipment:["KB"], weightMin:12, weightMax:32,
+    cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true },
     custom: [],       // exercises added by the user
@@ -230,7 +230,7 @@
 
   function generateRoutine() {
     const c = state.cfg;
-    const opts = { objective: c.objective, focus: c.focus, equipment: c.equipment,
+    const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
@@ -241,7 +241,7 @@
   }
 
   function applyFocusUI() {
-    const off = state.cfg.focus !== "FULL";
+    const off = state.cfg.focus.length > 0;
     $("#card-balance").classList.toggle("disabled", off);
     $("#balance-note").classList.toggle("hidden", !off);
   }
@@ -519,7 +519,12 @@
 
     // reflect cfg in controls
     setSeg("#seg-objective", state.cfg.objective);
-    setSeg("#seg-focus", state.cfg.focus);
+    // focus chips — reflect saved state
+    document.querySelectorAll("#focus-chips .chip").forEach(ch => {
+      const keys = (ch.dataset.val || "").split(",");
+      const active = keys.some(k => state.cfg.focus.includes(k));
+      ch.setAttribute("aria-pressed", String(active));
+    });
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
@@ -532,7 +537,26 @@
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
     wireSeg("#seg-objective", v => { state.cfg.objective = v; saveConfig(); });
-    wireSeg("#seg-focus", v => { state.cfg.focus = v; applyFocusUI(); saveConfig(); });
+    // focus chips — multi-select, shortcuts expand to multiple keys
+    document.querySelectorAll("#focus-chips .chip").forEach(ch => {
+      ch.onclick = () => {
+        const keys = (ch.dataset.val || "").split(",");
+        const isOn = ch.getAttribute("aria-pressed") === "true";
+        if (isOn) {
+          // deselect: remove all keys this chip covers
+          state.cfg.focus = state.cfg.focus.filter(k => !keys.includes(k));
+        } else {
+          // select: add keys not already present
+          keys.forEach(k => { if (!state.cfg.focus.includes(k)) state.cfg.focus.push(k); });
+        }
+        // re-render all chip states (a key may belong to multiple chips)
+        document.querySelectorAll("#focus-chips .chip").forEach(c => {
+          const ks = (c.dataset.val || "").split(",");
+          c.setAttribute("aria-pressed", String(ks.some(k => state.cfg.focus.includes(k))));
+        });
+        applyFocusUI(); saveConfig();
+      };
+    });
     wireSeg("#seg-vol", v => { state.cfg.volumeMode = v; applyVolumeUI(); saveConfig(); });
     wireSeg("#seg-balance", v => {
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();
