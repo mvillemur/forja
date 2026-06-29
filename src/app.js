@@ -446,7 +446,8 @@
   function generateRoutine() {
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
-      balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null };
+      balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
+      sameWeight: c.sameWeight };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;

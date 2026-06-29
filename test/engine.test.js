@@ -100,6 +100,25 @@ ok("unifiedKg: single exercise == its suggestion",
 ok("unifiedKg: null when range missing", F.unifiedKg(ps, null) === null);
 ok("unifiedKg: null when empty group", F.unifiedKg([], { min: 12, max: 32 }) === null);
 
+// Single-kettlebell SELECTION: sameWeight clusters each block's loads so the
+// shared weight fits. Compare average per-block load spread over many seeds.
+function blockLoadSpread(rt) {
+  let tot = 0, n = 0;
+  rt.blocks.forEach(b => {
+    const loads = b.elements.flatMap(e => e.prescriptions.map(p => p.exercise.load));
+    if (loads.length < 2) return;
+    const m = loads.reduce((a, x) => a + x, 0) / loads.length;
+    tot += Math.sqrt(loads.reduce((a, x) => a + (x - m) ** 2, 0) / loads.length); n++;
+  });
+  return n ? tot / n : 0;
+}
+let spreadOff = 0, spreadOn = 0;
+for (let s = 1; s <= 30; s++) {
+  spreadOff += blockLoadSpread(F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: s }));
+  spreadOn  += blockLoadSpread(F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: s, sameWeight: true }));
+}
+ok("sameWeight tightens per-block load spread", spreadOn < spreadOff * 0.8);
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);

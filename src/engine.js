@@ -286,6 +286,8 @@
   function newBalanceTracker(mode, tol) {
     return {
       mode, tol: tol == null ? 1 : tol, count: {},
+      sameWeight: false,   // single-kettlebell: cluster a block around one load
+      loads: [],           // load tiers chosen in the CURRENT block
       _cat(e) { return PAT_CATEGORY[e.pattern]; },
       _n(c) { return this.count[c] || 0; },
       allows(e) {
@@ -298,9 +300,26 @@
         const c = this._cat(e); if (c === "NEUTRAL") return 0;
         return Math.max(0, this._n(ANTAGONIST_CAT[c]) - this._n(c));
       },
-      register(e) { const c = this._cat(e); if (c !== "NEUTRAL") this.count[c] = this._n(c) + 1; },
-      snapshot() { return Object.assign({}, this.count); },
-      restore(s) { this.count = Object.assign({}, s); },
+      // Anchor = most common load tier already chosen in the block (null if empty).
+      loadAnchor() {
+        if (!this.loads.length) return null;
+        const c = {}; let bestV = this.loads[0], bestN = 0;
+        for (const l of this.loads) { c[l] = (c[l] || 0) + 1; if (c[l] > bestN) { bestN = c[l]; bestV = l; } }
+        return bestV;
+      },
+      // Distance of an exercise's load from the block anchor (0 when off).
+      loadPenalty(e) {
+        if (!this.sameWeight) return 0;
+        const a = this.loadAnchor();
+        return a == null ? 0 : Math.abs((e.load || 2) - a);
+      },
+      register(e) {
+        const c = this._cat(e); if (c !== "NEUTRAL") this.count[c] = this._n(c) + 1;
+        if (this.sameWeight) this.loads.push(e.load || 2);
+      },
+      resetLoads() { this.loads = []; },
+      snapshot() { return { count: Object.assign({}, this.count), loads: this.loads.slice() }; },
+      restore(s) { this.count = Object.assign({}, s.count); this.loads = s.loads.slice(); },
     };
   }
 
@@ -423,6 +442,7 @@
     if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
+    s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
 
@@ -563,13 +583,15 @@
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    let best = null, key = [-1, -1];
+    // Prefer, in order: superset quality, then (single-weight mode) a partner
+    // whose load matches the block anchor, then the balance bonus.
+    let best = null, key = [-1, 1, -1];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const k = [res.quality, bal.bonus(c)];
-      if (k[0] > key[0] || (k[0] === key[0] && k[1] > key[1])) { best = c; key = k; }
+      const k = [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
+      if (k[0] > key[0] || (k[0] === key[0] && (k[1] > key[1] || (k[1] === key[1] && k[2] > key[2])))) { best = c; key = k; }
     }
     return best;
   }
@@ -606,6 +628,7 @@
 
   function buildGreedy(sch, pool, used, budget, bal, rng, pinned, reserved) {
     reserved = reserved || new Set();
+    bal.resetLoads();   // load cohesion is per-block
     const elements = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);
     let placed = elements.reduce((a, el) => a + el.prescriptions.length, 0);
     const avail = shuffle(pool.filter(e => !used.has(e) && !reserved.has(e)), rng);
@@ -634,6 +657,7 @@
 
   function buildBacktrack(sch, pool, used, budget, bal, rng, pinned, reserved) {
     reserved = reserved || new Set();
+    bal.resetLoads();   // load cohesion is per-block
     const target = sch.count;
     const apply = e => { used.add(e); budget.consume(e); bal.register(e); };
     const pre = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);  // pinned already consumed
@@ -712,7 +736,7 @@
     return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
   }
 
-  function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent) {
+  function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent, sameWeight) {
     const rng = makeRng(seed);
     const poolBase = template.__pool || BASE_CATALOG;
     const pool = filterByEquipment(poolBase, available);
@@ -722,6 +746,7 @@
     bal.focus = focus || null;
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
+    bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
     // block "AUTO"/absent -> infer by dynamics. If the requested block does not exist
@@ -818,7 +843,8 @@
 
     return buildRoutine(template, opts.equipment || [EQ.KB], opts.weightKb || null,
       opts.seed == null ? null : opts.seed, balance,
-      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null);
+      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
+      opts.sameWeight);
   }
 
   function newExercise(fields) {

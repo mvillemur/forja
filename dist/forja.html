@@ -338,7 +338,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
         <div>
           <div class="label" style="margin:0 0 2px;">Misma pesa por circuito</div>
-          <div style="font-size:11.5px;color:var(--ink-faint);">Una sola pesa por bloque (ideal con una pesa ajustable)</div>
+          <div style="font-size:11.5px;color:var(--ink-faint);">Al generar, agrupa ejercicios de carga similar y propone una sola pesa por bloque (ideal con una pesa ajustable)</div>
         </div>
         <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
           <button data-val="no" aria-pressed="true">No</button>
@@ -614,6 +614,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
         <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
 
+        <p><b>Seleccion con "misma pesa".</b> Si activas "misma pesa por circuito", al elegir los ejercicios de cada bloque el motor penaliza (−2 por escalon de distancia) los que se alejan de la carga ya elegida en ese bloque, y al emparejar superseries prefiere la pareja de carga mas parecida (sin sacrificar la calidad antagonista). Asi los ejercicios de un bloque comparten carga y la unica pesa propuesta (la mediana) le queda bien a todos.</p>
+
         <p><b>kg sugerido (3 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (3) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
 
         <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
@@ -630,6 +632,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el numero de ejercicios y series) o Por estructura (eliges cuantos ejercicios tiene cada bloque).</p>
         <p class="gloss"><b>Fijar ejercicios:</b> elige cuales quieres si o si; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
         <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos asi para que el agarre no falle antes que el musculo.</p>
+        <p class="gloss"><b>Misma pesa por circuito:</b> pensado para una sola pesa ajustable. Al generar, ademas de proponer una unica pesa por bloque (la mediana), el motor <b>prioriza ejercicios de carga parecida</b> dentro de cada bloque, para que esa unica pesa le quede bien a todos (ni demasiado ligera para los compuestos ni demasiado pesada para los tecnicos). Se aplica en la siguiente rutina que generes.</p>
       </div>
     </details>
 
@@ -981,6 +984,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function newBalanceTracker(mode, tol) {
     return {
       mode, tol: tol == null ? 1 : tol, count: {},
+      sameWeight: false,   // single-kettlebell: cluster a block around one load
+      loads: [],           // load tiers chosen in the CURRENT block
       _cat(e) { return PAT_CATEGORY[e.pattern]; },
       _n(c) { return this.count[c] || 0; },
       allows(e) {
@@ -993,9 +998,26 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         const c = this._cat(e); if (c === "NEUTRAL") return 0;
         return Math.max(0, this._n(ANTAGONIST_CAT[c]) - this._n(c));
       },
-      register(e) { const c = this._cat(e); if (c !== "NEUTRAL") this.count[c] = this._n(c) + 1; },
-      snapshot() { return Object.assign({}, this.count); },
-      restore(s) { this.count = Object.assign({}, s); },
+      // Anchor = most common load tier already chosen in the block (null if empty).
+      loadAnchor() {
+        if (!this.loads.length) return null;
+        const c = {}; let bestV = this.loads[0], bestN = 0;
+        for (const l of this.loads) { c[l] = (c[l] || 0) + 1; if (c[l] > bestN) { bestN = c[l]; bestV = l; } }
+        return bestV;
+      },
+      // Distance of an exercise's load from the block anchor (0 when off).
+      loadPenalty(e) {
+        if (!this.sameWeight) return 0;
+        const a = this.loadAnchor();
+        return a == null ? 0 : Math.abs((e.load || 2) - a);
+      },
+      register(e) {
+        const c = this._cat(e); if (c !== "NEUTRAL") this.count[c] = this._n(c) + 1;
+        if (this.sameWeight) this.loads.push(e.load || 2);
+      },
+      resetLoads() { this.loads = []; },
+      snapshot() { return { count: Object.assign({}, this.count), loads: this.loads.slice() }; },
+      restore(s) { this.count = Object.assign({}, s.count); this.loads = s.loads.slice(); },
     };
   }
 
@@ -1118,6 +1140,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
+    s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
 
@@ -1258,13 +1281,15 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    let best = null, key = [-1, -1];
+    // Prefer, in order: superset quality, then (single-weight mode) a partner
+    // whose load matches the block anchor, then the balance bonus.
+    let best = null, key = [-1, 1, -1];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const k = [res.quality, bal.bonus(c)];
-      if (k[0] > key[0] || (k[0] === key[0] && k[1] > key[1])) { best = c; key = k; }
+      const k = [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
+      if (k[0] > key[0] || (k[0] === key[0] && (k[1] > key[1] || (k[1] === key[1] && k[2] > key[2])))) { best = c; key = k; }
     }
     return best;
   }
@@ -1301,6 +1326,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   function buildGreedy(sch, pool, used, budget, bal, rng, pinned, reserved) {
     reserved = reserved || new Set();
+    bal.resetLoads();   // load cohesion is per-block
     const elements = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);
     let placed = elements.reduce((a, el) => a + el.prescriptions.length, 0);
     const avail = shuffle(pool.filter(e => !used.has(e) && !reserved.has(e)), rng);
@@ -1329,6 +1355,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   function buildBacktrack(sch, pool, used, budget, bal, rng, pinned, reserved) {
     reserved = reserved || new Set();
+    bal.resetLoads();   // load cohesion is per-block
     const target = sch.count;
     const apply = e => { used.add(e); budget.consume(e); bal.register(e); };
     const pre = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);  // pinned already consumed
@@ -1407,7 +1434,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
   }
 
-  function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent) {
+  function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent, sameWeight) {
     const rng = makeRng(seed);
     const poolBase = template.__pool || BASE_CATALOG;
     const pool = filterByEquipment(poolBase, available);
@@ -1417,6 +1444,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     bal.focus = focus || null;
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
+    bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
     // block "AUTO"/absent -> infer by dynamics. If the requested block does not exist
@@ -1513,7 +1541,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
     return buildRoutine(template, opts.equipment || [EQ.KB], opts.weightKb || null,
       opts.seed == null ? null : opts.seed, balance,
-      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null);
+      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
+      opts.sameWeight);
   }
 
   function newExercise(fields) {
@@ -1986,7 +2015,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function generateRoutine() {
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
-      balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null };
+      balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
+      sameWeight: c.sameWeight };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
