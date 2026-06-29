@@ -1,0 +1,15 @@
+{
+  "name": "forja",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Generador de rutinas de kettlebell con una sola pesa. PWA offline, motor de reglas en JS puro.",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node build.js && node test/engine.test.js && node test/dom.test.js",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#14161a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FORJA">
+<link rel="icon" href="assets/icon.svg">
+<link rel="apple-touch-icon" href="assets/icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<title>FORJA — Rutinas Kettlebell</title>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Forja</span>
+  <span class="brand-sub">motor de rutinas · 1 kettlebell</span>
+</header>
+
+<main>
+  <!-- ===== GENERAR ===== -->
+  <section id="view-gen" class="view active">
+    <div class="card">
+      <div class="label">Objetivo</div>
+      <div class="seg" id="seg-objetivo">
+        <button class="forge" data-val="FUERZA" aria-pressed="true">Fuerza</button>
+        <button class="forge" data-val="METABOLICO" aria-pressed="false">Metabolico</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Foco</div>
+      <div class="seg" id="seg-foco">
+        <button data-val="FULL" aria-pressed="true">Full</button>
+        <button data-val="PIERNAS" aria-pressed="false">Piernas</button>
+        <button data-val="EMPUJE" aria-pressed="false">Empuje</button>
+        <button data-val="PULL" aria-pressed="false">Pull</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Equipamiento</div>
+      <div class="chips">
+        <span class="chip" data-locked="true" aria-pressed="true">Kettlebell</span>
+        <button class="chip" id="chip-barra" aria-pressed="false">Barra de dominadas</button>
+        <span class="chip" data-locked="true" aria-pressed="true">Suelo</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Pesa ajustable (kg)</div>
+      <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
+      <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
+      <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Volumen</div>
+      <div class="seg" id="seg-vol" style="margin-bottom:13px;">
+        <button data-val="tiempo" aria-pressed="true">Por tiempo</button>
+        <button data-val="estructura" aria-pressed="false">Por estructura</button>
+      </div>
+      <div id="vol-tiempo">
+        <div class="slider-row">
+          <input type="range" id="m-range" min="15" max="75" step="5" value="45">
+          <div class="readout"><span id="m-read">45</span> <small>min</small></div>
+        </div>
+      </div>
+      <div id="vol-estructura" class="hidden">
+        <div class="est-row"><span>Bloque A · Principal</span><div class="stepper"><button id="est-A-dec">−</button><span class="val" id="est-A-val">4</span><button id="est-A-inc">+</button></div></div>
+        <div class="est-row"><span>Bloque B · Accesorios</span><div class="stepper"><button id="est-B-dec">−</button><span class="val" id="est-B-val">4</span><button id="est-B-inc">+</button></div></div>
+        <div class="est-row"><span>Bloque C · Finalizador</span><div class="stepper"><button id="est-C-dec">−</button><span class="val" id="est-C-val">2</span><button id="est-C-inc">+</button></div></div>
+      </div>
+    </div>
+
+    <div class="card" id="card-balance">
+      <div class="label">Balance de patrones</div>
+      <div id="balance-nota" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
+      <div class="seg" id="seg-balance">
+        <button data-val="NINGUNO" aria-pressed="true">Ninguno</button>
+        <button data-val="SUAVE" aria-pressed="false">Suave</button>
+        <button data-val="DURO" aria-pressed="false">Duro</button>
+      </div>
+      <div id="tol-wrap" class="hidden" style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;">
+        <div class="label" style="margin:0;">Tolerancia</div>
+        <div class="stepper">
+          <button id="tol-dec">−</button><span class="val" id="tol-val">1</span><button id="tol-inc">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div class="label" style="margin:0 0 2px;">Variar</div>
+        <div style="font-size:11.5px;color:var(--ink-faint);">Evita repetir lo de sesiones recientes</div>
+      </div>
+      <div class="seg" id="seg-variar" style="width:auto;flex:0 0 auto;">
+        <button data-val="si" aria-pressed="true">Si</button>
+        <button data-val="no" aria-pressed="false">No</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <button class="btn btn-ghost" id="btn-fijar-toggle" style="width:100%;">Fijar ejercicios <span id="fijar-count"></span></button>
+      <div id="fijar-panel" class="hidden" style="margin-top:12px;">
+        <div class="label">Toca para incluir en la rutina; el resto se autocompleta.</div>
+        <div class="chips" id="fijar-chips"></div>
+        <div id="fijar-asignados" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <button class="btn btn-forge" id="btn-generar">Generar rutina</button>
+
+    <div id="rutina-out"></div>
+
+    <div id="save-row" class="btn-row hidden" style="margin-top:14px;">
+      <button class="btn btn-ghost" id="btn-regenerar">Regenerar</button>
+      <button class="btn btn-forge" id="btn-guardar">Guardar sesion</button>
+    </div>
+  </section>
+
+  <!-- ===== HISTORIAL ===== -->
+  <section id="view-hist" class="view">
+    <div id="hist-list"></div>
+  </section>
+
+  <!-- ===== POOL ===== -->
+  <section id="view-pool" class="view">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 2px 12px;">
+      <span class="label" id="pool-count" style="margin:0;">— ejercicios</span>
+      <button class="btn btn-ghost" id="btn-add-toggle" style="width:auto;padding:9px 16px;">+ Anadir</button>
+    </div>
+
+    <div class="card hidden" id="pool-form">
+      <div class="label" id="pool-form-title" style="font-size:13px;color:var(--ink);margin-bottom:12px;">Nuevo ejercicio</div>
+      <div class="field">
+        <div class="label">Nombre</div>
+        <input type="text" id="f-nombre" placeholder="p. ej. Turkish Get-Up" autocomplete="off">
+      </div>
+      <div class="field">
+        <div class="label">Tier (importancia)</div>
+        <select id="f-tier"></select>
+      </div>
+      <div class="grid2">
+        <div class="field"><div class="label">Patron</div><select id="f-patron"></select></div>
+        <div class="field"><div class="label">Dinamica</div><select id="f-dinamica"></select></div>
+        <div class="field"><div class="label">Simetria</div><select id="f-simetria"></select></div>
+        <div class="field"><div class="label">SNC</div><select id="f-snc"></select></div>
+        <div class="field"><div class="label">Carga ideal</div><select id="f-carga"></select></div>
+        <div class="field"><div class="label">Agarre intensivo</div>
+          <label class="field-toggle"><input type="checkbox" id="f-agarre"> <span>Si</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <div class="label">Equipamiento necesario</div>
+        <div class="chips">
+          <label class="field-toggle"><input type="checkbox" id="f-eq-kb" checked> Kettlebell</label>
+          <label class="field-toggle"><input type="checkbox" id="f-eq-barra"> Barra</label>
+          <label class="field-toggle"><input type="checkbox" id="f-eq-suelo"> Suelo</label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btn-add-cancel">Cancelar</button>
+        <button class="btn btn-forge" id="btn-add">Anadir al pool</button>
+      </div>
+    </div>
+
+    <div id="pool-list"></div>
+  </section>
+
+  <!-- ===== GUIA ===== -->
+  <section id="view-guia" class="view">
+    <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Como funciona FORJA y que significa cada cosa. Toca para desplegar.</p>
+
+    <details class="acc" open>
+      <summary>Como usar la app</summary>
+      <div class="acc-body">
+        <p><b>1.</b> En <b>Generar</b>, ajusta objetivo, foco, equipamiento, tu pesa, la duracion y las opciones.</p>
+        <p><b>2.</b> Pulsa <b>Generar rutina</b>. Si no te convence, <b>Regenerar</b> da otra variante.</p>
+        <p><b>3.</b> <b>Guardar sesion</b> la envia al <b>Historial</b>.</p>
+        <p><b>4.</b> En Historial, toca una sesion para ver el detalle y marca <b>✓</b> cuando la completes.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Bloques de la rutina</summary>
+      <div class="acc-body">
+        <p class="gloss"><b>Bloque A · Principal:</b> los ejercicios mas exigentes, hechos en fresco (fuerza y potencia).</p>
+        <p class="gloss"><b>Bloque B · Accesorios:</b> volumen e hipertrofia, complementan al A.</p>
+        <p class="gloss"><b>Bloque C · Finalizador:</b> trabajo metabolico y de acondicionamiento para cerrar.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Superserie y set directo</summary>
+      <div class="acc-body">
+        <p><b>Superserie:</b> dos ejercicios que haces alternados (uno, luego el otro, descansas, repites). Suelen ser opuestos (empuje/tiron, cadera/rodilla) para que mientras trabajas uno, el otro se recupere. Ahorra tiempo.</p>
+        <p><b>Set directo:</b> un solo ejercicio con su descanso completo entre series.</p>
+        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Las 4 categorias de cada ejercicio</summary>
+      <div class="acc-body">
+        <p class="gloss"><b>Patron de movimiento</b> — como se mueve el cuerpo: Cadera (bisagra: peso muerto, swing), Rodilla (sentadilla, zancada), Tiron horizontal (remos) y vertical (dominadas), Empuje horizontal (flexiones) y vertical (press), Core/estabilidad (carries, halos), Hibrido (combina varios, p. ej. clean &amp; press).</p>
+        <p class="gloss"><b>Dinamica</b> — como se entrena: Fuerza/Hipertrofia (controlado), Balistico/Potencia (explosivo: swings, cleans), Isometrico/Transporte (sostener o llevar peso), Metabolico (acondicionamiento).</p>
+        <p class="gloss"><b>Simetria</b> — Bilateral (los dos lados a la vez), Unilateral (un lado), Alterno (va cambiando de lado).</p>
+        <p class="gloss"><b>SNC</b> — cuanto exige al sistema nervioso: Alta (swings, cleans, get-up), Media, Baja (core suave). La app limita cuantos de SNC alta entran por sesion para que no te fundas.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Tier (importancia)</summary>
+      <div class="acc-body">
+        <p><b>Fundamental ★</b> — compuestos clave (sentadilla, swing, clean &amp; press). Salen seguido y con prioridad como ejercicio principal.</p>
+        <p><b>Accesorio</b> — complementan el trabajo principal.</p>
+        <p><b>Opcional</b> — rellenan huecos cuando hace falta.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Pesa y kg sugeridos</summary>
+      <div class="acc-body">
+        <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Opciones de Generar</summary>
+      <div class="acc-body">
+        <p class="gloss"><b>Foco:</b> concentra la sesion en piernas, empuje o pull. Mientras esta activo desactiva el balance (porque desequilibra a proposito).</p>
+        <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
+        <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
+        <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el numero de ejercicios y series) o Por estructura (eliges cuantos ejercicios tiene cada bloque).</p>
+        <p class="gloss"><b>Fijar ejercicios:</b> elige cuales quieres si o si; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
+        <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos asi para que el agarre no falle antes que el musculo.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Anadir y editar ejercicios</summary>
+      <div class="acc-body">
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
+        <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
+        <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<nav class="nav">
+  <button data-view="gen" aria-current="true"><span class="ico">⚙</span>Generar</button>
+  <button data-view="hist" aria-current="false"><span class="ico">▤</span>Historial</button>
+  <button data-view="pool" aria-current="false"><span class="ico">≡</span>Pool</button>
+  <button data-view="guia" aria-current="false"><span class="ico">?</span>Guia</button>
+</nav>
+
+<!-- Motor de reglas (sin DOM) -> define window.FORJA -->
+<script src="src/engine.js"></script>
+<!-- Capa de interfaz: estado, almacenamiento, render y eventos -->
+<script src="src/app.js"></script>
+<!-- Registro del service worker (PWA offline) -->
+<script src="src/pwa.js"></script>
+</body>
+</html>

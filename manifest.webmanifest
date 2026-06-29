@@ -1,0 +1,13 @@
+{
+  "name": "FORJA — Rutinas Kettlebell",
+  "short_name": "FORJA",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#14161a",
+  "theme_color": "#14161a",
+  "description": "Motor de rutinas de kettlebell con una sola pesa.",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
