@@ -5,7 +5,8 @@
   "description": "Generador de rutinas de kettlebell con una sola pesa. PWA offline, motor de reglas en JS puro.",
   "scripts": {
     "build": "node build.js",
-    "test": "node build.js && node test/engine.test.js && node test/dom.test.js",
+    "test": "node build.js && node test/engine.test.js && node test/dom.test.js && node test/build.test.js",
+    "check:dist": "node build.js && git diff --exit-code -- dist/forja.html",
     "serve": "python3 -m http.server 8000"
   },
   "devDependencies": {

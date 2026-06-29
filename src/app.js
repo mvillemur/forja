@@ -74,6 +74,11 @@
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
   let manualEditId = null;   // id of the manual session currently being edited
+  // Monotonic id generator: history/session ids must be unique even when two
+  // are minted within the same millisecond (e.g. a save and a CSV import, or
+  // several sessions in one import). Seeded above any existing id on load.
+  let _idSeq = 0;
+  const nextId = () => { const t = Date.now(); _idSeq = Math.max(_idSeq + 1, t); return _idSeq; };
   const clone = e => Object.assign({}, e, { equipment: e.equipment.slice() });
   const isBaseExercise = n => F.BASE_CATALOG.some(e => e.name === n);
   function computePool() {
@@ -123,6 +128,8 @@
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
     computePool();
+    // Seed the id sequence above any id already in history.
+    state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
     // Migration: pinned as strings -> objects {name, block}
     state.cfg.pinned = (state.cfg.pinned || []).map(f => typeof f === "string" ? { name: f, block: "AUTO" } : f);
   }
@@ -356,7 +363,7 @@
     if (!state.routine) return;
     const r = state.routine;
     state.hist.unshift({
-      id: Date.now(),
+      id: nextId(),
       date: new Date().toISOString(),
       objective: state.cfg.objective, minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
@@ -431,7 +438,10 @@
     const dateRow = el("div", "manual-edit-row");
     dateRow.appendChild(el("span", "manual-edit-lbl", "Fecha"));
     const dateInp = document.createElement("input"); dateInp.type = "date";
-    dateInp.value = new Date(h.date).toISOString().slice(0, 10);
+    // Local Y-M-D (not toISOString, which is UTC and shifts the day for
+    // timezones behind UTC, drifting the date on round-trip).
+    const ld = new Date(h.date);
+    dateInp.value = `${ld.getFullYear()}-${String(ld.getMonth() + 1).padStart(2, "0")}-${String(ld.getDate()).padStart(2, "0")}`;
     dateInp.className = "manual-input";
     dateInp.onchange = () => { const v = dateInp.value; if (v) h.date = new Date(v + "T12:00:00").toISOString(); };
     dateRow.appendChild(dateInp);
@@ -699,9 +709,8 @@
     }
     if (!byDate.size) throw new Error("sin filas validas");
 
-    let n = 0;
     return [...byDate.entries()].map(([iso, exercises]) => ({
-      id: Date.now() + (n++), date: iso, manual: true, completed: true, exercises,
+      id: nextId(), date: iso, manual: true, completed: true, exercises,
     }));
   }
 
