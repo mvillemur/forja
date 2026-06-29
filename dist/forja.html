@@ -610,15 +610,35 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
   });
 
+  // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
+  // Short stabilization holds ~35 s, timed carries longer, grind lifts longest.
+  // Anything not listed defaults to DEFAULT_HOLD_ISO (35).
+  const HOLD_BY_NAME = {
+    // grind lifts (per side)
+    "Turkish Get-Up": 60, "Windmill": 45,
+    // timed carries / marches (per side where unilateral)
+    "Suitcase Carry": 50, "Half-Racked Marches": 45,
+    // short stabilization holds keep ~35 s (default)
+  };
+  BASE_CATALOG.forEach(e => {
+    if (e.dynamics === DIN.ISO) e.holdSec = HOLD_BY_NAME[e.name] || 35;
+  });
+
   // --- Volume and time model -----------------------------------------
   function classifyVolume(reps) { return reps <= 5 ? REP_RANGE.SP : reps <= 11 ? REP_RANGE.HP : REP_RANGE.ME; }
 
   const TEMPO = { STRENGTH:3.0, BALLISTIC:1.2, METABOLIC:2.0, ISO:0.0 };
   const REST_TIME = { SP:150, HP:75, ME:40 };
-  const HOLD_ISO = 35, SS_TRANSITION = 20;
+  const DEFAULT_HOLD_ISO = 35, SS_TRANSITION = 20, INTER_SIDE_REST = 15;
   const SETS_RANGE = { SP:[3,6], HP:[3,5], ME:[3,5] };
 
-  function setWorkSec(e, reps) { return e.dynamics === DIN.ISO ? HOLD_ISO : reps * TEMPO[e.dynamics]; }
+  // Work time for one SET. ISO uses the per-exercise holdSec (default 35).
+  // Unilateral work trains both sides: ~2x work + a small inter-side micro-rest.
+  function setWorkSec(e, reps) {
+    const oneSide = e.dynamics === DIN.ISO ? (e.holdSec || DEFAULT_HOLD_ISO) : reps * TEMPO[e.dynamics];
+    if (e.symmetry === SIM.UNILATERAL) return oneSide * 2 + INTER_SIDE_REST;
+    return oneSide;
+  }
   function setRestSec(reps) { return REST_TIME[classifyVolume(reps)]; }
 
   function elementTimeSec(el) {
@@ -626,7 +646,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (el.isSuperset) {
       const [a, b] = el.prescriptions;
       const work = setWorkSec(a.exercise, a.reps) + setWorkSec(b.exercise, b.reps);
-      const rest = Math.max(setRestSec(a.reps), setRestSec(b.reps)) * 0.5;
+      // Rep-range aware reduction: strength (SP) pairs keep more rest so the
+      // primary lift recovers; HP/ME tolerate a deeper cut. Use the heaviest range.
+      const ranges = new Set([classifyVolume(a.reps), classifyVolume(b.reps)]);
+      const factor = ranges.has(REP_RANGE.SP) ? 0.75 : ranges.has(REP_RANGE.HP) ? 0.5 : 0.4;
+      const rest = Math.max(setRestSec(a.reps), setRestSec(b.reps)) * factor;
       return s * (work + rest + SS_TRANSITION);
     }
     const p = el.prescriptions[0];
@@ -674,6 +698,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       return makeResult(false, QUALITY.INVALID, ["Mismo patron: fatiga local, no antagonista."]);
     if (isActiveRest(ea) !== isActiveRest(eb))
       return makeResult(true, QUALITY.OPTIMAL, ["Lift principal + core de baja demanda: descanso activo ideal."]);
+    // Lower-body cross-pattern (hinge + squat) is NOT a true antagonist recovery:
+    // both load the posterior chain (gluteos, isquios, erectores). Aceptable, no optimo.
+    if (LEG_FAMILY.has(ea.pattern) && LEG_FAMILY.has(eb.pattern) && ea.pattern !== eb.pattern)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Cadera + rodilla: sin grupo en reposo real (ambos cargan cadena posterior)."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Superserie antagonista (APS): el grupo en reposo se recupera."]);
     return makeResult(true, QUALITY.ACCEPTABLE, ["Viable, pero no antagonista: prioriza pares opuestos."]);
@@ -690,16 +718,26 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   // --- Fatigue budget ---------------------------------------------
+  // Grip is a WEIGHTED accumulator: ballistic grip = full weight (1.0),
+  // non-ballistic grip (heavy carries / rows / TGU / bottoms-up press) =
+  // partial (0.5). maxGrip counts "ballistic-equivalents".
+  const GRIP_W_BALLISTIC = 1.0, GRIP_W_OTHER = 0.5;
+  function gripWeight(e) {
+    if (!e.grip) return 0;
+    return e.dynamics === DIN.BALLISTIC ? GRIP_W_BALLISTIC : GRIP_W_OTHER;
+  }
   function newFatigueBudget(maxCns, maxGrip) {
     return {
       maxCns, maxGrip, cns: 0, grip: 0,
-      _grip(e) { return e.grip && e.dynamics === DIN.BALLISTIC; },
+      _gripW(e) { return gripWeight(e); },
       allows(e) {
         if (e.cns === CNS.HIGH && this.cns >= this.maxCns) return false;
-        if (this._grip(e) && this.grip >= this.maxGrip) return false;
+        const w = this._gripW(e);
+        // allow when it still fits; a tiny epsilon avoids float edge rejections.
+        if (w > 0 && this.grip + w > this.maxGrip + 1e-9) return false;
         return true;
       },
-      consume(e) { if (e.cns === CNS.HIGH) this.cns++; if (this._grip(e)) this.grip++; },
+      consume(e) { if (e.cns === CNS.HIGH) this.cns++; this.grip += this._gripW(e); },
       snapshot() { return [this.cns, this.grip]; },
       restore(s) { this.cns = s[0]; this.grip = s[1]; },
     };
@@ -1058,7 +1096,32 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const build = bal.mode === "HARD" ? buildBacktrack : buildGreedy;
       return build(schAdjusted, pool, used, budget, bal, rng, pinned, reserved);
     });
-    return { template: template.name, blocks };
+    return { template: template.name, warmup: buildWarmup(blocks), blocks };
+  }
+
+  // --- Warm-up / ramp-up -------------------------------------------------
+  // Ballistic posterior-chain work with no preparation is the main injury gap.
+  // Returns a lightweight, data-driven prep block: mobility + 1-2 ramp-up sets
+  // of the first ballistic (or first) lift of Block A. Shape: { items: string[],
+  // rampUp: { exercise, sets, reps } | null }.
+  function buildWarmup(blocks) {
+    const items = [
+      "Movilidad de cadera y columna toracica (~3 min): rotaciones, gato-camello, halos ligeros.",
+      "Activacion de gluteo y core: puentes y planchas cortas.",
+    ];
+    const blockA = blocks.find(b => b.block === BLOCK.A);
+    let rampUp = null;
+    if (blockA) {
+      const prescriptions = blockA.elements.flatMap(el => el.prescriptions);
+      const firstBallistic = prescriptions.find(p => p.exercise.dynamics === DIN.BALLISTIC);
+      const lead = firstBallistic || prescriptions[0];
+      if (lead) {
+        rampUp = { exercise: lead.exercise, sets: 2, reps: Math.max(5, Math.round(lead.reps * 0.6)) };
+        items.push("Series de aproximacion: 2 x " + rampUp.reps + " de " + lead.exercise.name +
+          " con carga ligera antes del trabajo pesado.");
+      }
+    }
+    return { items, rampUp };
   }
 
   // --- High-level API --------------------------------------------------
@@ -1256,7 +1319,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
 
   // ---- Formatting
-  const dose = p => p.exercise.dynamics === F.DIN.ISO ? `${p.sets}x ~35s` : `${p.sets}x${p.reps}`;
+  const dose = p => {
+    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
+    if (p.exercise.dynamics === F.DIN.ISO) {
+      const sec = p.exercise.holdSec || 35;
+      return `${p.sets}x ~${sec}s` + (perSide ? " / lado" : "");
+    }
+    return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
+  };
 
   // ---- Render: routine
   function renderRoutine(r, into, range, editable) {
@@ -1267,6 +1337,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     head.appendChild(el("div", "routine-title", r.template));
     head.appendChild(el("div", "routine-dur", `~${F.routineDurationMin(r)} min`));
     into.appendChild(head);
+
+    if (r.warmup && r.warmup.items && r.warmup.items.length) {
+      const wu = el("div", "block warmup");
+      const wh = el("div", "block-head");
+      wh.appendChild(el("div", "block-name", "Calentamiento · preparacion"));
+      wu.appendChild(wh);
+      const ul = el("ul", "warmup-list");
+      r.warmup.items.forEach(it => ul.appendChild(el("li", null, it)));
+      wu.appendChild(ul);
+      into.appendChild(wu);
+    }
 
     const blockName = { A: "Principal", B: "Accesorios", C: "Finalizador" };
     r.blocks.forEach(br => {
