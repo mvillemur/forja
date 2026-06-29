@@ -197,6 +197,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .est-row + .est-row { border-top: 1px solid var(--line); }
 .card.disabled { opacity: 0.45; pointer-events: none; }
 .chip.fijado[aria-pressed="true"] { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
+.pin-filter-label { margin: 10px 0 6px; }
+.pin-filter-row { margin-bottom: 4px; }
+.filter-chip { font-size: 12px; padding: 5px 11px; }
+.filter-chip[aria-pressed="true"] { background: rgba(230,180,80,0.16); color: var(--gold); border-color: rgba(230,180,80,0.5); }
+.pin-empty { color: var(--ink-faint); font-size: 13px; padding: 8px 2px; }
 .acc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
 .acc summary { padding: 14px 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .acc summary::-webkit-details-marker { display: none; }

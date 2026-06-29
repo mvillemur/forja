@@ -71,6 +71,8 @@
     editing: null,    // name of the exercise being edited, or null
     routineKg: {},    // name -> kg override for the current routine display
   };
+  // UI-only filters for the pin panel (not persisted): tag -> selected values.
+  const pinFilter = { pattern: [], dynamics: [], tier: [] };
   const clone = e => Object.assign({}, e, { equipment: e.equipment.slice() });
   const isBaseExercise = n => F.BASE_CATALOG.some(e => e.name === n);
   function computePool() {
@@ -281,9 +283,48 @@
     state.cfg.pinned = state.cfg.pinned.filter(f => valid.has(f.name));
   }
   const pinnedIndex = n => state.cfg.pinned.findIndex(f => f.name === n);
+  // Exercises matching the equipment AND the active tag filters.
+  function pinPoolFiltered() {
+    return filteredPool().filter(e =>
+      (!pinFilter.pattern.length  || pinFilter.pattern.includes(e.pattern)) &&
+      (!pinFilter.dynamics.length || pinFilter.dynamics.includes(e.dynamics)) &&
+      (!pinFilter.tier.length     || pinFilter.tier.includes(e.tier)));
+  }
+
+  function renderPinFilters() {
+    const host = $("#pin-filters"); host.innerHTML = "";
+    const groups = [
+      { key: "pattern",  label: "Patron",   labels: F.PAT_LABEL },
+      { key: "dynamics", label: "Dinamica", labels: F.DIN_LABEL },
+      { key: "tier",     label: "Tier",     labels: F.TIER_LABEL },
+    ];
+    groups.forEach(g => {
+      // Only show values present in the current (equipment-filtered) pool.
+      const present = new Set(filteredPool().map(e => e[g.key]));
+      const vals = Object.keys(g.labels).filter(v => present.has(v));
+      if (!vals.length) return;
+      host.appendChild(el("div", "label pin-filter-label", g.label));
+      const row = el("div", "chips pin-filter-row");
+      vals.forEach(v => {
+        const c = el("button", "chip filter-chip", g.labels[v]);
+        c.setAttribute("aria-pressed", String(pinFilter[g.key].includes(v)));
+        c.onclick = () => {
+          const i = pinFilter[g.key].indexOf(v);
+          if (i >= 0) pinFilter[g.key].splice(i, 1); else pinFilter[g.key].push(v);
+          renderPinned();
+        };
+        row.appendChild(c);
+      });
+      host.appendChild(row);
+    });
+  }
+
   function renderPinned() {
+    renderPinFilters();
     const wrap = $("#pin-chips"); wrap.innerHTML = "";
-    filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(e => {
+    const list = pinPoolFiltered().slice().sort((a, b) => a.name.localeCompare(b.name));
+    if (!list.length) wrap.appendChild(el("div", "pin-empty", "Ningun ejercicio coincide con los filtros."));
+    list.forEach(e => {
       const b = el("button", "chip fijado", e.name);
       b.setAttribute("aria-pressed", String(pinnedIndex(e.name) >= 0));
       b.onclick = () => {

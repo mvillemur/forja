@@ -29,6 +29,17 @@ setTimeout(() => {
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);
 
+  // Pin panel: opening it renders tag filters, and a filter narrows the list.
+  d.querySelector("#btn-pin-toggle").click();
+  ok("pin panel shows tag filters", d.querySelectorAll("#pin-filters .filter-chip").length > 0);
+  const allPins = d.querySelectorAll("#pin-chips .chip.fijado").length;
+  ok("pin panel lists exercises", allPins > 0);
+  const firstFilter = d.querySelector("#pin-filters .filter-chip");
+  firstFilter.click();
+  const filteredPins = d.querySelectorAll("#pin-chips .chip.fijado").length;
+  ok("a tag filter narrows the pin list", filteredPins > 0 && filteredPins < allPins);
+  firstFilter.click(); // reset
+
   d.querySelector('.nav button[data-view="pool"]').click();
   ok("pool shows 32 exercises", d.querySelectorAll("#pool-list .card").length === 32);
 
