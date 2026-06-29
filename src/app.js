@@ -73,6 +73,7 @@
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
+  let manualEditId = null;   // id of the manual session currently being edited
   const clone = e => Object.assign({}, e, { equipment: e.equipment.slice() });
   const isBaseExercise = n => F.BASE_CATALOG.some(e => e.name === n);
   function computePool() {
@@ -363,10 +364,14 @@
     saveHistory(); toast("Guardada en el historial"); renderHistory();
   }
 
+  const repsToText = sets => sets.join(" ");
+  const textToReps = t => (t.match(/\d+/g) || []).map(Number);
+
   // ---- Render: a manually-imported session (per-set log)
   function renderManualCard(h) {
     const exVol = ex => (ex.kg || 0) * ex.sets.reduce((a, n) => a + n, 0);
     const totalVol = Math.round(h.exercises.reduce((a, ex) => a + exVol(ex), 0));
+    const editing = manualEditId === h.id;
     const card = el("div", "card"); card.style.padding = "0";
     const row = el("div", "hist-item");
     const meta = el("div", "hist-meta");
@@ -375,10 +380,12 @@
     meta.appendChild(el("div", "hist-title", "Registro · " + dateStr));
     meta.appendChild(el("div", "hist-sub", `${h.exercises.length} ejercicios · volumen ${totalVol} kg`));
     meta.style.cursor = "pointer";
-    const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
-    meta.onclick = () => detail.classList.toggle("hidden");
+    const detail = el("div"); detail.style.padding = "0 14px 14px";
+    if (!editing) detail.classList.add("hidden");
+    meta.onclick = () => { if (!editing) detail.classList.toggle("hidden"); };
 
-    h.exercises.forEach((ex, i) => {
+    if (editing) detail.appendChild(renderManualEditor(h));
+    else h.exercises.forEach((ex, i) => {
       if (i === 0 || ex.order !== h.exercises[i - 1].order) {
         if (ex.order) detail.appendChild(el("div", "label", ex.order));
       }
@@ -395,15 +402,70 @@
     });
 
     const actions = el("div", "hist-actions");
-    const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
-    okBtn.title = "Marcar completada";
-    okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
+    if (editing) {
+      const save = el("button", "icon-btn on", "✓"); save.title = "Guardar cambios";
+      save.onclick = () => { manualEditId = null; saveHistory(); renderHistory(); toast("Registro actualizado"); };
+      actions.appendChild(save);
+    } else {
+      const edit = el("button", "icon-btn", "✎"); edit.title = "Editar registro";
+      edit.onclick = () => { manualEditId = h.id; renderHistory(); };
+      const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
+      okBtn.title = "Marcar completada";
+      okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
+      actions.appendChild(edit); actions.appendChild(okBtn);
+    }
     const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
-    del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
-    actions.appendChild(okBtn); actions.appendChild(del);
+    del.onclick = () => { manualEditId = null; state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+    actions.appendChild(del);
     row.appendChild(meta); row.appendChild(actions);
     card.appendChild(row); card.appendChild(detail);
     return card;
+  }
+
+  // Inline editor for a manual session: date, and per-exercise order, name,
+  // kg, per-set reps and note. Mutates h directly (live bound to inputs).
+  function renderManualEditor(h) {
+    const wrap = el("div", "manual-edit");
+    const inp = (val, ph, cls) => { const n = document.createElement("input"); n.type = "text"; n.value = val == null ? "" : val; if (ph) n.placeholder = ph; n.className = "manual-input " + (cls || ""); return n; };
+
+    const dateRow = el("div", "manual-edit-row");
+    dateRow.appendChild(el("span", "manual-edit-lbl", "Fecha"));
+    const dateInp = document.createElement("input"); dateInp.type = "date";
+    dateInp.value = new Date(h.date).toISOString().slice(0, 10);
+    dateInp.className = "manual-input";
+    dateInp.onchange = () => { const v = dateInp.value; if (v) h.date = new Date(v + "T12:00:00").toISOString(); };
+    dateRow.appendChild(dateInp);
+    wrap.appendChild(dateRow);
+
+    h.exercises.forEach(ex => {
+      const box = el("div", "manual-edit-ex");
+      const name = inp(ex.name, "Ejercicio", "name"); name.oninput = () => { ex.name = name.value; };
+      box.appendChild(name);
+      const grid = el("div", "manual-edit-grid");
+      const order = inp(ex.order, "Bloque / orden"); order.oninput = () => { ex.order = order.value; };
+      const kg = inp(ex.kg, "kg"); kg.inputMode = "decimal"; kg.oninput = () => { const n = parseFloat(kg.value.replace(",", ".")); ex.kg = isNaN(n) ? null : n; };
+      grid.appendChild(order); grid.appendChild(kg);
+      box.appendChild(grid);
+      const reps = inp(repsToText(ex.sets), "Reps por serie (ej. 16 10 10)");
+      reps.oninput = () => { ex.sets = textToReps(reps.value); };
+      box.appendChild(reps);
+      const note = inp(ex.note, "Notas"); note.oninput = () => { ex.note = note.value; };
+      box.appendChild(note);
+      const rm = el("button", "manual-rm", "Quitar ejercicio");
+      rm.onclick = () => { h.exercises = h.exercises.filter(x => x !== ex); renderHistory(); };
+      box.appendChild(rm);
+      wrap.appendChild(box);
+    });
+
+    const add = el("button", "btn btn-ghost", "+ Anadir ejercicio");
+    add.style.cssText = "margin-top:8px;padding:9px;font-size:13px;";
+    add.onclick = () => {
+      const last = h.exercises[h.exercises.length - 1];
+      h.exercises.push({ order: last ? last.order : "", name: "", kg: last ? last.kg : null, sets: [], note: "" });
+      renderHistory();
+    };
+    wrap.appendChild(add);
+    return wrap;
   }
 
   // ---- Render: history

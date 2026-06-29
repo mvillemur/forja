@@ -44,6 +44,22 @@ setTimeout(() => {
   manual[0].click(); // expand newest (21/06)
   ok("manual card shows per-set reps", /20 · 20 · 20 · 20/.test(d.querySelector("#hist-list").textContent));
 
+  // Edit a manual register: change a note and reps, save, verify persisted.
+  const editBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "✎");
+  ok("manual card has an edit button", !!editBtn);
+  editBtn.click();
+  const noteInp = [...d.querySelectorAll("#hist-list .manual-input")].find(i => i.value === "Foco agarre.");
+  ok("editor exposes the note field", !!noteInp);
+  noteInp.value = "Nota editada"; noteInp.dispatchEvent(new window.Event("input"));
+  const repsInp = [...d.querySelectorAll("#hist-list .manual-input")].find(i => i.value === "20 20 20 20");
+  repsInp.value = "22 22 22 22"; repsInp.dispatchEvent(new window.Event("input"));
+  const editingCard = d.querySelector("#hist-list .manual-edit").closest(".card");
+  const saveBtn = [...editingCard.querySelectorAll(".icon-btn")].find(b => b.textContent === "✓");
+  saveBtn.click();
+  const histTxt = d.querySelector("#hist-list").textContent;
+  ok("edited note persists", /Nota editada/.test(histTxt));
+  ok("edited reps persist", /22 · 22 · 22 · 22/.test(histTxt));
+
   // Pin panel: opening it renders tag filters, and a filter narrows the list.
   d.querySelector("#btn-pin-toggle").click();
   ok("pin panel shows tag filters", d.querySelectorAll("#pin-filters .filter-chip").length > 0);
