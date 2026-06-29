@@ -1,299 +1,299 @@
 /**
- * FORJA — Motor de reglas (engine.js)
- * ===================================
- * Logica PURA de generacion de rutinas de kettlebell. No toca el DOM ni el
- * almacenamiento: recibe datos y devuelve datos, asi que es testeable en Node
- * y reutilizable. Se expone como `window.FORJA` (navegador) y `module.exports`
- * (Node) — patron UMD al final del archivo.
+ * FORJA — Rules engine (engine.js)
+ * =================================
+ * PURE logic for kettlebell routine generation. Does not touch the DOM or
+ * storage: receives data and returns data, so it is testable in Node and
+ * reusable. Exposed as `window.FORJA` (browser) and `module.exports`
+ * (Node) — UMD pattern at the end of the file.
  *
- * MODELO DE DATOS
- *   Ejercicio: { nombre, patron, dinamica, simetria, snc, equip[], agarre,
- *                carga (1..3), tier }  — ver CATALOGO_BASE.
- *   Prescripcion: { ej, bloque, series, reps }.
- *   SerieAsignada: { prescripciones[1..2], calidad, nota, esSuperserie }.
- *   Rutina: { plantilla, bloques: [{ bloque, elementos: SerieAsignada[] }] }.
+ * DATA MODEL
+ *   Exercise: { name, pattern, dynamics, symmetry, cns, equipment[], grip,
+ *               load (1..3), tier }  — see BASE_CATALOG.
+ *   Prescription: { exercise, block, sets, reps }.
+ *   WorkSlot: { prescriptions[1..2], quality, note, isSuperset }.
+ *   Routine: { template, blocks: [{ block, elements: WorkSlot[] }] }.
  *
- * LOS 4 CRITERIOS (Enums como strings, serializables)
- *   PAT  patron de movimiento     DIN  tipo de dinamica
- *   SIM  simetria                 SNC  demanda del sistema nervioso
+ * THE 4 CRITERIA (Enums as strings, serializable)
+ *   PAT  movement pattern          DIN  dynamics type
+ *   SIM  symmetry                  CNS  nervous system demand
  *
- * COMO SE ARMA UNA RUTINA (pipeline)
- *   generar(pool, opts)
- *     -> elige PLANTILLA (por objetivo) y la escala por tiempo o estructura
- *     -> construirRutina(): filtra por equipamiento y arma cada bloque con:
- *          · RuleEngine (validarCombinacion): decide si dos ejercicios forman
- *            una superserie valida y con que calidad, segun el bloque.
- *          · PresupuestoFatiga: limita SNC alta y balisticos de agarre/sesion.
- *          · BalanceTracker: reparte patrones (modo suave/duro) y aplica foco,
- *            tier y penalizacion por uso reciente via `prioridad`.
- *          · armarGreedy / armarBacktrack: seleccion y emparejamiento. El modo
- *            DURO usa backtracking para no dejar huecos en la cuota de balance.
- *          · preplace: coloca primero los ejercicios FIJADOS por el usuario.
+ * HOW A ROUTINE IS BUILT (pipeline)
+ *   generate(pool, opts)
+ *     -> picks TEMPLATE (by objective) and scales it by time or structure
+ *     -> buildRoutine(): filters by equipment and builds each block with:
+ *          · RuleEngine (validateCombination): decides if two exercises form
+ *            a valid superset and with what quality, depending on the block.
+ *          · FatigueBudget: limits high-CNS and ballistic grip exercises per session.
+ *          · BalanceTracker: distributes patterns (soft/hard mode) and applies focus,
+ *            tier and recent-use penalty via `priority`.
+ *          · buildGreedy / buildBacktrack: selection and pairing. HARD mode uses
+ *            backtracking to avoid gaps in the balance quota.
+ *          · preplaceFixed: places PINNED exercises by the user first.
  *
- * FUNDAMENTO (resumen): superseries antagonistas (APS) para recuperar el grupo
- * en reposo sin perder rendimiento; el agarre es el eslabon limitante entre
- * balisticos; no acumular SNC alta; descanso activo = core de baja demanda.
+ * RATIONALE (summary): antagonist supersets (APS) to recover the resting group
+ * without losing performance; grip is the limiting link between ballistics;
+ * do not accumulate high CNS; active rest = low-demand core.
  *
- * El archivo NO debe ganar dependencias ni I/O: si algo necesita el DOM o el
- * navegador, va en app.js.
+ * This file MUST NOT gain dependencies or I/O: if something needs the DOM or
+ * the browser, it goes in app.js.
  */
 (function (root) {
   "use strict";
 
-  // --- Enums como strings (serializables) ---------------------------------
-  const PAT = { CADERA:"CADERA", RODILLA:"RODILLA", TIRON_H:"TIRON_H", TIRON_V:"TIRON_V",
-                EMPUJE_H:"EMPUJE_H", EMPUJE_V:"EMPUJE_V", CORE:"CORE", HIBRIDO:"HIBRIDO" };
-  const DIN = { FUERZA:"FUERZA", BALISTICO:"BALISTICO", ISO:"ISO", METABOLICO:"METABOLICO" };
-  const SIM = { BILATERAL:"BILATERAL", UNILATERAL:"UNILATERAL", ALTERNO:"ALTERNO" };
-  const SNC = { ALTA:"ALTA", MEDIA:"MEDIA", BAJA:"BAJA" };
-  const EQ  = { KB:"KB", BARRA:"BARRA", SUELO:"SUELO" };
-  const CAR = { LIGERA:1, MEDIA:2, PESADA:3 };
-  const TIER = { FUNDAMENTAL:"FUNDAMENTAL", ACCESORIO:"ACCESORIO", OPCIONAL:"OPCIONAL" };
-  const TIER_LABEL = { FUNDAMENTAL:"Fundamental", ACCESORIO:"Accesorio", OPCIONAL:"Opcional" };
-  const TIER_BONUS = { FUNDAMENTAL:3, ACCESORIO:0, OPCIONAL:-2 };
-  const BLO = { A:"A", B:"B", C:"C" };
-  const RAN = { FP:"FP", HIP:"HIP", MET:"MET" };
-  const CAL = { OPTIMA:3, ACEPTABLE:2, INVALIDA:0 };
-  const CAL_NOMBRE = { 3:"OPTIMA", 2:"ACEPTABLE", 0:"INVALIDA" };
+  // --- Enums as strings (serializable) ---------------------------------
+  const PAT = { HIP:"HIP", KNEE:"KNEE", PULL_H:"PULL_H", PULL_V:"PULL_V",
+                PUSH_H:"PUSH_H", PUSH_V:"PUSH_V", CORE:"CORE", HYBRID:"HYBRID" };
+  const DIN = { STRENGTH:"STRENGTH", BALLISTIC:"BALLISTIC", ISO:"ISO", METABOLIC:"METABOLIC" };
+  const SIM = { BILATERAL:"BILATERAL", UNILATERAL:"UNILATERAL", ALTERNATING:"ALTERNATING" };
+  const CNS = { HIGH:"HIGH", MEDIUM:"MEDIUM", LOW:"LOW" };
+  const EQ  = { KB:"KB", BARBELL:"BARBELL", FLOOR:"FLOOR" };
+  const LOAD_TIER = { LIGHT:1, MEDIUM:2, HEAVY:3 };
+  const TIER = { FUNDAMENTAL:"FUNDAMENTAL", ACCESSORY:"ACCESSORY", OPTIONAL:"OPTIONAL" };
+  const TIER_LABEL = { FUNDAMENTAL:"Fundamental", ACCESSORY:"Accesorio", OPTIONAL:"Opcional" };
+  const TIER_BONUS = { FUNDAMENTAL:3, ACCESSORY:0, OPTIONAL:-2 };
+  const BLOCK = { A:"A", B:"B", C:"C" };
+  const REP_RANGE = { SP:"SP", HP:"HP", ME:"ME" };
+  const QUALITY = { OPTIMAL:3, ACCEPTABLE:2, INVALID:0 };
+  const QUALITY_NAME = { 3:"OPTIMAL", 2:"ACCEPTABLE", 0:"INVALID" };
 
-  const PAT_LABEL = { CADERA:"Cadera", RODILLA:"Rodilla", TIRON_H:"Tiron horiz.",
-    TIRON_V:"Tiron vert.", EMPUJE_H:"Empuje horiz.", EMPUJE_V:"Empuje vert.",
-    CORE:"Core / estab.", HIBRIDO:"Hibrido" };
-  const DIN_LABEL = { FUERZA:"Fuerza/Hipertrofia", BALISTICO:"Balistico/Potencia",
-    ISO:"Isometrico/Transporte", METABOLICO:"Metabolico" };
-  const CAR_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
+  const PAT_LABEL = { HIP:"Cadera", KNEE:"Rodilla", PULL_H:"Tiron horiz.",
+    PULL_V:"Tiron vert.", PUSH_H:"Empuje horiz.", PUSH_V:"Empuje vert.",
+    CORE:"Core / estab.", HYBRID:"Hibrido" };
+  const DIN_LABEL = { STRENGTH:"Fuerza/Hipertrofia", BALLISTIC:"Balistico/Potencia",
+    ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
+  const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
-  // --- Catalogo base (24) -------------------------------------------------
-  function ej(nombre, patron, dinamica, simetria, snc, equip, agarre, carga) {
-    return { nombre, patron, dinamica, simetria, snc, equip,
-             agarre: !!agarre, carga: carga || CAR.MEDIA, tier: TIER.ACCESORIO };
+  // --- Base catalog (32) -------------------------------------------------
+  function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
+    return { name, pattern, dynamics, symmetry, cns, equipment,
+             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY };
   }
-  const CATALOGO_BASE = [
-    ej("Peso Muerto Rumano / Fijo", PAT.CADERA, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.PESADA),
-    ej("Kettlebell Swings (Dos manos)", PAT.CADERA, DIN.BALISTICO, SIM.BILATERAL, SNC.ALTA, [EQ.KB], true, CAR.PESADA),
-    ej("Alternating Swings", PAT.CADERA, DIN.BALISTICO, SIM.ALTERNO, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Swing Cleans", PAT.HIBRIDO, DIN.BALISTICO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Dead Cleans", PAT.HIBRIDO, DIN.BALISTICO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Sentadilla Goblet", PAT.RODILLA, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.PESADA),
-    ej("Goblet Clean Squat", PAT.HIBRIDO, DIN.BALISTICO, SIM.BILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Pit Squats", PAT.RODILLA, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.PESADA),
-    ej("Alt Lunges", PAT.RODILLA, DIN.FUERZA, SIM.ALTERNO, SNC.MEDIA, [EQ.KB], false, CAR.MEDIA),
-    ej("Remo a una mano", PAT.TIRON_H, DIN.FUERZA, SIM.UNILATERAL, SNC.MEDIA, [EQ.KB], true, CAR.MEDIA),
-    ej("Two Hand Row", PAT.TIRON_H, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], true, CAR.MEDIA),
-    ej("Bent Rows (Alternating)", PAT.TIRON_H, DIN.FUERZA, SIM.ALTERNO, SNC.MEDIA, [EQ.KB], true, CAR.MEDIA),
-    ej("Upright Row", PAT.TIRON_V, DIN.FUERZA, SIM.BILATERAL, SNC.BAJA, [EQ.KB], false, CAR.LIGERA),
-    ej("Dominadas Neutras", PAT.TIRON_V, DIN.FUERZA, SIM.BILATERAL, SNC.ALTA, [EQ.BARRA], true, CAR.MEDIA),
-    ej("Clean & Press Combinado", PAT.HIBRIDO, DIN.BALISTICO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Goblet Shoulder Press", PAT.EMPUJE_V, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.LIGERA),
-    ej("Rotational Press", PAT.EMPUJE_V, DIN.FUERZA, SIM.UNILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.LIGERA),
-    ej("Dead Clean Push Press", PAT.HIBRIDO, DIN.BALISTICO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Close Grip Pushup", PAT.EMPUJE_H, DIN.FUERZA, SIM.BILATERAL, SNC.MEDIA, [EQ.SUELO], false, CAR.MEDIA),
-    ej("Halos", PAT.CORE, DIN.ISO, SIM.BILATERAL, SNC.BAJA, [EQ.KB], false, CAR.LIGERA),
-    ej("Kneeling Around The Worlds", PAT.CORE, DIN.ISO, SIM.BILATERAL, SNC.BAJA, [EQ.KB], false, CAR.LIGERA),
-    ej("Half-Racked Marches", PAT.CORE, DIN.ISO, SIM.UNILATERAL, SNC.BAJA, [EQ.KB], true, CAR.MEDIA),
-    ej("Goblet Overhead March", PAT.CORE, DIN.ISO, SIM.BILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.LIGERA),
-    ej("Burpees", PAT.HIBRIDO, DIN.METABOLICO, SIM.BILATERAL, SNC.ALTA, [EQ.SUELO], false, CAR.LIGERA),
-    // --- Ampliacion: clasicos con una sola kettlebell ---
-    ej("Turkish Get-Up", PAT.CORE, DIN.ISO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("One-Arm Snatch", PAT.HIBRIDO, DIN.BALISTICO, SIM.UNILATERAL, SNC.ALTA, [EQ.KB], true, CAR.MEDIA),
-    ej("Windmill", PAT.CORE, DIN.ISO, SIM.UNILATERAL, SNC.MEDIA, [EQ.KB], true, CAR.LIGERA),
-    ej("Bottoms-Up Press", PAT.EMPUJE_V, DIN.FUERZA, SIM.UNILATERAL, SNC.MEDIA, [EQ.KB], true, CAR.LIGERA),
-    ej("Single-Leg Deadlift", PAT.CADERA, DIN.FUERZA, SIM.UNILATERAL, SNC.MEDIA, [EQ.KB], false, CAR.MEDIA),
-    ej("Suitcase Carry", PAT.CORE, DIN.ISO, SIM.UNILATERAL, SNC.BAJA, [EQ.KB], true, CAR.MEDIA),
-    ej("Thruster", PAT.HIBRIDO, DIN.METABOLICO, SIM.BILATERAL, SNC.ALTA, [EQ.KB], false, CAR.MEDIA),
-    ej("Figure-8", PAT.CORE, DIN.METABOLICO, SIM.ALTERNO, SNC.MEDIA, [EQ.KB], true, CAR.LIGERA),
+  const BASE_CATALOG = [
+    exercise("Peso Muerto Rumano / Fijo", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
+    exercise("Kettlebell Swings (Dos manos)", PAT.HIP, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.HEAVY),
+    exercise("Alternating Swings", PAT.HIP, DIN.BALLISTIC, SIM.ALTERNATING, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Swing Cleans", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Dead Cleans", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Sentadilla Goblet", PAT.KNEE, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
+    exercise("Goblet Clean Squat", PAT.HYBRID, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Pit Squats", PAT.KNEE, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
+    exercise("Alt Lunges", PAT.KNEE, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Remo a una mano", PAT.PULL_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Two Hand Row", PAT.PULL_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Bent Rows (Alternating)", PAT.PULL_H, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Upright Row", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Dominadas Neutras", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.HIGH, [EQ.BARBELL], true, LOAD_TIER.MEDIUM),
+    exercise("Clean & Press Combinado", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Goblet Shoulder Press", PAT.PUSH_V, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Rotational Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Dead Clean Push Press", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Close Grip Pushup", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.FLOOR], false, LOAD_TIER.MEDIUM),
+    exercise("Halos", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Kneeling Around The Worlds", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Half-Racked Marches", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Goblet Overhead March", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Burpees", PAT.HYBRID, DIN.METABOLIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
+    // --- Extension: classics with a single kettlebell ---
+    exercise("Turkish Get-Up", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("One-Arm Snatch", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Windmill", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
+    exercise("Bottoms-Up Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
+    exercise("Single-Leg Deadlift", PAT.HIP, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Suitcase Carry", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Thruster", PAT.HYBRID, DIN.METABOLIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Figure-8", PAT.CORE, DIN.METABOLIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
   ];
 
-  // Tier: ejercicios fundamentales (compuestos, multiarticulares, alto valor) y opcionales.
-  const _FUNDAMENTALES = new Set([
+  // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.
+  const _CORE_EXERCISES = new Set([
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Sentadilla Goblet",
     "Goblet Clean Squat", "Clean & Press Combinado", "Dead Clean Push Press",
     "Thruster", "One-Arm Snatch", "Turkish Get-Up",
   ]);
-  const _OPCIONALES = new Set([
+  const _OPTIONAL_EXERCISES = new Set([
     "Upright Row", "Halos", "Kneeling Around The Worlds", "Figure-8", "Rotational Press",
   ]);
-  CATALOGO_BASE.forEach(e => {
-    e.tier = _FUNDAMENTALES.has(e.nombre) ? TIER.FUNDAMENTAL
-           : _OPCIONALES.has(e.nombre) ? TIER.OPCIONAL : TIER.ACCESORIO;
+  BASE_CATALOG.forEach(e => {
+    e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL
+           : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
   });
 
-  // --- Volumen y modelo de tiempo -----------------------------------------
-  function clasificarVolumen(reps) { return reps <= 5 ? RAN.FP : reps <= 11 ? RAN.HIP : RAN.MET; }
+  // --- Volume and time model -----------------------------------------
+  function classifyVolume(reps) { return reps <= 5 ? REP_RANGE.SP : reps <= 11 ? REP_RANGE.HP : REP_RANGE.ME; }
 
-  const TEMPO = { FUERZA:3.0, BALISTICO:1.2, METABOLICO:2.0, ISO:0.0 };
-  const DESCANSO = { FP:150, HIP:75, MET:40 };
-  const HOLD_ISO = 35, TRANS_SS = 20;
-  const LIMITES_SERIES = { FP:[3,6], HIP:[3,5], MET:[3,5] };
+  const TEMPO = { STRENGTH:3.0, BALLISTIC:1.2, METABOLIC:2.0, ISO:0.0 };
+  const REST_TIME = { SP:150, HP:75, ME:40 };
+  const HOLD_ISO = 35, SS_TRANSITION = 20;
+  const SETS_RANGE = { SP:[3,6], HP:[3,5], ME:[3,5] };
 
-  function trabajoSerie(e, reps) { return e.dinamica === DIN.ISO ? HOLD_ISO : reps * TEMPO[e.dinamica]; }
-  function descansoSerie(reps) { return DESCANSO[clasificarVolumen(reps)]; }
+  function setWorkSec(e, reps) { return e.dynamics === DIN.ISO ? HOLD_ISO : reps * TEMPO[e.dynamics]; }
+  function setRestSec(reps) { return REST_TIME[classifyVolume(reps)]; }
 
-  function tiempoElementoSeg(el) {
-    const s = el.prescripciones[0].series;
-    if (el.esSuperserie) {
-      const [a, b] = el.prescripciones;
-      const work = trabajoSerie(a.ej, a.reps) + trabajoSerie(b.ej, b.reps);
-      const rest = Math.max(descansoSerie(a.reps), descansoSerie(b.reps)) * 0.5;
-      return s * (work + rest + TRANS_SS);
+  function elementTimeSec(el) {
+    const s = el.prescriptions[0].sets;
+    if (el.isSuperset) {
+      const [a, b] = el.prescriptions;
+      const work = setWorkSec(a.exercise, a.reps) + setWorkSec(b.exercise, b.reps);
+      const rest = Math.max(setRestSec(a.reps), setRestSec(b.reps)) * 0.5;
+      return s * (work + rest + SS_TRANSITION);
     }
-    const p = el.prescripciones[0];
-    return s * (trabajoSerie(p.ej, p.reps) + descansoSerie(p.reps));
+    const p = el.prescriptions[0];
+    return s * (setWorkSec(p.exercise, p.reps) + setRestSec(p.reps));
   }
-  function duracionRutinaMin(rutina) {
-    let t = 0; rutina.bloques.forEach(br => br.elementos.forEach(el => t += tiempoElementoSeg(el)));
+  function routineDurationMin(routine) {
+    let t = 0; routine.blocks.forEach(br => br.elements.forEach(el => t += elementTimeSec(el)));
     return Math.round(t / 60);
   }
-  function duracionBloqueMin(br) {
-    return Math.round(br.elementos.reduce((a, el) => a + tiempoElementoSeg(el), 0) / 60);
+  function blockDurationMin(br) {
+    return Math.round(br.elements.reduce((a, el) => a + elementTimeSec(el), 0) / 60);
   }
 
-  // --- Antagonismo --------------------------------------------------------
-  const FAM_EMPUJE = new Set([PAT.EMPUJE_H, PAT.EMPUJE_V]);
-  const FAM_TIRON = new Set([PAT.TIRON_H, PAT.TIRON_V]);
-  const FAM_PIERNA = new Set([PAT.CADERA, PAT.RODILLA]);
-  function sonAntagonistas(p1, p2) {
+  // --- Antagonism --------------------------------------------------------
+  const PUSH_FAMILY = new Set([PAT.PUSH_H, PAT.PUSH_V]);
+  const PULL_FAMILY = new Set([PAT.PULL_H, PAT.PULL_V]);
+  const LEG_FAMILY = new Set([PAT.HIP, PAT.KNEE]);
+  function areAntagonists(p1, p2) {
     if (p1 === PAT.CORE || p2 === PAT.CORE) return true;
-    if (FAM_PIERNA.has(p1) && FAM_PIERNA.has(p2) && p1 !== p2) return true;
-    return (FAM_EMPUJE.has(p1) && FAM_TIRON.has(p2)) || (FAM_TIRON.has(p1) && FAM_EMPUJE.has(p2));
+    if (LEG_FAMILY.has(p1) && LEG_FAMILY.has(p2) && p1 !== p2) return true;
+    return (PUSH_FAMILY.has(p1) && PULL_FAMILY.has(p2)) || (PULL_FAMILY.has(p1) && PUSH_FAMILY.has(p2));
   }
-  function esDescansoActivo(e) { return e.patron === PAT.CORE && e.snc === SNC.BAJA; }
+  function isActiveRest(e) { return e.pattern === PAT.CORE && e.cns === CNS.LOW; }
 
   // --- RuleEngine ---------------------------------------------------------
-  function R(valida, calidad, motivos) { return { valida, calidad, motivos }; }
-  function rango(p) { return clasificarVolumen(p.reps); }
+  function makeResult(valid, quality, reasons) { return { valid, quality, reasons }; }
+  function repRange(p) { return classifyVolume(p.reps); }
 
-  function validarCombinacion(a, b) {
-    if (a.bloque !== b.bloque) return R(false, CAL.INVALIDA, ["Bloques distintos; no forman superserie."]);
-    if (a.bloque === BLO.A) return validarA(a, b);
-    if (a.bloque === BLO.B) return validarB(a, b);
-    return R(true, CAL.OPTIMA, ["Finalizador: combinacion libre."]);
+  function validateCombination(a, b) {
+    if (a.block !== b.block) return makeResult(false, QUALITY.INVALID, ["Different blocks; they do not form a superset."]);
+    if (a.block === BLOCK.A) return validateBlockA(a, b);
+    if (a.block === BLOCK.B) return validateBlockB(a, b);
+    return makeResult(true, QUALITY.OPTIMAL, ["Finalizador: combinacion libre."]);
   }
-  function validarA(a, b) {
-    const ea = a.ej, eb = b.ej;
-    if (ea.snc === SNC.ALTA && eb.snc === SNC.ALTA)
-      return R(false, CAL.INVALIDA, ["Dos de SNC alta degradan la fuerza/potencia."]);
-    if (ea.agarre && eb.agarre && ea.dinamica === DIN.BALISTICO && eb.dinamica === DIN.BALISTICO)
-      return R(false, CAL.INVALIDA, ["Dos balisticos de agarre: fallo de agarre prematuro."]);
-    const rangos = new Set([rango(a), rango(b)]);
-    if (rangos.has(RAN.FP) && rangos.has(RAN.MET))
-      return R(false, CAL.INVALIDA, ["Fuerza 1-5 + metabolico 12+: interferencia."]);
-    if (ea.patron === eb.patron && ea.patron !== PAT.CORE)
-      return R(false, CAL.INVALIDA, ["Mismo patron: fatiga local, no antagonista."]);
-    if (esDescansoActivo(ea) !== esDescansoActivo(eb))
-      return R(true, CAL.OPTIMA, ["Lift principal + core de baja demanda: descanso activo ideal."]);
-    if (sonAntagonistas(ea.patron, eb.patron))
-      return R(true, CAL.OPTIMA, ["Superserie antagonista (APS): el grupo en reposo se recupera."]);
-    return R(true, CAL.ACEPTABLE, ["Viable, pero no antagonista: prioriza pares opuestos."]);
+  function validateBlockA(a, b) {
+    const ea = a.exercise, eb = b.exercise;
+    if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
+      return makeResult(false, QUALITY.INVALID, ["Dos de SNC alta degradan la fuerza/potencia."]);
+    if (ea.grip && eb.grip && ea.dynamics === DIN.BALLISTIC && eb.dynamics === DIN.BALLISTIC)
+      return makeResult(false, QUALITY.INVALID, ["Dos balisticos de agarre: fallo de agarre prematuro."]);
+    const ranges = new Set([repRange(a), repRange(b)]);
+    if (ranges.has(REP_RANGE.SP) && ranges.has(REP_RANGE.ME))
+      return makeResult(false, QUALITY.INVALID, ["Fuerza 1-5 + metabolico 12+: interferencia."]);
+    if (ea.pattern === eb.pattern && ea.pattern !== PAT.CORE)
+      return makeResult(false, QUALITY.INVALID, ["Mismo patron: fatiga local, no antagonista."]);
+    if (isActiveRest(ea) !== isActiveRest(eb))
+      return makeResult(true, QUALITY.OPTIMAL, ["Lift principal + core de baja demanda: descanso activo ideal."]);
+    if (areAntagonists(ea.pattern, eb.pattern))
+      return makeResult(true, QUALITY.OPTIMAL, ["Superserie antagonista (APS): el grupo en reposo se recupera."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Viable, pero no antagonista: prioriza pares opuestos."]);
   }
-  function validarB(a, b) {
-    const ea = a.ej, eb = b.ej;
-    if (ea.agarre && eb.agarre && ea.dinamica === DIN.BALISTICO && eb.dinamica === DIN.BALISTICO)
-      return R(true, CAL.ACEPTABLE, ["Riesgo de agarre; reduce reps o intercala core."]);
-    if (sonAntagonistas(ea.patron, eb.patron))
-      return R(true, CAL.OPTIMA, ["Par antagonista en accesorios: eficiente."]);
-    if (ea.patron === eb.patron && new Set([rango(a), rango(b)]).has(RAN.HIP))
-      return R(true, CAL.ACEPTABLE, ["Mismo patron en hipertrofia: volumen dirigido."]);
-    return R(true, CAL.ACEPTABLE, ["Combinacion de accesorios aceptable."]);
+  function validateBlockB(a, b) {
+    const ea = a.exercise, eb = b.exercise;
+    if (ea.grip && eb.grip && ea.dynamics === DIN.BALLISTIC && eb.dynamics === DIN.BALLISTIC)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Riesgo de agarre; reduce reps o intercala core."]);
+    if (areAntagonists(ea.pattern, eb.pattern))
+      return makeResult(true, QUALITY.OPTIMAL, ["Par antagonista en accesorios: eficiente."]);
+    if (ea.pattern === eb.pattern && new Set([repRange(a), repRange(b)]).has(REP_RANGE.HP))
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Mismo patron en hipertrofia: volumen dirigido."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Combinacion de accesorios aceptable."]);
   }
 
-  // --- Presupuesto de fatiga ---------------------------------------------
-  function nuevoPresupuesto(maxSnc, maxAgarre) {
+  // --- Fatigue budget ---------------------------------------------
+  function newFatigueBudget(maxCns, maxGrip) {
     return {
-      maxSnc, maxAgarre, snc: 0, agarre: 0,
-      _ag(e) { return e.agarre && e.dinamica === DIN.BALISTICO; },
-      permite(e) {
-        if (e.snc === SNC.ALTA && this.snc >= this.maxSnc) return false;
-        if (this._ag(e) && this.agarre >= this.maxAgarre) return false;
+      maxCns, maxGrip, cns: 0, grip: 0,
+      _grip(e) { return e.grip && e.dynamics === DIN.BALLISTIC; },
+      allows(e) {
+        if (e.cns === CNS.HIGH && this.cns >= this.maxCns) return false;
+        if (this._grip(e) && this.grip >= this.maxGrip) return false;
         return true;
       },
-      consumir(e) { if (e.snc === SNC.ALTA) this.snc++; if (this._ag(e)) this.agarre++; },
-      snapshot() { return [this.snc, this.agarre]; },
-      restore(s) { this.snc = s[0]; this.agarre = s[1]; },
+      consume(e) { if (e.cns === CNS.HIGH) this.cns++; if (this._grip(e)) this.grip++; },
+      snapshot() { return [this.cns, this.grip]; },
+      restore(s) { this.cns = s[0]; this.grip = s[1]; },
     };
   }
 
-  // --- Balance de patrones -----------------------------------------------
-  const CATEG = {
-    EMPUJE_H:"EMPUJE", EMPUJE_V:"EMPUJE", TIRON_H:"TIRON", TIRON_V:"TIRON",
-    CADERA:"CADERA", RODILLA:"RODILLA", CORE:"NEUTRO", HIBRIDO:"NEUTRO",
+  // --- Pattern balance -----------------------------------------------
+  const PAT_CATEGORY = {
+    PUSH_H:"PUSH", PUSH_V:"PUSH", PULL_H:"PULL", PULL_V:"PULL",
+    HIP:"HIP", KNEE:"KNEE", CORE:"NEUTRAL", HYBRID:"NEUTRAL",
   };
-  const ANTAG_CAT = { EMPUJE:"TIRON", TIRON:"EMPUJE", CADERA:"RODILLA", RODILLA:"CADERA" };
+  const ANTAGONIST_CAT = { PUSH:"PULL", PULL:"PUSH", HIP:"KNEE", KNEE:"HIP" };
 
-  function nuevoBalance(modo, tol) {
+  function newBalanceTracker(mode, tol) {
     return {
-      modo, tol: tol == null ? 1 : tol, conteo: {},
-      _cat(e) { return CATEG[e.patron]; },
-      _n(c) { return this.conteo[c] || 0; },
-      permite(e) {
-        if (this.modo !== "DURO") return true;
-        const c = this._cat(e); if (c === "NEUTRO") return true;
-        return (this._n(c) + 1) - this._n(ANTAG_CAT[c]) <= this.tol;
+      mode, tol: tol == null ? 1 : tol, count: {},
+      _cat(e) { return PAT_CATEGORY[e.pattern]; },
+      _n(c) { return this.count[c] || 0; },
+      allows(e) {
+        if (this.mode !== "HARD") return true;
+        const c = this._cat(e); if (c === "NEUTRAL") return true;
+        return (this._n(c) + 1) - this._n(ANTAGONIST_CAT[c]) <= this.tol;
       },
       bonus(e) {
-        if (this.modo === "NINGUNO") return 0;
-        const c = this._cat(e); if (c === "NEUTRO") return 0;
-        return Math.max(0, this._n(ANTAG_CAT[c]) - this._n(c));
+        if (this.mode === "NONE") return 0;
+        const c = this._cat(e); if (c === "NEUTRAL") return 0;
+        return Math.max(0, this._n(ANTAGONIST_CAT[c]) - this._n(c));
       },
-      registrar(e) { const c = this._cat(e); if (c !== "NEUTRO") this.conteo[c] = this._n(c) + 1; },
-      snapshot() { return Object.assign({}, this.conteo); },
-      restore(s) { this.conteo = Object.assign({}, s); },
+      register(e) { const c = this._cat(e); if (c !== "NEUTRAL") this.count[c] = this._n(c) + 1; },
+      snapshot() { return Object.assign({}, this.count); },
+      restore(s) { this.count = Object.assign({}, s); },
     };
   }
 
-  // --- Plantillas ---------------------------------------------------------
-  function esquema(bloque, n, series, reps, dins, emparejar) {
-    return { bloque, n, series, reps, dins: new Set(dins), emparejar: emparejar !== false };
+  // --- Templates ---------------------------------------------------------
+  function schema(block, count, sets, reps, dynamics, pair) {
+    return { block, count, sets, reps, dynamics: new Set(dynamics), pair: pair !== false };
   }
-  const PLANTILLAS = {
-    FUERZA: {
-      nombre: "Fuerza (full-body)", maxSnc: 2, maxAgarre: 2,
-      bloques: [
-        esquema(BLO.A, 4, 5, 5, [DIN.FUERZA, DIN.BALISTICO]),
-        esquema(BLO.B, 4, 3, 10, [DIN.FUERZA]),
-        esquema(BLO.C, 2, 3, 15, [DIN.METABOLICO, DIN.BALISTICO]),
+  const TEMPLATES = {
+    STRENGTH: {
+      name: "Fuerza (full-body)", maxCns: 2, maxGrip: 2,
+      blocks: [
+        schema(BLOCK.A, 4, 5, 5, [DIN.STRENGTH, DIN.BALLISTIC]),
+        schema(BLOCK.B, 4, 3, 10, [DIN.STRENGTH]),
+        schema(BLOCK.C, 2, 3, 15, [DIN.METABOLIC, DIN.BALLISTIC]),
       ],
     },
-    METABOLICO: {
-      nombre: "Acondicionamiento metabolico", maxSnc: 4, maxAgarre: 3,
-      bloques: [
-        esquema(BLO.A, 2, 4, 6, [DIN.BALISTICO]),
-        esquema(BLO.B, 4, 3, 12, [DIN.FUERZA, DIN.BALISTICO]),
-        esquema(BLO.C, 2, 4, 20, [DIN.METABOLICO]),
+    METABOLIC: {
+      name: "Acondicionamiento metabolico", maxCns: 4, maxGrip: 3,
+      blocks: [
+        schema(BLOCK.A, 2, 4, 6, [DIN.BALLISTIC]),
+        schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH, DIN.BALLISTIC]),
+        schema(BLOCK.C, 2, 4, 20, [DIN.METABOLIC]),
       ],
     },
   };
 
-  // --- Escalado por minutos ----------------------------------------------
-  function tempoRep(esq) {
-    const dins = [...esq.dins].filter(d => d !== DIN.ISO);
-    const use = dins.length ? dins : [DIN.FUERZA];
+  // --- Scaling by minutes ----------------------------------------------
+  function repTempo(sch) {
+    const dins = [...sch.dynamics].filter(d => d !== DIN.ISO);
+    const use = dins.length ? dins : [DIN.STRENGTH];
     return use.reduce((a, d) => a + TEMPO[d], 0) / use.length;
   }
-  function estimarEsquemaSeg(esq) {
-    const work = esq.reps * tempoRep(esq);
-    const rest = DESCANSO[clasificarVolumen(esq.reps)];
-    const restEf = esq.emparejar ? rest * 0.6 : rest;
-    return esq.n * esq.series * (work + restEf);
+  function estimateSchemaSec(sch) {
+    const work = sch.reps * repTempo(sch);
+    const rest = REST_TIME[classifyVolume(sch.reps)];
+    const restEf = sch.pair ? rest * 0.6 : rest;
+    return sch.count * sch.sets * (work + restEf);
   }
-  function escalarPlantilla(base, minutos) {
-    const objetivo = minutos * 60;
-    const baseTotal = base.bloques.reduce((a, b) => a + estimarEsquemaSeg(b), 0) || 1;
-    const factor = Math.max(0.3, Math.min(2.5, objetivo / baseTotal));
+  function scaleTemplate(base, minutes) {
+    const target = minutes * 60;
+    const baseTotal = base.blocks.reduce((a, b) => a + estimateSchemaSec(b), 0) || 1;
+    const factor = Math.max(0.3, Math.min(2.5, target / baseTotal));
     const sf = Math.sqrt(factor);
-    const conSeries = base.bloques.map(b => {
-      const [lo, hi] = LIMITES_SERIES[clasificarVolumen(b.reps)];
-      const ns = Math.min(hi, Math.max(lo, Math.round(b.series * sf)));
-      return esquema(b.bloque, b.n, ns, b.reps, [...b.dins], b.emparejar);
+    const withSets = base.blocks.map(b => {
+      const [lo, hi] = SETS_RANGE[classifyVolume(b.reps)];
+      const ns = Math.min(hi, Math.max(lo, Math.round(b.sets * sf)));
+      return schema(b.block, b.count, ns, b.reps, [...b.dynamics], b.pair);
     });
-    const tUnit = conSeries.map(b => estimarEsquemaSeg(esquema(b.bloque, 1, b.series, b.reps, [...b.dins], b.emparejar)));
-    const denom = conSeries.reduce((a, b, i) => a + b.n * tUnit[i], 0) || 1;
-    const k = objetivo / denom;
-    const bloques = conSeries.map(b => esquema(b.bloque, Math.max(1, Math.round(k * b.n)), b.series, b.reps, [...b.dins], b.emparejar));
-    return { nombre: base.nombre, maxSnc: base.maxSnc, maxAgarre: base.maxAgarre, bloques };
+    const tUnit = withSets.map(b => estimateSchemaSec(schema(b.block, 1, b.sets, b.reps, [...b.dynamics], b.pair)));
+    const denom = withSets.reduce((a, b, i) => a + b.count * tUnit[i], 0) || 1;
+    const k = target / denom;
+    const blocks = withSets.map(b => schema(b.block, Math.max(1, Math.round(k * b.count)), b.sets, b.reps, [...b.dynamics], b.pair));
+    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
   }
 
-  // --- RNG sembrado -------------------------------------------------------
+  // --- Seeded RNG -------------------------------------------------------
   function mulberry32(a) {
     return function () {
       a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -308,284 +308,284 @@
     return arr;
   }
 
-  // --- Ensamblador --------------------------------------------------------
-  function prescribir(e, esq) {
-    let reps = esq.reps;
-    if (e.dinamica === DIN.ISO) reps = Math.max(reps, 8);
-    return { ej: e, bloque: esq.bloque, series: esq.series, reps };
+  // --- Assembler --------------------------------------------------------
+  function prescribe(e, sch) {
+    let reps = sch.reps;
+    if (e.dynamics === DIN.ISO) reps = Math.max(reps, 8);
+    return { exercise: e, block: sch.block, sets: sch.sets, reps };
   }
-  function prioridad(e, esq, bal) {
+  function priority(e, sch, bal) {
     let s = 0;
-    if (esq.dins.has(e.dinamica)) s += 4;
-    if (esq.bloque === BLO.A && e.patron !== PAT.CORE) s += 2;
+    if (sch.dynamics.has(e.dynamics)) s += 4;
+    if (sch.block === BLOCK.A && e.pattern !== PAT.CORE) s += 2;
     s += 2 * bal.bonus(e);
-    if (bal.foco && bal.foco.has(e.patron)) s += 6;   // foco muscular: domina la seleccion
-    s += TIER_BONUS[e.tier] || 0;                     // fundamentales arriba, opcionales abajo
-    if (bal.recientes) s -= (bal.recientes[e.nombre] || 0);  // evitar repetir lo reciente
+    if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
+    s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
+    if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     return s;
   }
 
-  // Sugerencia de kg para una pesa ajustable: mapea el tier de carga (ligera/
-  // media/pesada) dentro del rango disponible del usuario, redondeado a 2 kg.
-  function sugerirKg(carga, min, max) {
+  // Kg suggestion for an adjustable kettlebell: maps the load tier (light/
+  // medium/heavy) within the user's available range, rounded to 2 kg.
+  function suggestKg(load, min, max) {
     if (min == null || max == null) return null;
-    const frac = { 1: 0.15, 2: 0.5, 3: 0.85 }[carga];
+    const frac = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
     const kg = Math.round((min + (frac == null ? 0.5 : frac) * (max - min)) / 2) * 2;
     return Math.max(min, Math.min(max, kg));
   }
 
-  // Aviso de carga relativa: "bajo" = la pesa se queda corta para el ejercicio;
-  // "alto" = la pesa es excesiva para un movimiento ligero/tecnico.
-  function cargaAviso(carga, pesoKb) {
-    if (!pesoKb) return null;
-    const d = carga - pesoKb;
-    if (d >= 2) return "bajo";
-    if (d <= -2) return "alto";
+  // Load warning: "low" = the kettlebell is too light for the exercise;
+  // "high" = the kettlebell is excessive for a light/technical movement.
+  function loadWarning(load, weightKb) {
+    if (!weightKb) return null;
+    const d = load - weightKb;
+    if (d >= 2) return "low";
+    if (d <= -2) return "high";
     return null;
   }
-  function serie(presc, calidad, nota) {
-    return { prescripciones: presc, calidad, nota, esSuperserie: presc.length === 2 };
+  function makeSlot(prescriptions, quality, note) {
+    return { prescriptions, quality, note, isSuperset: prescriptions.length === 2 };
   }
 
-  function filtrarEquipo(pool, disp) {
-    const set = new Set(disp); set.add(EQ.SUELO);
-    return pool.filter(e => e.equip.every(q => set.has(q)));
+  function filterByEquipment(pool, available) {
+    const set = new Set(available); set.add(EQ.FLOOR);
+    return pool.filter(e => e.equipment.every(q => set.has(q)));
   }
 
-  function elegirPartner(pa, cands, esq, pres, bal) {
-    let mejor = null, key = [-1, -1];
+  function pickPartner(pa, cands, sch, budget, bal) {
+    let best = null, key = [-1, -1];
     for (const c of cands) {
-      if (!pres.permite(c) || !bal.permite(c)) continue;
-      const res = validarCombinacion(pa, prescribir(c, esq));
-      if (!res.valida) continue;
-      const k = [res.calidad, bal.bonus(c)];
-      if (k[0] > key[0] || (k[0] === key[0] && k[1] > key[1])) { mejor = c; key = k; }
+      if (!budget.allows(c) || !bal.allows(c)) continue;
+      const res = validateCombination(pa, prescribe(c, sch));
+      if (!res.valid) continue;
+      const k = [res.quality, bal.bonus(c)];
+      if (k[0] > key[0] || (k[0] === key[0] && k[1] > key[1])) { best = c; key = k; }
     }
-    return mejor;
+    return best;
   }
 
-  // Coloca primero los ejercicios fijados por el usuario (con pareja si procede).
-  function preplace(obligatorios, esq, pool, usados, pres, bal, rng, reservados) {
-    reservados = reservados || new Set();
-    const elementos = [];
-    const pend = (obligatorios || []).filter(e => !usados.has(e));
-    for (let i = 0; i < pend.length; i++) {
-      const prim = pend[i];
-      if (usados.has(prim)) continue;
-      usados.add(prim); pres.consumir(prim); bal.registrar(prim);
-      const pa = prescribir(prim, esq);
-      let part = null;
-      if (esq.emparejar) {
-        const otrosFijados = pend.slice(i + 1).filter(e => !usados.has(e));
-        part = elegirPartner(pa, otrosFijados, esq, pres, bal);
-        if (!part) {
-          const libres = pool.filter(e => !usados.has(e) && !reservados.has(e) && !pend.includes(e));
-          part = elegirPartner(pa, libres, esq, pres, bal);
+  // Places pinned exercises first (with partner if applicable).
+  function preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved) {
+    reserved = reserved || new Set();
+    const elements = [];
+    const pending = (pinned || []).filter(e => !used.has(e));
+    for (let i = 0; i < pending.length; i++) {
+      const first = pending[i];
+      if (used.has(first)) continue;
+      used.add(first); budget.consume(first); bal.register(first);
+      const pa = prescribe(first, sch);
+      let partner = null;
+      if (sch.pair) {
+        const otherPinned = pending.slice(i + 1).filter(e => !used.has(e));
+        partner = pickPartner(pa, otherPinned, sch, budget, bal);
+        if (!partner) {
+          const free = pool.filter(e => !used.has(e) && !reserved.has(e) && !pending.includes(e));
+          partner = pickPartner(pa, free, sch, budget, bal);
         }
       }
-      if (part) {
-        usados.add(part); pres.consumir(part); bal.registrar(part);
-        const res = validarCombinacion(pa, prescribir(part, esq));
-        elementos.push(serie([pa, prescribir(part, esq)], res.calidad, "Fijado · " + res.motivos.join(" | ")));
+      if (partner) {
+        used.add(partner); budget.consume(partner); bal.register(partner);
+        const res = validateCombination(pa, prescribe(partner, sch));
+        elements.push(makeSlot([pa, prescribe(partner, sch)], res.quality, "Fijado · " + res.reasons.join(" | ")));
       } else {
-        elementos.push(serie([pa], CAL.ACEPTABLE, "Fijado · set directo."));
+        elements.push(makeSlot([pa], QUALITY.ACCEPTABLE, "Fijado · set directo."));
       }
     }
-    return elementos;
+    return elements;
   }
 
-  function armarGreedy(esq, pool, usados, pres, bal, rng, obligatorios, reservados) {
-    reservados = reservados || new Set();
-    const elementos = preplace(obligatorios, esq, pool, usados, pres, bal, rng, reservados);
-    let colocados = elementos.reduce((a, el) => a + el.prescripciones.length, 0);
-    const disp = shuffle(pool.filter(e => !usados.has(e) && !reservados.has(e)), rng);
-    while (colocados < esq.n) {
-      const cands = disp.filter(e => !usados.has(e) && pres.permite(e) && bal.permite(e));
+  function buildGreedy(sch, pool, used, budget, bal, rng, pinned, reserved) {
+    reserved = reserved || new Set();
+    const elements = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);
+    let placed = elements.reduce((a, el) => a + el.prescriptions.length, 0);
+    const avail = shuffle(pool.filter(e => !used.has(e) && !reserved.has(e)), rng);
+    while (placed < sch.count) {
+      const cands = avail.filter(e => !used.has(e) && budget.allows(e) && bal.allows(e));
       if (!cands.length) break;
-      let prim = cands[0], best = prioridad(prim, esq, bal);
-      for (const c of cands) { const p = prioridad(c, esq, bal); if (p > best) { best = p; prim = c; } }
-      usados.add(prim); pres.consumir(prim); bal.registrar(prim);
-      const pa = prescribir(prim, esq);
-      if (esq.emparejar && (colocados + 1) < esq.n) {
-        const resto = disp.filter(e => !usados.has(e));
-        const part = elegirPartner(pa, resto, esq, pres, bal);
-        if (part) {
-          usados.add(part); pres.consumir(part); bal.registrar(part);
-          const res = validarCombinacion(pa, prescribir(part, esq));
-          elementos.push(serie([pa, prescribir(part, esq)], res.calidad, res.motivos.join(" | ")));
-          colocados += 2; continue;
+      let first = cands[0], best = priority(first, sch, bal);
+      for (const c of cands) { const p = priority(c, sch, bal); if (p > best) { best = p; first = c; } }
+      used.add(first); budget.consume(first); bal.register(first);
+      const pa = prescribe(first, sch);
+      if (sch.pair && (placed + 1) < sch.count) {
+        const rest = avail.filter(e => !used.has(e));
+        const partner = pickPartner(pa, rest, sch, budget, bal);
+        if (partner) {
+          used.add(partner); budget.consume(partner); bal.register(partner);
+          const res = validateCombination(pa, prescribe(partner, sch));
+          elements.push(makeSlot([pa, prescribe(partner, sch)], res.quality, res.reasons.join(" | ")));
+          placed += 2; continue;
         }
       }
-      elementos.push(serie([pa], CAL.ACEPTABLE, "Set directo: sin pareja antagonista disponible."));
-      colocados += 1;
+      elements.push(makeSlot([pa], QUALITY.ACCEPTABLE, "Set directo: sin pareja antagonista disponible."));
+      placed += 1;
     }
-    return { bloque: esq.bloque, elementos };
+    return { block: sch.block, elements };
   }
 
-  function armarBacktrack(esq, pool, usados, pres, bal, rng, obligatorios, reservados) {
-    reservados = reservados || new Set();
-    const objetivo = esq.n;
-    const aplicar = e => { usados.add(e); pres.consumir(e); bal.registrar(e); };
-    const pre = preplace(obligatorios, esq, pool, usados, pres, bal, rng, reservados);  // fijados ya consumidos
-    const disp = shuffle(pool.filter(e => !usados.has(e) && !reservados.has(e)), rng);
-    const LIMITE = 4000, BP = 8, BPART = 6;
-    const validos = () => disp.filter(e => !usados.has(e) && pres.permite(e) && bal.permite(e));
-    const nColoc = els => els.reduce((a, el) => a + el.prescripciones.length, 0);
-    const score = els => [nColoc(els), els.reduce((a, el) => a + el.calidad, 0)];
+  function buildBacktrack(sch, pool, used, budget, bal, rng, pinned, reserved) {
+    reserved = reserved || new Set();
+    const target = sch.count;
+    const apply = e => { used.add(e); budget.consume(e); bal.register(e); };
+    const pre = preplaceFixed(pinned, sch, pool, used, budget, bal, rng, reserved);  // pinned already consumed
+    const avail = shuffle(pool.filter(e => !used.has(e) && !reserved.has(e)), rng);
+    const LIMIT = 4000, BP = 8, BPART = 6;
+    const valid = () => avail.filter(e => !used.has(e) && budget.allows(e) && bal.allows(e));
+    const nPlaced = els => els.reduce((a, el) => a + el.prescriptions.length, 0);
+    const score = els => [nPlaced(els), els.reduce((a, el) => a + el.quality, 0)];
 
-    function genMoves(restantes) {
-      const cands = validos().sort((x, y) => prioridad(y, esq, bal) - prioridad(x, esq, bal)).slice(0, BP);
+    function genMoves(remaining) {
+      const cands = valid().sort((x, y) => priority(y, sch, bal) - priority(x, sch, bal)).slice(0, BP);
       const moves = [];
-      if (esq.emparejar && restantes >= 2) {
-        for (const prim of cands) {
-          const sb = bal.snapshot(), sp = pres.snapshot();
-          aplicar(prim);
-          const pa = prescribir(prim, esq);
+      if (sch.pair && remaining >= 2) {
+        for (const first of cands) {
+          const sb = bal.snapshot(), sp = budget.snapshot();
+          apply(first);
+          const pa = prescribe(first, sch);
           const partners = [];
-          for (const part of validos()) {
-            if (part === prim) continue;
-            const res = validarCombinacion(pa, prescribir(part, esq));
-            if (res.valida) partners.push([res.calidad, bal.bonus(part), part, res]);
+          for (const part of valid()) {
+            if (part === first) continue;
+            const res = validateCombination(pa, prescribe(part, sch));
+            if (res.valid) partners.push([res.quality, bal.bonus(part), part, res]);
           }
           partners.sort((a, b) => (b[0] - a[0]) || (b[1] - a[1]));
-          usados.delete(prim); bal.restore(sb); pres.restore(sp);
+          used.delete(first); bal.restore(sb); budget.restore(sp);
           for (const [, , part, res] of partners.slice(0, BPART))
-            moves.push([[prim, part], serie([prescribir(prim, esq), prescribir(part, esq)], res.calidad, res.motivos.join(" | "))]);
+            moves.push([[first, part], makeSlot([prescribe(first, sch), prescribe(part, sch)], res.quality, res.reasons.join(" | "))]);
         }
       }
-      for (const prim of cands)
-        moves.push([[prim], serie([prescribir(prim, esq)], CAL.ACEPTABLE, "Set directo: sin pareja viable bajo la cuota de balance.")]);
+      for (const first of cands)
+        moves.push([[first], makeSlot([prescribe(first, sch)], QUALITY.ACCEPTABLE, "Set directo: sin pareja viable bajo la cuota de balance.")]);
       return moves;
     }
 
-    let mejor = { els: pre.slice(), score: score(pre) }, nodos = 0;
+    let best = { els: pre.slice(), score: score(pre) }, nodes = 0;
     function dfs(els) {
-      nodos++;
+      nodes++;
       const sc = score(els);
-      if (sc[0] > mejor.score[0] || (sc[0] === mejor.score[0] && sc[1] > mejor.score[1]))
-        mejor = { els: els.slice(), score: sc };
-      if (sc[0] >= objetivo) return true;
-      if (nodos > LIMITE) return false;
-      for (const [exs, el] of genMoves(objetivo - sc[0])) {
-        const sb = bal.snapshot(), sp = pres.snapshot();
-        exs.forEach(aplicar); els.push(el);
+      if (sc[0] > best.score[0] || (sc[0] === best.score[0] && sc[1] > best.score[1]))
+        best = { els: els.slice(), score: sc };
+      if (sc[0] >= target) return true;
+      if (nodes > LIMIT) return false;
+      for (const [exs, el] of genMoves(target - sc[0])) {
+        const sb = bal.snapshot(), sp = budget.snapshot();
+        exs.forEach(apply); els.push(el);
         if (dfs(els)) return true;
-        els.pop(); exs.forEach(e => usados.delete(e)); bal.restore(sb); pres.restore(sp);
+        els.pop(); exs.forEach(e => used.delete(e)); bal.restore(sb); budget.restore(sp);
       }
       return false;
     }
     dfs(pre.slice());
 
-    let relajado = false;
-    if (mejor.score[0] < objetivo) {
-      const tol0 = bal.tol; bal.tol += 1; mejor = { els: pre.slice(), score: score(pre) }; nodos = 0;
-      dfs(pre.slice()); bal.tol = tol0; relajado = true;
+    let relaxed = false;
+    if (best.score[0] < target) {
+      const tol0 = bal.tol; bal.tol += 1; best = { els: pre.slice(), score: score(pre) }; nodes = 0;
+      dfs(pre.slice()); bal.tol = tol0; relaxed = true;
     }
-    const elementos = mejor.els;
-    // los fijados (0..pre.length) ya estan consumidos; aplicar solo lo añadido por el DFS
-    for (let i = pre.length; i < elementos.length; i++)
-      elementos[i].prescripciones.forEach(p => aplicar(p.ej));
-    if (relajado) elementos.forEach(el => { if (!/Fijado/.test(el.nota)) el.nota += "  [+tolerancia: balance relajado para evitar hueco]"; });
-    return { bloque: esq.bloque, elementos };
+    const elements = best.els;
+    // pinned (0..pre.length) already consumed; apply only what DFS added
+    for (let i = pre.length; i < elements.length; i++)
+      elements[i].prescriptions.forEach(p => apply(p.exercise));
+    if (relaxed) elements.forEach(el => { if (!/Fijado/.test(el.note)) el.note += "  [+tolerancia: balance relajado para evitar hueco]"; });
+    return { block: sch.block, elements };
   }
 
-  function inferirBloque(e, plantilla) {
-    for (const b of plantilla.bloques) if (b.dins.has(e.dinamica)) return b.bloque;
-    const ids = plantilla.bloques.map(b => b.bloque);
-    return ids.indexOf(BLO.B) >= 0 ? BLO.B : ids[0];
+  function inferBlock(e, template) {
+    for (const b of template.blocks) if (b.dynamics.has(e.dynamics)) return b.block;
+    const ids = template.blocks.map(b => b.block);
+    return ids.indexOf(BLOCK.B) >= 0 ? BLOCK.B : ids[0];
   }
 
-  function plantillaPorEstructura(base, estructura) {
-    const bloques = base.bloques
-      .filter(b => (estructura[b.bloque] || 0) > 0)
-      .map(b => esquema(b.bloque, estructura[b.bloque], b.series, b.reps, [...b.dins], b.emparejar));
-    return { nombre: base.nombre, maxSnc: base.maxSnc, maxAgarre: base.maxAgarre, bloques };
+  function templateFromStructure(base, structure) {
+    const blocks = base.blocks
+      .filter(b => (structure[b.block] || 0) > 0)
+      .map(b => schema(b.block, structure[b.block], b.sets, b.reps, [...b.dynamics], b.pair));
+    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
   }
 
-  function construirRutina(plantilla, disp, pesoKb, semilla, balance, tol, foco, fijadosNombres, recientes) {
-    const rng = makeRng(semilla);
-    const poolBase = plantilla.__pool || CATALOGO_BASE;
-    const pool = filtrarEquipo(poolBase, disp);
-    const usados = new Set();
-    const pres = nuevoPresupuesto(plantilla.maxSnc, plantilla.maxAgarre);
-    const bal = nuevoBalance(balance || "NINGUNO", tol);
-    bal.foco = foco || null;
-    bal.pesoKb = pesoKb || null;
-    bal.recientes = recientes || null;
+  function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent) {
+    const rng = makeRng(seed);
+    const poolBase = template.__pool || BASE_CATALOG;
+    const pool = filterByEquipment(poolBase, available);
+    const used = new Set();
+    const budget = newFatigueBudget(template.maxCns, template.maxGrip);
+    const bal = newBalanceTracker(balance || "NONE", tol);
+    bal.focus = focus || null;
+    bal.weightKb = weightKb || null;
+    bal.recent = recent || null;
 
-    // Resolver fijados. Cada uno puede ser un nombre (string) o {nombre, bloque}.
-    // bloque "AUTO"/ausente -> inferir por dinamica. Si el bloque pedido no existe
-    // en la plantilla, se infiere y, en ultimo caso, va al primer bloque.
-    const idsPlantilla = plantilla.bloques.map(b => b.bloque);
-    const porBloque = {};
-    (fijadosNombres || []).forEach(f => {
-      const nombre = typeof f === "string" ? f : f.nombre;
-      const pedido = typeof f === "string" ? null : f.bloque;
-      const e = pool.find(x => x.nombre === nombre);
+    // Resolve pinned exercises. Each can be a name (string) or {name, block}.
+    // block "AUTO"/absent -> infer by dynamics. If the requested block does not exist
+    // in the template, it is inferred and, as a last resort, goes to the first block.
+    const templateIds = template.blocks.map(b => b.block);
+    const byBlock = {};
+    (pinnedNames || []).forEach(f => {
+      const name = typeof f === "string" ? f : f.name;
+      const requested = typeof f === "string" ? null : f.block;
+      const e = pool.find(x => x.name === name);
       if (!e) return;
-      let b = (pedido && pedido !== "AUTO" && idsPlantilla.indexOf(pedido) >= 0) ? pedido : inferirBloque(e, plantilla);
-      if (idsPlantilla.indexOf(b) < 0) b = idsPlantilla[0];
-      (porBloque[b] = porBloque[b] || []).push(e);
+      let b = (requested && requested !== "AUTO" && templateIds.indexOf(requested) >= 0) ? requested : inferBlock(e, template);
+      if (templateIds.indexOf(b) < 0) b = templateIds[0];
+      (byBlock[b] = byBlock[b] || []).push(e);
     });
 
-    const reservados = new Set();
-    Object.keys(porBloque).forEach(b => porBloque[b].forEach(e => reservados.add(e)));
+    const reserved = new Set();
+    Object.keys(byBlock).forEach(b => byBlock[b].forEach(e => reserved.add(e)));
 
-    const bloques = plantilla.bloques.map(esq => {
-      const obl = porBloque[esq.bloque] || [];
-      const esqAjustado = obl.length > esq.n
-        ? esquema(esq.bloque, obl.length, esq.series, esq.reps, [...esq.dins], esq.emparejar)
-        : esq;
-      const armar = bal.modo === "DURO" ? armarBacktrack : armarGreedy;
-      return armar(esqAjustado, pool, usados, pres, bal, rng, obl, reservados);
+    const blocks = template.blocks.map(sch => {
+      const pinned = byBlock[sch.block] || [];
+      const schAdjusted = pinned.length > sch.count
+        ? schema(sch.block, pinned.length, sch.sets, sch.reps, [...sch.dynamics], sch.pair)
+        : sch;
+      const build = bal.mode === "HARD" ? buildBacktrack : buildGreedy;
+      return build(schAdjusted, pool, used, budget, bal, rng, pinned, reserved);
     });
-    return { plantilla: plantilla.nombre, bloques };
+    return { template: template.name, blocks };
   }
 
-  // --- API de alto nivel --------------------------------------------------
-  const FOCO_PAT = {
-    PIERNAS: [PAT.CADERA, PAT.RODILLA],
-    EMPUJE: [PAT.EMPUJE_H, PAT.EMPUJE_V],
-    PULL: [PAT.TIRON_H, PAT.TIRON_V],
+  // --- High-level API --------------------------------------------------
+  const FOCUS_PAT = {
+    LEGS: [PAT.HIP, PAT.KNEE],
+    PUSH: [PAT.PUSH_H, PAT.PUSH_V],
+    PULL: [PAT.PULL_H, PAT.PULL_V],
   };
-  const FOCO_LABEL = { FULL: "Full-body", PIERNAS: "Piernas", EMPUJE: "Empuje / hombros", PULL: "Pull / tiron" };
+  const FOCUS_LABEL = { FULL: "Full-body", LEGS: "Piernas", PUSH: "Empuje / hombros", PULL: "Pull / tiron" };
 
-  function generar(pool, opts) {
+  function generate(pool, opts) {
     opts = opts || {};
-    const obj = (opts.objetivo || "FUERZA").toUpperCase();
-    const base = PLANTILLAS[obj] || PLANTILLAS.FUERZA;
+    const obj = (opts.objective || "STRENGTH").toUpperCase();
+    const base = TEMPLATES[obj] || TEMPLATES.STRENGTH;
 
-    let plantilla;
-    if (opts.estructura && Object.values(opts.estructura).some(n => n > 0))
-      plantilla = plantillaPorEstructura(base, opts.estructura);
+    let template;
+    if (opts.structure && Object.values(opts.structure).some(n => n > 0))
+      template = templateFromStructure(base, opts.structure);
     else
-      plantilla = escalarPlantilla(base, opts.minutos || 45);
-    plantilla.maxSnc = base.maxSnc; plantilla.maxAgarre = base.maxAgarre;
-    plantilla.__pool = pool || CATALOGO_BASE;
+      template = scaleTemplate(base, opts.minutes || 45);
+    template.maxCns = base.maxCns; template.maxGrip = base.maxGrip;
+    template.__pool = pool || BASE_CATALOG;
 
-    const focoKey = (opts.foco || "FULL").toUpperCase();
-    const foco = FOCO_PAT[focoKey] ? new Set(FOCO_PAT[focoKey]) : null;
-    // El foco desequilibra a proposito: anula el balance mientras este activo.
-    const balance = foco ? "NINGUNO" : (opts.balance || "NINGUNO").toUpperCase();
+    const focusKey = (opts.focus || "FULL").toUpperCase();
+    const focus = FOCUS_PAT[focusKey] ? new Set(FOCUS_PAT[focusKey]) : null;
+    // Focus intentionally unbalances: it disables balance while active.
+    const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
-    return construirRutina(plantilla, opts.equipo || [EQ.KB], opts.pesoKb || null,
-      opts.semilla == null ? null : opts.semilla, balance,
-      opts.tolerancia == null ? 1 : opts.tolerancia, foco, opts.fijados || [], opts.recientes || null);
+    return buildRoutine(template, opts.equipment || [EQ.KB], opts.weightKb || null,
+      opts.seed == null ? null : opts.seed, balance,
+      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null);
   }
 
-  function nuevoEjercicio(campos) {
-    const e = ej(campos.nombre.trim(), campos.patron, campos.dinamica, campos.simetria,
-      campos.snc, campos.equip, campos.agarre, campos.carga || CAR.MEDIA);
-    e.tier = campos.tier || TIER.ACCESORIO;
+  function newExercise(fields) {
+    const e = exercise(fields.name.trim(), fields.pattern, fields.dynamics, fields.symmetry,
+      fields.cns, fields.equipment, fields.grip, fields.load || LOAD_TIER.MEDIUM);
+    e.tier = fields.tier || TIER.ACCESSORY;
     return e;
   }
 
   const API = {
-    PAT, DIN, SIM, SNC, EQ, CAR, BLO, RAN, CAL, CAL_NOMBRE, TIER, TIER_LABEL,
-    PAT_LABEL, DIN_LABEL, CAR_LABEL, FOCO_LABEL,
-    CATALOGO_BASE, PLANTILLAS,
-    clasificarVolumen, tiempoElementoSeg, duracionRutinaMin, duracionBloqueMin,
-    sonAntagonistas, validarCombinacion, generar, nuevoEjercicio, filtrarEquipo, cargaAviso, sugerirKg,
+    PAT, DIN, SIM, CNS, EQ, LOAD_TIER, BLOCK, REP_RANGE, QUALITY, QUALITY_NAME, TIER, TIER_LABEL,
+    PAT_LABEL, DIN_LABEL, LOAD_LABEL, FOCUS_LABEL,
+    BASE_CATALOG, TEMPLATES,
+    classifyVolume, elementTimeSec, routineDurationMin, blockDurationMin,
+    areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;

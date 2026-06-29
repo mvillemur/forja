@@ -1,5 +1,5 @@
-/* FORJA — Service Worker. Precachea el "app shell" para uso offline.
-   Estrategia: cache-first con fallback a red; si la red falla, sirve el shell. */
+/* FORJA — Service Worker. Pre-caches the "app shell" for offline use.
+   Strategy: cache-first with network fallback; if the network fails, serves the shell. */
 const CACHE = "forja-v1";
 const ASSETS = [
   "./", "./index.html", "./styles.css",

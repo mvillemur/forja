@@ -1,164 +1,163 @@
-# FORJA — Generador de rutinas de kettlebell
+# FORJA — Kettlebell routine generator
 
-App web (PWA) para generar rutinas de entrenamiento con **una sola kettlebell**
-(idealmente ajustable). Funciona **offline**, se **instala** en el movil y guarda
-tu historial en el dispositivo. La logica de programacion deportiva vive en un
-**motor de reglas** en JavaScript puro, separado de la interfaz.
+Web app (PWA) to generate training routines with **a single kettlebell**
+(ideally adjustable). Works **offline**, **installs** on mobile and saves
+your history on the device. The sports programming logic lives in a
+**rules engine** in pure JavaScript, separate from the interface.
 
-No usa frameworks ni dependencias en tiempo de ejecucion: HTML + CSS + JS plano.
-
----
-
-## Caracteristicas
-
-- **Motor de reglas** que arma rutinas en bloques (Principal / Accesorios /
-  Finalizador) con superseries antagonistas, gestion de fatiga y modelo de tiempo.
-- **Objetivo** (fuerza / metabolico) y **foco** muscular (piernas / empuje / pull).
-- **Balance de patrones** (ninguno / suave / duro con backtracking) para equilibrar
-  empuje-tiron y cadera-rodilla.
-- **Volumen por tiempo** (eliges minutos) o **por estructura** (eliges nº de ejercicios).
-- **Fijar ejercicios** concretos y asignarles bloque; el resto se autocompleta.
-- **Variar**: evita repetir lo de sesiones recientes (rota ejercicios).
-- **Pesa ajustable**: define tu rango y cada ejercicio sugiere sus kg.
-- **Pool editable**: añadir, editar y quitar ejercicios (32 de fabrica).
-- **Historial** de sesiones con detalle y marca de completada.
-- **Guia** integrada que explica cada concepto.
+No frameworks or runtime dependencies: plain HTML + CSS + JS.
 
 ---
 
-## Estructura del proyecto
+## Features
+
+- **Rules engine** that builds routines in blocks (Principal / Accesorios /
+  Finalizador) with antagonist supersets, fatigue management and a time model.
+- **Objective** (strength / metabolic) and **muscle focus** (legs / push / pull).
+- **Pattern balance** (none / soft / hard with backtracking) to balance
+  push-pull and hip-knee patterns.
+- **Volume by time** (choose minutes) or **by structure** (choose number of exercises).
+- **Pin exercises** to specific blocks; the rest is auto-completed.
+- **Vary**: avoids repeating recent sessions (rotates exercises).
+- **Adjustable kettlebell**: set your range and each exercise suggests its kg.
+- **Editable pool**: add, edit and remove exercises (32 built-in).
+- **Session history** with detail view and completion mark.
+- **Built-in guide** explaining each concept.
+
+---
+
+## Project structure
 
 ```
 forja/
-├── index.html              App (enlaza estilos y scripts; PWA real)
-├── styles.css              Estilos (tokens de diseno en :root)
-├── manifest.webmanifest    Manifest PWA
-├── sw.js                   Service worker (precache offline del app shell)
+├── index.html              App (links styles and scripts; real PWA)
+├── styles.css              Styles (design tokens in :root)
+├── manifest.webmanifest    PWA manifest
+├── sw.js                   Service worker (offline pre-cache of app shell)
 ├── assets/
-│   └── icon.svg            Icono de la app
+│   └── icon.svg            App icon
 ├── src/
-│   ├── engine.js           MOTOR de reglas (sin DOM). Define window.FORJA.
-│   ├── app.js              INTERFAZ: estado, almacenamiento, render, eventos.
-│   └── pwa.js              Registro del service worker.
-├── build.js                Genera dist/forja.html (version de un solo archivo).
+│   ├── engine.js           Rules ENGINE (no DOM). Defines window.FORJA.
+│   ├── app.js              INTERFACE: state, storage, render, events.
+│   └── pwa.js              Service worker registration.
+├── build.js                Generates dist/forja.html (single-file version).
 ├── dist/
-│   └── forja.html          Build autocontenido (para copiar al movil).
+│   └── forja.html          Self-contained build (to copy to mobile).
 ├── test/
-│   ├── engine.test.js      Pruebas del motor (Node).
-│   └── dom.test.js         Pruebas de interfaz (jsdom).
+│   ├── engine.test.js      Engine tests (Node).
+│   └── dom.test.js         UI tests (jsdom).
 ├── package.json
 └── README.md
 ```
 
-**Separacion clave:** `src/engine.js` no toca el DOM ni el almacenamiento —
-solo recibe datos y devuelve datos. Toda la logica deportiva esta ahi y es
-testeable en Node. `src/app.js` se encarga de pantalla, eventos y persistencia.
+**Key separation:** `src/engine.js` does not touch the DOM or storage —
+it only receives data and returns data. All sports logic is there and is
+testable in Node. `src/app.js` handles screen, events and persistence.
 
 ---
 
-## Desarrollo
+## Development
 
-La app carga scripts y (en modo instalado) un service worker, asi que conviene
-servirla por HTTP en vez de abrir el archivo directamente:
+The app loads scripts and (when installed) a service worker, so it is best
+served over HTTP rather than opening the file directly:
 
 ```bash
 npm run serve          # python3 -m http.server 8000
-# luego abre http://localhost:8000
+# then open http://localhost:8000
 ```
 
-Editas `src/*.js`, `styles.css` o `index.html` y recargas. No hay paso de
-compilacion para desarrollar.
+Edit `src/*.js`, `styles.css` or `index.html` and reload. No build step
+needed for development.
 
-> Nota: abrir `index.html` con `file://` tambien funciona para probar la logica,
-> pero el service worker no se registra bajo `file://` (sin precache offline).
+> Note: opening `index.html` with `file://` also works for testing the logic,
+> but the service worker does not register under `file://` (no offline pre-cache).
 
-### Build de un solo archivo
+### Single-file build
 
-Para llevar la app al movil como un unico fichero (sin servidor):
+To take the app to mobile as a single file (no server needed):
 
 ```bash
-npm run build          # genera dist/forja.html
+npm run build          # generates dist/forja.html
 ```
 
-`dist/forja.html` inlinea CSS y JS y embebe icono/manifest como `data:` URIs.
-Funciona offline al abrirlo porque no depende de la red.
+`dist/forja.html` inlines CSS and JS and embeds icon/manifest as `data:` URIs.
+It works offline when opened because it does not depend on the network.
 
 ### Tests
 
 ```bash
-npm test               # build + pruebas de motor (Node) + UI (jsdom)
+npm test               # build + engine tests (Node) + UI tests (jsdom)
 ```
 
 ---
 
-## Despliegue como PWA
+## Deploying as a PWA
 
-Sube la carpeta (todo menos `node_modules/`) a cualquier hosting estatico con
-HTTPS — por ejemplo **GitHub Pages**:
+Upload the folder (everything except `node_modules/`) to any static hosting
+with HTTPS — for example **GitHub Pages**:
 
-1. Sube el repo a GitHub.
+1. Push the repo to GitHub.
 2. Settings → Pages → Deploy from branch → `main` / `root`.
-3. Abre la URL en el movil y usa **"Añadir a pantalla de inicio"**.
+3. Open the URL on mobile and use **"Add to home screen"**.
 
-Con HTTPS, el service worker (`sw.js`) precachea el app shell y la app abre
-offline e instalada en pantalla completa.
-
----
-
-## Datos y persistencia
-
-Todo se guarda en el dispositivo (no hay servidor). El almacenamiento usa una
-cascada: `window.storage` (si existe) → `localStorage` → memoria.
-
-Claves (`forja:*`):
-
-- `forja:cfg` — configuracion de Generar.
-- `forja:hist` — historial de sesiones.
-- `forja:custom` — ejercicios añadidos por el usuario.
-- `forja:removed` — nombres de ejercicios base ocultados.
-- `forja:overrides` — modificaciones por nombre sobre ejercicios base.
-
-El pool efectivo se **recomputa** desde `FORJA.CATALOGO_BASE` aplicando
-`overrides`, quitando `removed` y añadiendo `custom`. Asi, ampliar el catalogo
-base en el codigo hace aparecer los ejercicios nuevos sin pisar lo del usuario
-(hay migracion automatica desde el formato antiguo de pool completo).
+With HTTPS, the service worker (`sw.js`) pre-caches the app shell and the app
+opens offline and installed in full screen.
 
 ---
 
-## El motor de reglas (resumen tecnico)
+## Data and persistence
 
-`generar(pool, opts)` → elige plantilla por objetivo, la escala (tiempo o
-estructura) y llama a `construirRutina`, que por cada bloque:
+Everything is saved on the device (no server). Storage uses a cascade:
+`window.storage` (if present) → `localStorage` → memory.
 
-- **RuleEngine** (`validarCombinacion`): valida una superserie y le asigna
-  calidad segun el bloque (en A las reglas son estrictas: nada de dos SNC alta,
-  ni dos balisticos de agarre, ni mezclar fuerza con metabolico, ni repetir
-  patron; el par ideal es antagonista o un core de descanso activo).
-- **PresupuestoFatiga**: limita por sesion los ejercicios de SNC alta y los
-  balisticos de agarre.
-- **BalanceTracker** + `prioridad`: reparte patrones (suave/duro), aplica el
-  **foco**, el **tier** (fundamental/accesorio/opcional) y una **penalizacion
-  por uso reciente** (variar).
-- **armarGreedy / armarBacktrack**: seleccion y emparejamiento. El modo de
-  balance DURO usa backtracking para no dejar huecos en la cuota.
-- **preplace**: coloca primero los ejercicios fijados por el usuario.
+Keys (`forja:*`):
 
-Modelo de tiempo: cada serie = trabajo (reps × tempo segun dinamica) + descanso
-(segun rango); en superserie el descanso es compartido. El escalado por minutos
-ajusta series y nº de ejercicios para acercarse a la duracion objetivo.
+- `forja:cfg` — generator configuration.
+- `forja:hist` — session history.
+- `forja:custom` — exercises added by the user.
+- `forja:removed` — names of hidden base exercises.
+- `forja:overrides` — field overrides by name for base exercises.
+
+The effective pool is **recomputed** from `FORJA.BASE_CATALOG` applying
+`overrides`, removing `removed` and adding `custom`. This way, expanding the
+base catalog in code makes new exercises appear without overwriting user data
+(automatic migration from the old full-pool format is included).
+
+---
+
+## The rules engine (technical summary)
+
+`generate(pool, opts)` → picks a template by objective, scales it (time or
+structure) and calls `buildRoutine`, which for each block:
+
+- **RuleEngine** (`validateCombination`): validates a superset and assigns it
+  quality based on the block (in A the rules are strict: no two high-CNS,
+  no two ballistic grip exercises, no mixing strength with metabolic, no
+  repeated pattern; the ideal pair is antagonist or a core active-rest exercise).
+- **FatigueBudget**: limits per session the high-CNS and ballistic grip exercises.
+- **BalanceTracker** + `priority`: distributes patterns (soft/hard), applies
+  **focus**, **tier** (fundamental/accessory/optional) and a **recent-use penalty**
+  (vary).
+- **buildGreedy / buildBacktrack**: selection and pairing. HARD balance mode uses
+  backtracking to avoid gaps in the quota.
+- **preplaceFixed**: places pinned exercises by the user first.
+
+Time model: each set = work (reps × tempo by dynamics) + rest (by rep range);
+in a superset the rest is shared. Scaling by minutes adjusts sets and number
+of exercises to approach the target duration.
 
 ---
 
 ## Roadmap (ideas)
 
-- Iconos PNG ademas del SVG para instalacion tipo tienda.
-- Ayuda en contexto (iconos ⓘ junto a cada control que salten a la Guia).
-- Edicion del bloque sugerido por defecto de cada ejercicio.
-- Exportar/importar datos (backup del historial y del pool).
-- Mas plantillas de objetivo (resistencia de fuerza, tecnica, EMOM/AMRAP).
+- PNG icons in addition to SVG for store-style installation.
+- Contextual help (ⓘ icons next to each control linking to the Guide).
+- Edit the suggested default block for each exercise.
+- Export/import data (history and pool backup).
+- More objective templates (strength endurance, technique, EMOM/AMRAP).
 
 ---
 
-## Licencia
+## License
 
 MIT.

@@ -1,56 +1,56 @@
 /**
- * Pruebas del motor (Node, sin DOM). Ejecuta: `node test/engine.test.js`.
- * Salida con codigo !=0 si algo falla (para CI / npm test).
+ * Engine tests (Node, no DOM). Run: `node test/engine.test.js`.
+ * Exits with code !=0 if anything fails (for CI / npm test).
  */
 const F = require("../src/engine.js");
 
 let pass = 0;
-function ok(nombre, cond) {
-  if (!cond) { console.error("FALLO:", nombre); process.exitCode = 1; }
+function ok(name, cond) {
+  if (!cond) { console.error("FAIL:", name); process.exitCode = 1; }
   else pass++;
 }
 
-// Catalogo
-ok("catalogo base = 32", F.CATALOGO_BASE.length === 32);
-ok("hay 9 fundamentales", F.CATALOGO_BASE.filter(e => e.tier === "FUNDAMENTAL").length === 9);
+// Catalog
+ok("base catalog has 32 exercises", F.BASE_CATALOG.length === 32);
+ok("9 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 9);
 
-// RuleEngine: dos SNC alta en bloque A -> invalida
-const swing = F.CATALOGO_BASE.find(e => e.nombre === "Kettlebell Swings (Dos manos)");
-const snatch = F.CATALOGO_BASE.find(e => e.nombre === "One-Arm Snatch");
-ok("dos SNC alta = invalida", !F.validarCombinacion(
-  { ej: swing, bloque: "A", series: 5, reps: 5 },
-  { ej: snatch, bloque: "A", series: 5, reps: 5 }).valida);
+// RuleEngine: two high-CNS in block A -> invalid
+const swing = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)");
+const snatch = F.BASE_CATALOG.find(e => e.name === "One-Arm Snatch");
+ok("two high-CNS = invalid", !F.validateCombination(
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: snatch, block: "A", sets: 5, reps: 5 }).valid);
 
-// Antagonistas: empuje vs tiron
-ok("empuje/tiron son antagonistas", F.sonAntagonistas("EMPUJE_V", "TIRON_H"));
-ok("dos tirones no antagonistas", !F.sonAntagonistas("TIRON_H", "TIRON_V"));
+// Antagonists: push vs pull
+ok("push/pull are antagonists", F.areAntagonists("PUSH_V", "PULL_H"));
+ok("two pulls are not antagonists", !F.areAntagonists("PULL_H", "PULL_V"));
 
-// Sugerencia de kg dentro del rango
-ok("kg pesada (12-32) = 30", F.sugerirKg(3, 12, 32) === 30);
-ok("kg ligera (12-32) = 16", F.sugerirKg(1, 12, 32) === 16);
+// Kg suggestion within range
+ok("heavy kg (12-32) = 30", F.suggestKg(3, 12, 32) === 30);
+ok("light kg (12-32) = 16", F.suggestKg(1, 12, 32) === 16);
 
-// Generacion basica
-const r = F.generar(null, { objetivo: "FUERZA", equipo: ["KB"], minutos: 45, semilla: 7 });
-ok("rutina tiene bloques", r.bloques.length > 0);
-ok("duracion estimada > 0", F.duracionRutinaMin(r) > 0);
+// Basic generation
+const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
+ok("routine has blocks", r.blocks.length > 0);
+ok("estimated duration > 0", F.routineDurationMin(r) > 0);
 
-// Foco sesga la seleccion
-const rp = F.generar(null, { objetivo: "FUERZA", equipo: ["KB"], minutos: 60, semilla: 3, foco: "PULL" });
-const pulls = rp.bloques.flatMap(b => b.elementos.flatMap(e => e.prescripciones))
-  .filter(p => p.ej.patron === "TIRON_H" || p.ej.patron === "TIRON_V").length;
-ok("foco PULL sesga (>=3 tirones)", pulls >= 3);
+// Focus biases selection
+const rp = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 60, seed: 3, focus: "PULL" });
+const pulls = rp.blocks.flatMap(b => b.elements.flatMap(e => e.prescriptions))
+  .filter(p => p.exercise.pattern === "PULL_H" || p.exercise.pattern === "PULL_V").length;
+ok("focus PULL biases (>=3 pulls)", pulls >= 3);
 
-// Ejercicio fijado a un bloque explicito
-const rf = F.generar(null, { objetivo: "FUERZA", equipo: ["KB"], minutos: 45, semilla: 5,
-  fijados: [{ nombre: "Kettlebell Swings (Dos manos)", bloque: "C" }] });
-const enC = rf.bloques.find(b => b.bloque === "C").elementos
-  .some(e => e.prescripciones.some(p => p.ej.nombre === "Kettlebell Swings (Dos manos)"));
-ok("fijado forzado al bloque C", enC);
+// Exercise pinned to explicit block
+const rf = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 5,
+  pinned: [{ name: "Kettlebell Swings (Dos manos)", block: "C" }] });
+const inC = rf.blocks.find(b => b.block === "C").elements
+  .some(e => e.prescriptions.some(p => p.exercise.name === "Kettlebell Swings (Dos manos)"));
+ok("pinned forced to block C", inC);
 
-// Balance duro con tolerancia 0 no deja huecos (rellena con backtracking)
-const rd = F.generar(null, { objetivo: "FUERZA", equipo: ["KB"], minutos: 60, semilla: 3, balance: "DURO", tolerancia: 0 });
-const colocados = rd.bloques.reduce((a, b) => a + b.elementos.reduce((x, e) => x + e.prescripciones.length, 0), 0);
-ok("backtracking llena la rutina", colocados >= 10);
+// Hard balance with tolerance 0 leaves no gaps (fills with backtracking)
+const rd = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 60, seed: 3, balance: "HARD", tolerance: 0 });
+const placed = rd.blocks.reduce((a, b) => a + b.elements.reduce((x, e) => x + e.prescriptions.length, 0), 0);
+ok("backtracking fills the routine", placed >= 10);
 
-if (process.exitCode) console.error("\n--- HAY FALLOS ---");
-else console.log(pass + " comprobaciones del motor OK");
+if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
+else console.log(pass + " engine checks OK");
