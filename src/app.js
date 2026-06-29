@@ -788,6 +788,7 @@
       else if (e.tier === "OPTIONAL") tags.appendChild(el("span", "tag", "opcional"));
       tags.appendChild(el("span", "tag snc-" + e.cns, "SNC " + e.cns));
       if (e.grip) tags.appendChild(el("span", "tag", "agarre"));
+      if (e.plyo) tags.appendChild(el("span", "tag tag-plyo", "pliometrico"));
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
       if (state.overrides[e.name]) tags.appendChild(el("span", "tag", "editado"));
@@ -817,7 +818,7 @@
     if (!equipment.length) equipment.push(F.EQ.FLOOR);
     return { pattern: $("#f-pattern").value, dynamics: $("#f-dynamics").value,
       symmetry: $("#f-symmetry").value, cns: $("#f-cns").value, equipment,
-      grip: $("#f-grip").checked, load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
+      grip: $("#f-grip").checked, plyo: $("#f-plyo").checked, load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
   }
   function fillForm(e) {
     $("#f-name").value = e.name;
@@ -825,6 +826,7 @@
     $("#f-symmetry").value = e.symmetry; $("#f-cns").value = e.cns;
     $("#f-load").value = String(e.load); $("#f-tier").value = e.tier;
     $("#f-grip").checked = !!e.grip;
+    $("#f-plyo").checked = !!e.plyo;
     $("#f-eq-kb").checked = e.equipment.includes("KB");
     $("#f-eq-barbell").checked = e.equipment.includes("BARBELL");
     $("#f-eq-floor").checked = e.equipment.includes("FLOOR");
@@ -837,7 +839,7 @@
     $("#f-pattern").selectedIndex = 0; $("#f-dynamics").selectedIndex = 0;
     $("#f-symmetry").selectedIndex = 0; $("#f-cns").selectedIndex = 0;
     $("#f-load").value = "2"; $("#f-tier").value = "ACCESSORY";
-    $("#f-grip").checked = false;
+    $("#f-grip").checked = false; $("#f-plyo").checked = false;
     $("#f-eq-kb").checked = true; $("#f-eq-barbell").checked = false; $("#f-eq-floor").checked = false;
   }
   function openForEdit(e) {

@@ -66,7 +66,7 @@
   // --- Base catalog (32) -------------------------------------------------
   function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
     return { name, pattern, dynamics, symmetry, cns, equipment,
-             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY };
+             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false };
   }
   const BASE_CATALOG = [
     exercise("Peso Muerto Rumano / Fijo", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
@@ -108,6 +108,7 @@
     exercise("Hip Halos", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("KB Jump Squats", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("KB Push-Ups", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Tuck Jumps", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
   ];
 
   // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.
@@ -119,9 +120,15 @@
   const _OPTIONAL_EXERCISES = new Set([
     "Upright Row", "Halos", "Kneeling Around The Worlds", "Figure-8", "Rotational Press",
   ]);
+  // Plyometric / impact movements (stretch-shortening cycle): need full
+  // recovery and are kept fresh. A subtype tag on top of DIN.BALLISTIC.
+  const _PLYO_EXERCISES = new Set([
+    "KB Jump Squats", "Tuck Jumps", "Burpees",
+  ]);
   BASE_CATALOG.forEach(e => {
     e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
+    e.plyo = _PLYO_EXERCISES.has(e.name);
   });
 
   // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
@@ -154,6 +161,12 @@
     return oneSide;
   }
   function setRestSec(reps) { return REST_TIME[classifyVolume(reps)]; }
+  // Plyometric / impact work needs full recovery: never rest less than the
+  // strength (SP) rest, regardless of how few reps it is.
+  function restForPrescription(p) {
+    const base = setRestSec(p.reps);
+    return p.exercise.plyo ? Math.max(base, REST_TIME.SP) : base;
+  }
 
   function elementTimeSec(el) {
     const s = el.prescriptions[0].sets;
@@ -164,11 +177,11 @@
       // primary lift recovers; HP/ME tolerate a deeper cut. Use the heaviest range.
       const ranges = new Set([classifyVolume(a.reps), classifyVolume(b.reps)]);
       const factor = ranges.has(REP_RANGE.SP) ? 0.75 : ranges.has(REP_RANGE.HP) ? 0.5 : 0.4;
-      const rest = Math.max(setRestSec(a.reps), setRestSec(b.reps)) * factor;
+      const rest = Math.max(restForPrescription(a), restForPrescription(b)) * factor;
       return s * (work + rest + SS_TRANSITION);
     }
     const p = el.prescriptions[0];
-    return s * (setWorkSec(p.exercise, p.reps) + setRestSec(p.reps));
+    return s * (setWorkSec(p.exercise, p.reps) + restForPrescription(p));
   }
   // Step-by-step timeline for ONE element: the ordered work/rest phases a
   // trainee actually goes through, in seconds. Used by the guided timer.
@@ -357,6 +370,16 @@
         schema(BLOCK.A, 3, 4, 8,  [DIN.STRENGTH, DIN.BALLISTIC]),
         schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH]),
         schema(BLOCK.C, 2, 3, 20, [DIN.METABOLIC]),
+      ],
+    },
+    // Power / plyometrics: explosive, low reps, full recovery between efforts.
+    // Low reps (3) classify as SP, which already buys long rest; plyometric
+    // movements force full recovery on top of that (see elementTimeSec).
+    POWER: {
+      name: "Potencia / Pliometria", maxCns: 3, maxGrip: 2,
+      blocks: [
+        schema(BLOCK.A, 3, 5, 3, [DIN.BALLISTIC]),
+        schema(BLOCK.B, 3, 4, 6, [DIN.BALLISTIC, DIN.STRENGTH]),
       ],
     },
     // EMOM (Every Minute On the Minute): a small circuit of exercises done
@@ -857,6 +880,7 @@
     const e = exercise(fields.name.trim(), fields.pattern, fields.dynamics, fields.symmetry,
       fields.cns, fields.equipment, fields.grip, fields.load || LOAD_TIER.MEDIUM);
     e.tier = fields.tier || TIER.ACCESSORY;
+    e.plyo = !!fields.plyo;
     return e;
   }
 

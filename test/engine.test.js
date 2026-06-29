@@ -11,7 +11,22 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 37 exercises", F.BASE_CATALOG.length === 37);
+ok("base catalog has 38 exercises", F.BASE_CATALOG.length === 38);
+
+// Power / plyometrics
+ok("POWER objective generates a routine", (() => {
+  const rp = F.generate(null, { objective: "POWER", equipment: ["KB", "FLOOR"], minutes: 30, seed: 2 });
+  return rp.blocks.some(b => b.elements.length > 0);
+})());
+const jump = F.BASE_CATALOG.find(e => e.name === "KB Jump Squats");
+const swingP = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)");
+ok("plyo flag set on jump movements", jump.plyo === true && F.BASE_CATALOG.find(e => e.name === "Tuck Jumps").plyo === true);
+ok("non-plyo ballistic is not flagged plyo", swingP.plyo === false);
+// Full recovery: a plyo set at low reps rests at least as long as a strength set.
+const plyoEl = { prescriptions: [{ exercise: jump, sets: 1, reps: 3 }], isSuperset: false };
+const ballEl = { prescriptions: [{ exercise: swingP, sets: 1, reps: 3 }], isSuperset: false };
+ok("plyo forces full recovery (>= same-rep ballistic)", F.elementTimeSec(plyoEl) >= F.elementTimeSec(ballEl));
+ok("newExercise carries plyo flag", F.newExercise({ name: "X", pattern: "KNEE", dynamics: "BALLISTIC", symmetry: "BILATERAL", cns: "HIGH", equipment: ["FLOOR"], plyo: true }).plyo === true);
 ok("9 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 9);
 
 // RuleEngine: two high-CNS in block A -> invalid

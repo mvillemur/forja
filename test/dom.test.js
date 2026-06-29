@@ -104,7 +104,8 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 37 exercises", d.querySelectorAll("#pool-list .card").length === 37);
+  ok("pool shows 38 exercises", d.querySelectorAll("#pool-list .card").length === 38);
+  ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
   d.querySelector('.nav button[data-view="guia"]').click();
   ok("guide has 13 sections", d.querySelectorAll("#view-guia .acc").length === 13);
