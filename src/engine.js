@@ -850,18 +850,26 @@
     CORE:      "Core / abdomen",
   };
 
+  // Rescale a (already scaled) template toward a time target. For circuit
+  // templates that means more/fewer ROUNDS (sets, clamped 2..12); otherwise
+  // more/fewer exercises (count, min 1).
+  function rescaleTemplateCounts(tpl, factor, fixedCount) {
+    const blocks = tpl.blocks.map(b => {
+      if (fixedCount) {
+        const ns = Math.max(2, Math.min(12, Math.round(b.sets * factor)));
+        return schema(b.block, b.count, ns, b.reps, [...b.dynamics], b.pair);
+      }
+      const nc = Math.max(1, Math.round(b.count * factor));
+      return schema(b.block, nc, b.sets, b.reps, [...b.dynamics], b.pair);
+    });
+    return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, blocks };
+  }
+
   function generate(pool, opts) {
     opts = opts || {};
     const obj = (opts.objective || "STRENGTH").toUpperCase();
     const base = TEMPLATES[obj] || TEMPLATES.STRENGTH;
-
-    let template;
-    if (opts.structure && Object.values(opts.structure).some(n => n > 0))
-      template = templateFromStructure(base, opts.structure);
-    else
-      template = scaleTemplate(base, opts.minutes || 45);
-    template.maxCns = base.maxCns; template.maxGrip = base.maxGrip;
-    template.__pool = pool || BASE_CATALOG;
+    const poolRef = pool || BASE_CATALOG;
 
     // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
     const focusKeys = Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"];
@@ -870,10 +878,37 @@
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
-    return buildRoutine(template, opts.equipment || [EQ.KB], opts.weightKb || null,
-      opts.seed == null ? null : opts.seed, balance,
-      opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
-      opts.sameWeight);
+    const build = tpl => {
+      tpl.maxCns = base.maxCns; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
+      return buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
+        opts.seed == null ? null : opts.seed, balance,
+        opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
+        opts.sameWeight);
+    };
+
+    // Structure mode: the user fixed the exact exercise counts; no time fit.
+    if (opts.structure && Object.values(opts.structure).some(n => n > 0))
+      return build(templateFromStructure(base, opts.structure));
+
+    // Time mode: the pre-build estimate is only approximate (it can't know which
+    // exercises get picked, unilateral/ISO/long-rest costs, etc.), so build,
+    // measure the REAL duration and correct the counts toward the target. Keep
+    // the closest result; stop early once within 10% or when it stops improving.
+    const minutes = opts.minutes || 45;
+    let tpl = scaleTemplate(base, minutes);
+    let routine = build(tpl);
+    let best = routine, bestErr = Math.abs(routineDurationMin(routine) - minutes);
+    for (let i = 0; i < 3 && bestErr > minutes * 0.1; i++) {
+      const actual = routineDurationMin(routine);
+      const factor = actual > 0 ? minutes / actual : 1;
+      if (Math.abs(factor - 1) < 0.05) break;
+      tpl = rescaleTemplateCounts(tpl, factor, !!base.fixedCount);
+      routine = build(tpl);
+      const err = Math.abs(routineDurationMin(routine) - minutes);
+      if (err < bestErr - 1e-9) { best = routine; bestErr = err; }
+      else break;   // no further improvement
+    }
+    return best;
   }
 
   function newExercise(fields) {

@@ -155,7 +155,19 @@ ok("pinned forced to block C", inC);
 // Hard balance with tolerance 0 leaves no gaps (fills with backtracking)
 const rd = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 60, seed: 3, balance: "HARD", tolerance: 0 });
 const placed = rd.blocks.reduce((a, b) => a + b.elements.reduce((x, e) => x + e.prescriptions.length, 0), 0);
-ok("backtracking fills the routine", placed >= 10);
+ok("backtracking fills the routine", placed >= 8);
+
+// Time calibration: the actual duration lands near the requested minutes
+// (build-measure-correct), across objectives and durations.
+function avgDur(obj, mins) {
+  let t = 0; const N = 12;
+  for (let s = 1; s <= N; s++) t += F.routineDurationMin(F.generate(null, { objective: obj, equipment: ["KB", "FLOOR"], minutes: mins, seed: s }));
+  return t / N;
+}
+[["STRENGTH", 30], ["POWER", 30], ["METABOLIC", 45], ["STRENGTH_ENDURANCE", 45], ["POWER", 60]].forEach(([o, m]) => {
+  const d = avgDur(o, m);
+  ok(`time fit: ${o} ${m}min lands within 20% (got ~${Math.round(d)})`, d >= m * 0.8 && d <= m * 1.2);
+});
 
 // --- New behavior (training-model gaps) ---
 
