@@ -189,11 +189,28 @@
     if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
   }
 
+  // Smooth-scroll helpers (no-ops / guarded for jsdom).
+  function scrollToY(y) {
+    try { if (window.scrollTo) window.scrollTo({ top: Math.max(0, y), behavior: "smooth" }); } catch (e) {}
+  }
+  function scrollToRoutine() {
+    const node = $("#routine-out");
+    if (!node) return;
+    try { scrollToY(node.getBoundingClientRect().top + (window.pageYOffset || 0) - 60); } catch (e) { scrollToY(0); }
+  }
+  function scrollToTop() { scrollToY(0); }
+
   // ---- Render: routine
   function renderRoutine(r, into, range, editable) {
     into.innerHTML = "";
     if (!r) return;
     range = range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
+    if (editable) {
+      const back = el("button", "to-settings", "↑ Ajustes");
+      back.title = "Volver a la configuracion";
+      back.onclick = scrollToTop;
+      into.appendChild(back);
+    }
     const head = el("div", "routine-head");
     head.appendChild(el("div", "routine-title", r.template));
     head.appendChild(el("div", "routine-dur", `~${F.routineDurationMin(r)} min`));
@@ -454,6 +471,7 @@
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#save-row").classList.remove("hidden");
     saveConfig();
+    scrollToRoutine();   // jump straight to the result, not the bottom of the form
   }
 
   function applyFocusUI() {

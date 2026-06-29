@@ -109,6 +109,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .btn-row .btn { flex: 1; }
 
 /* --- Rutina render --- */
+.to-settings { display: inline-flex; align-items: center; gap: 4px; margin: 10px 0 0; padding: 6px 12px; background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; font-weight: 600; font-family: var(--sans); cursor: pointer; }
+.to-settings:active { color: var(--ink); }
 .routine-head { display: flex; align-items: baseline; justify-content: space-between; margin: 18px 2px 8px; }
 .routine-title { font-size: 18px; font-weight: 700; }
 .routine-dur { font-family: var(--mono); color: var(--forge-hi); font-size: 14px; }
