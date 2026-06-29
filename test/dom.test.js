@@ -29,6 +29,21 @@ setTimeout(() => {
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);
 
+  // CSV import: a tab-separated table with header maps each date to a session.
+  const csv = [
+    "Fecha\tBloque / Orden\tEjercicio\tCarga (kg)\tSerie 1\tSerie 2\tSerie 3\tSerie 4\tReps Totales\tNotas Tecnicas",
+    "15/06/2026\tBloque A\tPeso Muerto Rumano\t18\t16\t10\t10\t\t=SUMA(E2:H2)\tRitmo controlado.",
+    "15/06/2026\tBloque B\tHalos\t14\t8\t8\t8\t\t=SUMA(E3:H3)\tMovilidad.",
+    "21/06/2026\tEjercicio 1\tPeso Muerto\t27\t20\t20\t20\t20\t=SUMA(E4:H4)\tFoco agarre.",
+  ].join("\n");
+  d.querySelector("#csv-input").value = csv;
+  d.querySelector("#btn-csv-import").click();
+  ok("CSV import adds 2 dated sessions", d.querySelectorAll("#hist-list .card").length === 3);
+  const manual = [...d.querySelectorAll("#hist-list .hist-title")].filter(n => /Registro/.test(n.textContent));
+  ok("CSV sessions render as manual cards", manual.length === 2);
+  manual[0].click(); // expand newest (21/06)
+  ok("manual card shows per-set reps", /20 · 20 · 20 · 20/.test(d.querySelector("#hist-list").textContent));
+
   // Pin panel: opening it renders tag filters, and a filter narrows the list.
   d.querySelector("#btn-pin-toggle").click();
   ok("pin panel shows tag filters", d.querySelectorAll("#pin-filters .filter-chip").length > 0);

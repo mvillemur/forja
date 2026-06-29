@@ -363,6 +363,49 @@
     saveHistory(); toast("Guardada en el historial"); renderHistory();
   }
 
+  // ---- Render: a manually-imported session (per-set log)
+  function renderManualCard(h) {
+    const exVol = ex => (ex.kg || 0) * ex.sets.reduce((a, n) => a + n, 0);
+    const totalVol = Math.round(h.exercises.reduce((a, ex) => a + exVol(ex), 0));
+    const card = el("div", "card"); card.style.padding = "0";
+    const row = el("div", "hist-item");
+    const meta = el("div", "hist-meta");
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+    meta.appendChild(el("div", "hist-title", "Registro · " + dateStr));
+    meta.appendChild(el("div", "hist-sub", `${h.exercises.length} ejercicios · volumen ${totalVol} kg`));
+    meta.style.cursor = "pointer";
+    const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
+    meta.onclick = () => detail.classList.toggle("hidden");
+
+    h.exercises.forEach((ex, i) => {
+      if (i === 0 || ex.order !== h.exercises[i - 1].order) {
+        if (ex.order) detail.appendChild(el("div", "label", ex.order));
+      }
+      const item = el("div", "manual-ex");
+      const top = el("div", "manual-ex-top");
+      top.appendChild(el("span", "manual-ex-name", ex.name));
+      if (ex.kg != null) top.appendChild(el("span", "manual-ex-kg", ex.kg + " kg"));
+      item.appendChild(top);
+      const reps = ex.sets.reduce((a, n) => a + n, 0);
+      const series = ex.sets.length ? ex.sets.join(" · ") : "—";
+      item.appendChild(el("div", "manual-ex-sets", `Series: ${series}  ·  ${reps} reps  ·  ${Math.round(exVol(ex))} kg`));
+      if (ex.note) item.appendChild(el("div", "manual-ex-note", ex.note));
+      detail.appendChild(item);
+    });
+
+    const actions = el("div", "hist-actions");
+    const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
+    okBtn.title = "Marcar completada";
+    okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
+    const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+    del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+    actions.appendChild(okBtn); actions.appendChild(del);
+    row.appendChild(meta); row.appendChild(actions);
+    card.appendChild(row); card.appendChild(detail);
+    return card;
+  }
+
   // ---- Render: history
   function renderHistory() {
     const list = $("#hist-list"); list.innerHTML = "";
@@ -371,6 +414,7 @@
       return;
     }
     state.hist.forEach(h => {
+      if (h.manual) { list.appendChild(renderManualCard(h)); return; }
       const card = el("div", "card");
       card.style.padding = "0";
       const row = el("div", "hist-item");
@@ -538,6 +582,77 @@
     reader.readAsText(file);
   }
 
+  // ---- CSV / spreadsheet import of past sessions -----------------------
+  // Reads a table with a header row. Recognized columns (accent/case
+  // insensitive): Fecha, Bloque/Orden, Ejercicio, Carga(kg), Serie 1..N,
+  // Notas. Computed columns (Reps Totales, Volumen) are ignored. Each date
+  // becomes one manual session preserving per-set reps, kg and notes.
+  const deaccent = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+  function parseSessionsCsv(text) {
+    const lines = text.replace(/\r\n?/g, "\n").split("\n").filter(l => l.trim() !== "");
+    if (lines.length < 2) throw new Error("sin datos");
+    const delim = (lines[0].match(/\t/g) || []).length >= (lines[0].match(/,/g) || []).length ? "\t" : ",";
+    const cells = l => l.split(delim).map(c => c.trim());
+    const header = cells(lines[0]).map(deaccent);
+
+    const find = pred => header.findIndex(pred);
+    const idx = {
+      date:  find(h => h.includes("fecha")),
+      order: find(h => h.includes("bloque") || h.includes("orden")),
+      name:  find(h => h.includes("ejercicio")),
+      kg:    find(h => h.includes("carga") || h === "kg" || h.includes("peso")),
+      note:  find(h => h.includes("nota")),
+    };
+    const setCols = [];
+    header.forEach((h, i) => { if (/^serie\b/.test(h) || /^set\b/.test(h)) setCols.push(i); });
+    if (idx.date < 0 || idx.name < 0) throw new Error("faltan columnas Fecha/Ejercicio");
+
+    const toISO = s => {
+      const m = (s || "").match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (!m) { const d = new Date(s); return isNaN(d) ? null : d.toISOString(); }
+      let [, dd, mm, yy] = m; yy = yy.length === 2 ? "20" + yy : yy;
+      const d = new Date(+yy, +mm - 1, +dd, 12, 0, 0);
+      return isNaN(d) ? null : d.toISOString();
+    };
+    const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? null : n; };
+    const repOf = v => { v = String(v).trim(); if (!v || v[0] === "=") return null; const n = parseInt(v, 10); return isNaN(n) ? null : n; };
+
+    const byDate = new Map();
+    for (let i = 1; i < lines.length; i++) {
+      const c = cells(lines[i]);
+      const iso = toISO(c[idx.date]);
+      const name = (c[idx.name] || "").trim();
+      if (!iso || !name) continue;
+      const sets = setCols.map(ci => repOf(c[ci])).filter(n => n != null);
+      const ex = {
+        order: idx.order >= 0 ? (c[idx.order] || "").trim() : "",
+        name,
+        kg: idx.kg >= 0 ? num(c[idx.kg]) : null,
+        sets,
+        note: idx.note >= 0 ? (c[idx.note] || "").trim() : "",
+      };
+      if (!byDate.has(iso)) byDate.set(iso, []);
+      byDate.get(iso).push(ex);
+    }
+    if (!byDate.size) throw new Error("sin filas validas");
+
+    let n = 0;
+    return [...byDate.entries()].map(([iso, exercises]) => ({
+      id: Date.now() + (n++), date: iso, manual: true, completed: true, exercises,
+    }));
+  }
+
+  function importCsvSessions(text) {
+    let sessions;
+    try { sessions = parseSessionsCsv(text); }
+    catch (err) { toast("CSV no valido: " + err.message); return; }
+    state.hist = state.hist.concat(sessions).sort((a, b) => new Date(b.date) - new Date(a.date));
+    saveHistory(); renderHistory();
+    const exTotal = sessions.reduce((a, s) => a + s.exercises.length, 0);
+    toast(`Importadas ${sessions.length} sesiones (${exTotal} ejercicios)`);
+  }
+
   // ---- Generic controls (segmented + chips)
   function fillSelectOptions() {
     const fill = (sel, pairs, def) => {
@@ -672,6 +787,19 @@
     $("#btn-export").onclick = exportData;
     $("#btn-import-trigger").onclick = () => $("#import-file").click();
     $("#import-file").onchange = e => { if (e.target.files[0]) { importData(e.target.files[0]); e.target.value = ""; } };
+
+    // CSV / spreadsheet import of past sessions
+    $("#btn-csv-import").onclick = () => {
+      const txt = $("#csv-input").value;
+      if (!txt.trim()) { toast("Pega una tabla o sube un archivo primero"); return; }
+      importCsvSessions(txt); $("#csv-input").value = "";
+    };
+    $("#csv-file").onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      const reader = new FileReader();
+      reader.onload = ev => { importCsvSessions(String(ev.target.result)); };
+      reader.readAsText(f); e.target.value = "";
+    };
 
     document.querySelectorAll(".nav button").forEach(b => b.onclick = () => showView(b.dataset.view));
 

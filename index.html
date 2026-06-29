@@ -131,6 +131,19 @@
 
   <!-- ===== HISTORY ===== -->
   <section id="view-hist" class="view">
+    <div class="card" style="padding:0;margin-bottom:14px;">
+      <details class="acc" style="margin:0;border:0;background:transparent;">
+        <summary>Importar registro (CSV)</summary>
+        <div class="acc-body">
+          <p style="margin:0 0 8px;">Pega tu tabla (desde la hoja de calculo) o un CSV. Debe tener una fila de cabecera con los nombres de columna. Reconoce: <b>Fecha</b>, <b>Bloque / Orden</b>, <b>Ejercicio</b>, <b>Carga (kg)</b>, <b>Serie 1..N</b> y <b>Notas</b>. Cada fecha se guarda como una sesion.</p>
+          <textarea id="csv-input" rows="6" placeholder="Fecha	Bloque / Orden	Ejercicio	Carga (kg)	Serie 1	Serie 2	Serie 3	Serie 4	Notas&#10;15/06/2026	Bloque A	Peso Muerto Rumano	18	16	10	10		Ritmo controlado." style="width:100%;padding:10px;border-radius:9px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--ink);font-family:var(--mono);font-size:12px;resize:vertical;"></textarea>
+          <div class="btn-row" style="margin-top:10px;">
+            <label class="btn btn-ghost" style="flex:1;text-align:center;cursor:pointer;">Subir archivo<input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="display:none;"></label>
+            <button class="btn btn-forge" id="btn-csv-import" style="flex:1;">Importar</button>
+          </div>
+        </div>
+      </details>
+    </div>
     <div id="hist-list"></div>
   </section>
 
