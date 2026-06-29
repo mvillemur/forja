@@ -235,9 +235,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   <section id="view-gen" class="view active">
     <div class="card">
       <div class="label">Objetivo</div>
-      <div class="seg" id="seg-objective">
+      <div class="seg" id="seg-objective" style="flex-wrap:wrap">
         <button class="forge" data-val="STRENGTH" aria-pressed="true">Fuerza</button>
         <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabolico</button>
+        <button class="forge" data-val="STRENGTH_ENDURANCE" aria-pressed="false">Resistencia</button>
+        <button class="forge" data-val="EMOM" aria-pressed="false">EMOM</button>
+        <button class="forge" data-val="AMRAP" aria-pressed="false">AMRAP</button>
       </div>
     </div>
 
@@ -745,6 +748,33 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         schema(BLOCK.A, 2, 4, 6, [DIN.BALLISTIC]),
         schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH, DIN.BALLISTIC]),
         schema(BLOCK.C, 2, 4, 20, [DIN.METABOLIC]),
+      ],
+    },
+    // Higher rep strength work; bridges strength and conditioning.
+    STRENGTH_ENDURANCE: {
+      name: "Resistencia de fuerza", maxCns: 3, maxGrip: 2,
+      blocks: [
+        schema(BLOCK.A, 3, 4, 8,  [DIN.STRENGTH, DIN.BALLISTIC]),
+        schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH]),
+        schema(BLOCK.C, 2, 3, 20, [DIN.METABOLIC]),
+      ],
+    },
+    // EMOM: pairs modelled as alternating-minute protocol.
+    // sets = number of minutes, reps = reps per minute.
+    EMOM: {
+      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3,
+      blocks: [
+        schema(BLOCK.A, 2, 10, 5, [DIN.BALLISTIC]),
+        schema(BLOCK.B, 3,  8, 6, [DIN.STRENGTH, DIN.BALLISTIC]),
+      ],
+    },
+    // AMRAP / circuit: pair:false keeps every exercise as a solo slot
+    // so the routine reads as a linear circuit to repeat for time.
+    AMRAP: {
+      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3,
+      blocks: [
+        schema(BLOCK.A, 5, 3, 10, [DIN.STRENGTH, DIN.BALLISTIC], false),
+        schema(BLOCK.C, 2, 3, 15, [DIN.METABOLIC],               false),
       ],
     },
   };
