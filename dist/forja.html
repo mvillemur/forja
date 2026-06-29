@@ -156,8 +156,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .kg-adj { background: none; border: 1px solid var(--line-2); border-radius: 5px; color: var(--ink-dim); font-size: 13px; width: 20px; height: 20px; line-height: 1; cursor: pointer; padding: 0; }
 .kg-adj:active { color: var(--ink); background: var(--bg-2); }
 .pin-ex { margin-left: 6px; flex-shrink: 0; }
-.prog-done { margin-top: 4px; background: none; border: 1px solid var(--line-2); border-radius: 6px; color: var(--ok); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; font-family: var(--mono); white-space: nowrap; }
-.prog-done:active { background: rgba(127,174,106,0.16); }
+.prog-target { margin-top: 4px; font-family: var(--mono); font-size: 10px; color: var(--ink-faint); text-align: right; }
+.prog-fb { display: flex; gap: 3px; margin-top: 3px; justify-content: flex-end; }
+.prog-btn { background: none; border: 1px solid var(--line-2); border-radius: 6px; color: var(--ink-dim); font-size: 10.5px; font-weight: 600; padding: 3px 7px; cursor: pointer; font-family: var(--sans); }
+.prog-btn.prog-easy:active { background: rgba(111,168,199,0.16); color: var(--steel); border-color: rgba(111,168,199,0.5); }
+.prog-btn.prog-ok:active { background: rgba(127,174,106,0.16); color: var(--ok); border-color: rgba(127,174,106,0.45); }
+.prog-btn.prog-hard:active { background: rgba(217,83,59,0.16); color: var(--danger); border-color: rgba(217,83,59,0.45); }
 .el-note { padding: 7px 13px 10px; font-size: 11.5px; color: var(--ink-dim); border-top: 1px solid var(--line); background: var(--bg-2); }
 
 /* --- Historial --- */
@@ -572,6 +576,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
         <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Progresion (Facil / OK / Duro)</summary>
+      <div class="acc-body">
+        <p>En cada ejercicio de la rutina veras un <b>objetivo de repeticiones</b> y tres botones para valorar la serie:</p>
+        <p class="gloss"><b>OK</b> — en punto: sube el objetivo una repeticion. Al llegar al tope del rango, la pesa sube 2 kg y las reps reinician abajo (doble progresion).</p>
+        <p class="gloss"><b>Facil</b> — demasiado facil: avanza mas rapido (dos repeticiones, o sube la pesa si ya estabas cerca del tope).</p>
+        <p class="gloss"><b>Duro</b> — demasiado duro: baja un escalon (una repeticion menos; si ya estabas abajo, baja 2 kg).</p>
+        <p>Asi los numeros se ajustan solos a como te fue: progresas cuando toca y aflojas cuando hace falta. La pesa nunca sale de tu rango.</p>
       </div>
     </details>
 
@@ -1075,29 +1090,40 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return r.slice();
   }
 
-  // Given the current target {kg, reps} and whether the trainee cleared the
-  // target reps on ALL sets, return the next session's {kg, reps}.
-  //  - cleared & at top of range -> +step kg, reset reps to bottom.
-  //  - cleared but below top      -> same kg, reps + 1 (toward top).
-  //  - not cleared                -> repeat the same target.
+  // Given the current target {kg, reps} and the trainee's feedback, return the
+  // next session's {kg, reps}. Feedback (RPE-style autoregulation):
+  //   'ok'  / true  -> cleared normally: reps +1 toward top; at top -> +step kg,
+  //                    reset reps to bottom (double progression).
+  //   'easy'        -> too easy: advance two rep-steps (jumps the range faster,
+  //                    or bumps load when it overshoots the top).
+  //   'hard'        -> too hard: back off one step (reps -1; at bottom, -step kg).
+  //   'hold'/ false -> repeat the same target unchanged.
   // step defaults to 2 kg (adjustable kettlebell increment); kg stays in range.
-  function nextTarget(current, range, cleared, opts) {
+  function nextTarget(current, range, feedback, opts) {
     opts = opts || {};
     const step = opts.step || 2, min = opts.min, max = opts.max;
     const [lo, hi] = range;
     let kg = current && current.kg != null ? current.kg : (opts.startKg != null ? opts.startKg : null);
     let reps = current && current.reps != null ? current.reps : lo;
     if (reps < lo) reps = lo; if (reps > hi) reps = hi;
-    if (!cleared) return { kg, reps };
-    if (reps >= hi) {
-      let nk = kg == null ? null : kg + step;
-      if (nk != null && max != null) nk = Math.min(max, nk);
-      if (nk != null && min != null) nk = Math.max(min, nk);
+    const fb = feedback === true ? "ok" : feedback === false ? "hold" : String(feedback);
+    const clamp = v => { let n = v; if (max != null) n = Math.min(max, n); if (min != null) n = Math.max(min, n); return n; };
+
+    if (fb === "hold") return { kg, reps };
+    if (fb === "hard") {
+      if (reps > lo) return { kg, reps: reps - 1 };
+      const nk = kg == null ? null : clamp(kg - step);
+      return { kg: nk, reps: lo };       // deload weight, stay at the bottom
+    }
+    // 'ok' (+1) or 'easy' (+2)
+    const inc = fb === "easy" ? 2 : 1;
+    if (reps + inc > hi) {
+      const nk = kg == null ? null : clamp(kg + step);
       // If load can't go higher (at max), keep climbing reps past the window.
-      if (kg != null && max != null && nk === kg) return { kg, reps: reps + 1 };
+      if (kg != null && max != null && nk === kg) return { kg, reps: reps + inc };
       return { kg: nk, reps: lo };
     }
-    return { kg, reps: reps + 1 };
+    return { kg, reps: reps + inc };
   }
 
   // Load warning: "low" = the kettlebell is too light for the exercise;
@@ -1570,20 +1596,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
   }
-  // Record that the trainee cleared the current target on all sets and advance.
-  function applyProgression(p) {
+  // Record the trainee's feedback ('easy'|'ok'|'hard') and autoregulate the
+  // next target for this exercise (double progression + RPE nudge).
+  function applyProgression(p, feedback) {
     const name = p.exercise.name;
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
     const curKg = state.kg[name] != null ? state.kg[name]
       : F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
     const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
-    const next = F.nextTarget(cur, rng, true, { step: 2, min, max, startKg: curKg });
+    const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
     state.prog[name] = next.reps; saveProg();
-    const bumped = next.kg != null && next.kg !== curKg;
+    const up = next.kg != null && next.kg > curKg;
+    const down = next.kg != null && next.kg < curKg;
     if (next.kg != null) { state.kg[name] = next.kg; saveKg(); }
-    toast(bumped ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
-                 : `Objetivo proxima vez: ${next.reps} reps`);
+    toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
+       : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
+               : `Objetivo proxima vez: ${next.reps} reps`);
     if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
   }
 
@@ -1658,12 +1687,20 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
           }
-          // Double progression: one tap to record you cleared the target reps.
+          // Double progression + RPE autoregulation: rate the set to advance,
+          // hold, or back off the next target. Target reps shown above.
           if (editable && p.exercise.dynamics !== F.DIN.ISO) {
-            const done = el("button", "prog-done", `✓ ${targetReps(p)} reps`);
-            done.title = `Marca si completaste ${targetReps(p)} reps en todas las series; subira el objetivo`;
-            done.onclick = () => applyProgression(p);
-            doseEl.appendChild(done);
+            doseEl.appendChild(el("div", "prog-target", `objetivo ${targetReps(p)} reps`));
+            const fbRow = el("div", "prog-fb");
+            [["easy", "Facil", "Demasiado facil: sube mas rapido"],
+             ["ok", "OK", "En punto: progresa normal"],
+             ["hard", "Duro", "Demasiado duro: baja un escalon"]].forEach(([fb, label, title]) => {
+              const b = el("button", "prog-btn prog-" + fb, label);
+              b.title = title;
+              b.onclick = () => applyProgression(p, fb);
+              fbRow.appendChild(b);
+            });
+            doseEl.appendChild(fbRow);
           }
           ex.appendChild(doseEl);
           if (editable) {

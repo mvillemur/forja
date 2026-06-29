@@ -169,20 +169,23 @@
     const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
   }
-  // Record that the trainee cleared the current target on all sets and advance.
-  function applyProgression(p) {
+  // Record the trainee's feedback ('easy'|'ok'|'hard') and autoregulate the
+  // next target for this exercise (double progression + RPE nudge).
+  function applyProgression(p, feedback) {
     const name = p.exercise.name;
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
     const curKg = state.kg[name] != null ? state.kg[name]
       : F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
     const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
-    const next = F.nextTarget(cur, rng, true, { step: 2, min, max, startKg: curKg });
+    const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
     state.prog[name] = next.reps; saveProg();
-    const bumped = next.kg != null && next.kg !== curKg;
+    const up = next.kg != null && next.kg > curKg;
+    const down = next.kg != null && next.kg < curKg;
     if (next.kg != null) { state.kg[name] = next.kg; saveKg(); }
-    toast(bumped ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
-                 : `Objetivo proxima vez: ${next.reps} reps`);
+    toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
+       : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
+               : `Objetivo proxima vez: ${next.reps} reps`);
     if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
   }
 
@@ -257,12 +260,20 @@
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
           }
-          // Double progression: one tap to record you cleared the target reps.
+          // Double progression + RPE autoregulation: rate the set to advance,
+          // hold, or back off the next target. Target reps shown above.
           if (editable && p.exercise.dynamics !== F.DIN.ISO) {
-            const done = el("button", "prog-done", `✓ ${targetReps(p)} reps`);
-            done.title = `Marca si completaste ${targetReps(p)} reps en todas las series; subira el objetivo`;
-            done.onclick = () => applyProgression(p);
-            doseEl.appendChild(done);
+            doseEl.appendChild(el("div", "prog-target", `objetivo ${targetReps(p)} reps`));
+            const fbRow = el("div", "prog-fb");
+            [["easy", "Facil", "Demasiado facil: sube mas rapido"],
+             ["ok", "OK", "En punto: progresa normal"],
+             ["hard", "Duro", "Demasiado duro: baja un escalon"]].forEach(([fb, label, title]) => {
+              const b = el("button", "prog-btn prog-" + fb, label);
+              b.title = title;
+              b.onclick = () => applyProgression(p, fb);
+              fbRow.appendChild(b);
+            });
+            doseEl.appendChild(fbRow);
           }
           ex.appendChild(doseEl);
           if (editable) {

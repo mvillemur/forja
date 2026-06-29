@@ -57,6 +57,19 @@ ok("prog: not cleared -> unchanged", notCleared.kg === 16 && notCleared.reps ===
 const atMax = F.nextTarget({ kg: 32, reps: 12 }, RNG, true, { min: 12, max: 32 });
 ok("prog: at max load keeps adding reps instead of kg", atMax.kg === 32 && atMax.reps === 13);
 
+// RPE autoregulation
+const easy = F.nextTarget({ kg: 16, reps: 9 }, RNG, "easy", { min: 12, max: 32 });
+ok("rpe: 'easy' jumps two rep-steps", easy.kg === 16 && easy.reps === 11);
+const easyTop = F.nextTarget({ kg: 16, reps: 11 }, RNG, "easy", { min: 12, max: 32 });
+ok("rpe: 'easy' near top bumps load", easyTop.kg === 18 && easyTop.reps === 8);
+const hard = F.nextTarget({ kg: 16, reps: 11 }, RNG, "hard", { min: 12, max: 32 });
+ok("rpe: 'hard' backs off a rep", hard.kg === 16 && hard.reps === 10);
+const hardFloor = F.nextTarget({ kg: 18, reps: 8 }, RNG, "hard", { min: 12, max: 32 });
+ok("rpe: 'hard' at bottom deloads weight", hardFloor.kg === 16 && hardFloor.reps === 8);
+const hardMin = F.nextTarget({ kg: 12, reps: 8 }, RNG, "hard", { min: 12, max: 32 });
+ok("rpe: 'hard' deload respects min weight", hardMin.kg === 12 && hardMin.reps === 8);
+ok("rpe: 'ok' equals legacy cleared=true", JSON.stringify(F.nextTarget({ kg: 16, reps: 10 }, RNG, "ok", { min: 12, max: 32 })) === JSON.stringify(F.nextTarget({ kg: 16, reps: 10 }, RNG, true, { min: 12, max: 32 })));
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);

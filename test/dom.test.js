@@ -32,14 +32,13 @@ setTimeout(() => {
   ok("editable routine exposes kg steppers", !!incKg);
   incKg.click();
 
-  // Double progression: the live routine shows a "✓ N reps" button; tapping it
-  // advances the rep target shown on the card.
-  const progBtn = d.querySelector("#routine-out .prog-done");
-  ok("editable routine shows a progression button", !!progBtn);
-  const beforeReps = progBtn.textContent;
-  progBtn.click();
-  const afterReps = d.querySelector("#routine-out .prog-done").textContent;
-  ok("progression button advances the rep target", afterReps !== beforeReps);
+  // Double progression + RPE: the live routine shows Facil/OK/Duro buttons and
+  // a rep target; tapping "OK" advances the target shown on the card.
+  ok("editable routine shows RPE feedback buttons", d.querySelectorAll("#routine-out .prog-fb .prog-btn").length >= 3);
+  const beforeTgt = d.querySelector("#routine-out .prog-target").textContent;
+  d.querySelector("#routine-out .prog-btn.prog-ok").click();
+  const afterTgt = d.querySelector("#routine-out .prog-target").textContent;
+  ok("RPE 'OK' advances the rep target", afterTgt !== beforeTgt);
 
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
@@ -108,7 +107,7 @@ setTimeout(() => {
   ok("pool shows 32 exercises", d.querySelectorAll("#pool-list .card").length === 32);
 
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 10 sections", d.querySelectorAll("#view-guia .acc").length === 10);
+  ok("guide has 11 sections", d.querySelectorAll("#view-guia .acc").length === 11);
 
   if (code) console.error("\n--- UI TEST FAILURES ---");
   else console.log("UI tests OK");

@@ -464,29 +464,40 @@
     return r.slice();
   }
 
-  // Given the current target {kg, reps} and whether the trainee cleared the
-  // target reps on ALL sets, return the next session's {kg, reps}.
-  //  - cleared & at top of range -> +step kg, reset reps to bottom.
-  //  - cleared but below top      -> same kg, reps + 1 (toward top).
-  //  - not cleared                -> repeat the same target.
+  // Given the current target {kg, reps} and the trainee's feedback, return the
+  // next session's {kg, reps}. Feedback (RPE-style autoregulation):
+  //   'ok'  / true  -> cleared normally: reps +1 toward top; at top -> +step kg,
+  //                    reset reps to bottom (double progression).
+  //   'easy'        -> too easy: advance two rep-steps (jumps the range faster,
+  //                    or bumps load when it overshoots the top).
+  //   'hard'        -> too hard: back off one step (reps -1; at bottom, -step kg).
+  //   'hold'/ false -> repeat the same target unchanged.
   // step defaults to 2 kg (adjustable kettlebell increment); kg stays in range.
-  function nextTarget(current, range, cleared, opts) {
+  function nextTarget(current, range, feedback, opts) {
     opts = opts || {};
     const step = opts.step || 2, min = opts.min, max = opts.max;
     const [lo, hi] = range;
     let kg = current && current.kg != null ? current.kg : (opts.startKg != null ? opts.startKg : null);
     let reps = current && current.reps != null ? current.reps : lo;
     if (reps < lo) reps = lo; if (reps > hi) reps = hi;
-    if (!cleared) return { kg, reps };
-    if (reps >= hi) {
-      let nk = kg == null ? null : kg + step;
-      if (nk != null && max != null) nk = Math.min(max, nk);
-      if (nk != null && min != null) nk = Math.max(min, nk);
+    const fb = feedback === true ? "ok" : feedback === false ? "hold" : String(feedback);
+    const clamp = v => { let n = v; if (max != null) n = Math.min(max, n); if (min != null) n = Math.max(min, n); return n; };
+
+    if (fb === "hold") return { kg, reps };
+    if (fb === "hard") {
+      if (reps > lo) return { kg, reps: reps - 1 };
+      const nk = kg == null ? null : clamp(kg - step);
+      return { kg: nk, reps: lo };       // deload weight, stay at the bottom
+    }
+    // 'ok' (+1) or 'easy' (+2)
+    const inc = fb === "easy" ? 2 : 1;
+    if (reps + inc > hi) {
+      const nk = kg == null ? null : clamp(kg + step);
       // If load can't go higher (at max), keep climbing reps past the window.
-      if (kg != null && max != null && nk === kg) return { kg, reps: reps + 1 };
+      if (kg != null && max != null && nk === kg) return { kg, reps: reps + inc };
       return { kg: nk, reps: lo };
     }
-    return { kg, reps: reps + 1 };
+    return { kg, reps: reps + inc };
   }
 
   // Load warning: "low" = the kettlebell is too light for the exercise;
