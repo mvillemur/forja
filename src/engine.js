@@ -164,6 +164,31 @@
     const p = el.prescriptions[0];
     return s * (setWorkSec(p.exercise, p.reps) + setRestSec(p.reps));
   }
+  // Step-by-step timeline for ONE element: the ordered work/rest phases a
+  // trainee actually goes through, in seconds. Used by the guided timer.
+  // Each phase: { kind:"work"|"rest", sec, prescription?, setNo?, totalSets? }.
+  function elementTimeline(el) {
+    const steps = [];
+    const totalSets = el.prescriptions[0].sets;
+    if (el.isSuperset) {
+      const [a, b] = el.prescriptions;
+      const ranges = new Set([classifyVolume(a.reps), classifyVolume(b.reps)]);
+      const factor = ranges.has(REP_RANGE.SP) ? 0.75 : ranges.has(REP_RANGE.HP) ? 0.5 : 0.4;
+      const rest = Math.round(Math.max(setRestSec(a.reps), setRestSec(b.reps)) * factor);
+      for (let s = 1; s <= totalSets; s++) {
+        steps.push({ kind: "work", sec: Math.round(setWorkSec(a.exercise, a.reps)), prescription: a, setNo: s, totalSets });
+        steps.push({ kind: "work", sec: Math.round(setWorkSec(b.exercise, b.reps)), prescription: b, setNo: s, totalSets });
+        if (s < totalSets) steps.push({ kind: "rest", sec: rest });
+      }
+    } else {
+      const p = el.prescriptions[0];
+      for (let s = 1; s <= totalSets; s++) {
+        steps.push({ kind: "work", sec: Math.round(setWorkSec(p.exercise, p.reps)), prescription: p, setNo: s, totalSets });
+        if (s < totalSets) steps.push({ kind: "rest", sec: Math.round(setRestSec(p.reps)) });
+      }
+    }
+    return steps;
+  }
   function routineDurationMin(routine) {
     let t = 0; routine.blocks.forEach(br => br.elements.forEach(el => t += elementTimeSec(el)));
     return Math.round(t / 60);
@@ -698,7 +723,7 @@
     PAT, DIN, SIM, CNS, EQ, LOAD_TIER, BLOCK, REP_RANGE, QUALITY, QUALITY_NAME, TIER, TIER_LABEL,
     PAT_LABEL, DIN_LABEL, LOAD_LABEL, FOCUS_LABEL,
     BASE_CATALOG, TEMPLATES,
-    classifyVolume, elementTimeSec, routineDurationMin, blockDurationMin,
+    classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

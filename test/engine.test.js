@@ -141,5 +141,16 @@ const stShort = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], min
 const stLong  = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 60, seed: 9 });
 ok("non-circuit: STRENGTH adds exercises with time", countExercises(stLong) > countExercises(stShort));
 
+// Timer timeline: a 3-set direct slot -> 3 work + 2 rest phases, alternating.
+const tlSolo = F.elementTimeline({ isSuperset: false, prescriptions: [{ exercise: swing, block: "A", sets: 3, reps: 5 }] });
+ok("timeline: 3 sets solo -> 3 work + 2 rest", tlSolo.filter(s => s.kind === "work").length === 3 && tlSolo.filter(s => s.kind === "rest").length === 2);
+ok("timeline: work phases carry positive seconds", tlSolo.filter(s => s.kind === "work").every(s => s.sec > 0));
+ok("timeline: first phase is work", tlSolo[0].kind === "work");
+// Superset: each set has two work phases (one per exercise).
+const pressEx = F.BASE_CATALOG.find(e => e.name === "Goblet Shoulder Press");
+const tlSS = F.elementTimeline({ isSuperset: true, prescriptions: [
+  { exercise: pressEx, block: "A", sets: 2, reps: 8 }, { exercise: swing, block: "A", sets: 2, reps: 8 }] });
+ok("timeline: superset 2 sets -> 4 work + 1 rest", tlSS.filter(s => s.kind === "work").length === 4 && tlSS.filter(s => s.kind === "rest").length === 1);
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

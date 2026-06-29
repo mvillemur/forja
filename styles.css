@@ -217,6 +217,41 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .manual-edit-grid .manual-input { margin: 0; }
 .manual-edit-ex .manual-input.name { font-weight: 600; }
 .manual-rm { align-self: flex-start; background: none; border: 0; color: var(--danger); font-size: 12px; cursor: pointer; padding: 2px 0; }
+/* --- Per-exercise kg hint --- */
+.ex-kg-hint { font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin-top: 1px; }
+
+/* --- Pinned reorder rows --- */
+.pin-asig-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pin-asig-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-order { display: flex; flex-direction: column; gap: 2px; }
+.pin-order .kg-adj { width: 22px; height: 16px; font-size: 9px; }
+.pin-order .kg-adj:disabled { opacity: 0.3; cursor: default; }
+
+/* --- History progress stats --- */
+.stats-chart { margin: 6px 0 12px; }
+.stats-svg { width: 100%; height: 96px; display: block; }
+.stats-figs { display: flex; gap: 10px; }
+.stat-fig { flex: 1; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+.stat-num { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--forge-hi); }
+.stat-lbl { font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; }
+
+/* --- Workout timer overlay --- */
+.timer-overlay { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.timer-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.timer-top { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.timer-step { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); letter-spacing: 0.08em; }
+.timer-x { background: var(--surface-2); border: 1px solid var(--line-2); color: var(--ink-dim); width: 36px; height: 36px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+.timer-kind { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--forge); margin-top: 28px; }
+.timer-overlay.rest .timer-kind { color: var(--steel); }
+.timer-name { font-size: 26px; font-weight: 800; margin-top: 10px; line-height: 1.15; }
+.timer-sub { font-family: var(--mono); font-size: 14px; color: var(--ink-dim); margin-top: 8px; }
+.timer-count { font-family: var(--mono); font-size: 78px; font-weight: 800; color: var(--forge-hi); margin: 18px 0 4px; font-variant-numeric: tabular-nums; }
+.timer-overlay.rest .timer-count { color: var(--steel); }
+.timer-next { font-size: 13px; color: var(--ink-faint); min-height: 18px; }
+.timer-controls { display: flex; gap: 10px; width: 100%; margin-top: 32px; }
+.timer-controls .btn { flex: 1; }
+.timer-controls #t-prev, .timer-controls #t-skip { flex: 0 0 60px; font-size: 20px; }
+
 .acc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
 .acc summary { padding: 14px 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .acc summary::-webkit-details-marker { display: none; }

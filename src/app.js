@@ -45,7 +45,7 @@
     return { get, set, get mode() { return mode; } };
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -69,7 +69,7 @@
     hist: [],
     routine: null,
     editing: null,    // name of the exercise being edited, or null
-    routineKg: {},    // name -> kg override for the current routine display
+    kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
@@ -127,6 +127,7 @@
       } catch (e) {}
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
+    try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
     computePool();
     // Seed the id sequence above any id already in history.
     state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
@@ -140,6 +141,7 @@
     Store.set(K.OVERRIDES, JSON.stringify(state.overrides));
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
+  const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
 
   // ---- Formatting
   const dose = p => {
@@ -201,18 +203,25 @@
           doseEl.appendChild(el("div", null, dose(p)));
           const baseKg = F.suggestKg(p.exercise.load, range.min, range.max);
           if (baseKg != null) {
+            const savedKg = state.kg[name];
             if (editable) {
-              let curKg = state.routineKg[name] != null ? state.routineKg[name] : baseKg;
+              // Default to the kg the user last dialed in for this exercise;
+              // fall back to the engine's suggestion. Persisted on change.
+              let curKg = savedKg != null ? savedKg : baseKg;
+              curKg = Math.max(range.min, Math.min(range.max, curKg));
               const kgRow = el("div", "ex-kg-row");
               const dec = el("button", "kg-adj", "−");
               const kgSpan = el("span", "ex-kg", curKg + " kg");
               const inc = el("button", "kg-adj", "+");
-              dec.onclick = () => { curKg = Math.max(range.min, curKg - 2); state.routineKg[name] = curKg; kgSpan.textContent = curKg + " kg"; };
-              inc.onclick = () => { curKg = Math.min(range.max, curKg + 2); state.routineKg[name] = curKg; kgSpan.textContent = curKg + " kg"; };
+              const set = v => { curKg = Math.max(range.min, Math.min(range.max, v)); kgSpan.textContent = curKg + " kg"; state.kg[name] = curKg; saveKg(); };
+              dec.onclick = () => set(curKg - 2);
+              inc.onclick = () => set(curKg + 2);
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
+              if (savedKg == null) doseEl.appendChild(el("div", "ex-kg-hint", "sugerido"));
             } else {
-              doseEl.appendChild(el("div", "ex-kg", baseKg + " kg"));
+              // Show the user's last kg if known, else the suggestion.
+              doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
           }
           ex.appendChild(doseEl);
@@ -243,6 +252,93 @@
       });
       into.appendChild(blk);
     });
+  }
+
+  // ---- Guided workout timer --------------------------------------------
+  // Flattens a routine into an ordered list of work/rest phases (from the
+  // engine's per-element timeline) and drives a full-screen countdown.
+  let timer = null;
+  function timerDose(p) {
+    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
+    if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + (perSide ? " / lado" : "");
+    return `${p.reps} reps` + (perSide ? " / lado" : "");
+  }
+  function buildTimerSteps(routine) {
+    const steps = [];
+    routine.blocks.forEach(br => br.elements.forEach(elm => {
+      // 30 s changeover before every element except the very first.
+      if (steps.length) steps.push({ kind: "rest", sec: 30, label: "Cambio de ejercicio", block: br.block });
+      F.elementTimeline(elm).forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
+    }));
+    return steps;
+  }
+  function ensureTimerOverlay() {
+    let o = $("#timer-overlay");
+    if (o) return o;
+    o = el("div", "timer-overlay hidden"); o.id = "timer-overlay";
+    o.innerHTML =
+      '<div class="timer-inner">' +
+      '<div class="timer-top"><span id="t-step" class="timer-step"></span>' +
+      '<button id="t-close" class="timer-x" title="Cerrar">✕</button></div>' +
+      '<div id="t-kind" class="timer-kind"></div>' +
+      '<div id="t-name" class="timer-name"></div>' +
+      '<div id="t-sub" class="timer-sub"></div>' +
+      '<div id="t-count" class="timer-count">0:00</div>' +
+      '<div id="t-next" class="timer-next"></div>' +
+      '<div class="timer-controls">' +
+      '<button id="t-prev" class="btn btn-ghost">‹</button>' +
+      '<button id="t-pause" class="btn btn-forge">Pausa</button>' +
+      '<button id="t-skip" class="btn btn-ghost">›</button>' +
+      '</div></div>';
+    document.body.appendChild(o);
+    return o;
+  }
+  function startTimer(routine) {
+    if (!routine || !routine.blocks) return;
+    const steps = buildTimerSteps(routine);
+    if (!steps.length) { toast("Rutina vacia"); return; }
+    if (timer) clearInterval(timer.tick);
+    const o = ensureTimerOverlay(); o.classList.remove("hidden");
+    const T = timer = { i: 0, remaining: 0, paused: false, tick: null };
+    const fmt = sec => Math.floor(sec / 60) + ":" + String(Math.max(0, sec) % 60).padStart(2, "0");
+    function render() {
+      const s = steps[T.i];
+      $("#t-step").textContent = `Paso ${T.i + 1} / ${steps.length}`;
+      o.classList.toggle("rest", s.kind === "rest");
+      if (s.kind === "work") {
+        $("#t-kind").textContent = "TRABAJO · Bloque " + s.block;
+        $("#t-name").textContent = s.prescription.exercise.name;
+        $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${timerDose(s.prescription)}`;
+      } else {
+        $("#t-kind").textContent = "DESCANSO";
+        $("#t-name").textContent = s.label || "Descanso";
+        $("#t-sub").textContent = "";
+      }
+      const nxt = steps[T.i + 1];
+      $("#t-next").textContent = nxt
+        ? "Sigue: " + (nxt.kind === "work" ? nxt.prescription.exercise.name : (nxt.label || "descanso"))
+        : "Ultima fase";
+      $("#t-count").textContent = fmt(T.remaining);
+    }
+    function load(i) { T.i = Math.max(0, Math.min(steps.length - 1, i)); T.remaining = steps[T.i].sec; render(); }
+    function finish() { toast("Entrenamiento completado"); stop(); }
+    function stop() { clearInterval(T.tick); o.classList.add("hidden"); timer = null; }
+    function onTick() {
+      if (T.paused) return;
+      T.remaining--;
+      if (T.remaining <= 0) {
+        if (navigator.vibrate) navigator.vibrate(120);
+        if (T.i >= steps.length - 1) { $("#t-count").textContent = "0:00"; finish(); return; }
+        load(T.i + 1); return;
+      }
+      $("#t-count").textContent = fmt(T.remaining);
+    }
+    $("#t-pause").onclick = () => { T.paused = !T.paused; $("#t-pause").textContent = T.paused ? "Reanudar" : "Pausa"; };
+    $("#t-prev").onclick = () => load(T.i - 1);
+    $("#t-skip").onclick = () => { if (T.i >= steps.length - 1) finish(); else load(T.i + 1); };
+    $("#t-close").onclick = stop;
+    load(0);
+    T.tick = setInterval(onTick, 1000);
   }
 
   // ---- Generate
@@ -345,10 +441,24 @@
     // Block assignment for each pinned exercise
     const asig = $("#pin-assigned"); asig.innerHTML = "";
     if (state.cfg.pinned.length) {
-      asig.appendChild(el("div", "label", "Bloque de cada fijado"));
-      state.cfg.pinned.forEach(f => {
+      asig.appendChild(el("div", "label", "Orden y bloque de cada fijado"));
+      const move = (i, dir) => {
+        const j = i + dir;
+        if (j < 0 || j >= state.cfg.pinned.length) return;
+        const p = state.cfg.pinned;
+        [p[i], p[j]] = [p[j], p[i]];
+        saveConfig(); renderPinned();
+      };
+      state.cfg.pinned.forEach((f, i) => {
         const row = el("div", "est-row");
-        row.appendChild(el("span", null, f.name));
+        const left = el("div", "pin-asig-left");
+        const ord = el("div", "pin-order");
+        const up = el("button", "kg-adj", "▲"); up.title = "Subir"; up.disabled = i === 0; up.onclick = () => move(i, -1);
+        const dn = el("button", "kg-adj", "▼"); dn.title = "Bajar"; dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
+        ord.appendChild(up); ord.appendChild(dn);
+        left.appendChild(ord);
+        left.appendChild(el("span", "pin-asig-name", f.name));
+        row.appendChild(left);
         const sel = document.createElement("select");
         ["AUTO", "A", "B", "C"].forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o === "AUTO" ? "Auto" : "Bloque " + o; if (f.block === o) op.selected = true; sel.appendChild(op); });
         sel.style.cssText = "padding:6px 8px;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--ink);font-size:13px;";
@@ -478,8 +588,63 @@
     return wrap;
   }
 
+  // ---- Progress stats ---------------------------------------------------
+  // Estimated tonnage (kg lifted) for a session, used for the trend chart.
+  // Manual sessions log real kg + reps; generated sessions are estimated from
+  // the user's last/suggested kg per exercise.
+  function sessionVolume(h) {
+    if (h.manual) {
+      return Math.round(h.exercises.reduce((a, ex) => a + (ex.kg || 0) * ex.sets.reduce((x, n) => x + n, 0), 0));
+    }
+    if (!h.routine) return 0;
+    const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
+    let vol = 0;
+    h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
+      const name = p.exercise.name;
+      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max) || 0);
+      vol += kg * p.sets * p.reps;
+    })));
+    return Math.round(vol);
+  }
+
+  function renderStats() {
+    const host = $("#hist-stats"); host.innerHTML = "";
+    if (state.hist.length < 2) return;   // not enough data to be interesting
+    const card = el("div", "card stats-card");
+    card.appendChild(el("div", "label", "Progreso · volumen por sesion"));
+
+    // Oldest -> newest, last 12 sessions.
+    const series = state.hist.slice(0, 12).map(h => ({ vol: sessionVolume(h), date: new Date(h.date), done: !!h.completed })).reverse();
+    const max = Math.max(1, ...series.map(s => s.vol));
+    const W = 320, H = 96, n = series.length, gap = 4;
+    const bw = (W - gap * (n - 1)) / n;
+    const svg = ['<svg viewBox="0 0 ' + W + ' ' + H + '" class="stats-svg" preserveAspectRatio="none">'];
+    series.forEach((s, i) => {
+      const bh = Math.max(2, Math.round((s.vol / max) * (H - 4)));
+      const x = i * (bw + gap), y = H - bh;
+      const fill = s.done ? "var(--forge)" : "var(--line-2)";
+      svg.push(`<rect x="${x.toFixed(1)}" y="${y}" width="${bw.toFixed(1)}" height="${bh}" rx="2" fill="${fill}"><title>${s.date.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}: ${s.vol} kg</title></rect>`);
+    });
+    svg.push("</svg>");
+    const chart = el("div", "stats-chart"); chart.innerHTML = svg.join("");
+    card.appendChild(chart);
+
+    // Summary figures: total sessions, completed, sessions in the last 7 days.
+    const weekAgo = Date.now() - 7 * 864e5;
+    const week = state.hist.filter(h => new Date(h.date).getTime() >= weekAgo).length;
+    const done = state.hist.filter(h => h.completed).length;
+    const row = el("div", "stats-figs");
+    const fig = (n2, lbl) => { const f = el("div", "stat-fig"); f.appendChild(el("div", "stat-num", String(n2))); f.appendChild(el("div", "stat-lbl", lbl)); return f; };
+    row.appendChild(fig(state.hist.length, "sesiones"));
+    row.appendChild(fig(done, "completadas"));
+    row.appendChild(fig(week, "ult. 7 dias"));
+    card.appendChild(row);
+    host.appendChild(card);
+  }
+
   // ---- Render: history
   function renderHistory() {
+    renderStats();
     const list = $("#hist-list"); list.innerHTML = "";
     if (!state.hist.length) {
       list.appendChild(el("div", "empty", "<b>Sin sesiones todavia</b>Genera una rutina y guardala para llevar el registro."));
@@ -503,12 +668,14 @@
         else detail.classList.add("hidden");
       };
       const actions = el("div", "hist-actions");
+      const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
+      trainBtn.onclick = () => startTimer(h.routine);
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
       okBtn.title = "Marcar completada";
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
       del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
-      actions.appendChild(okBtn); actions.appendChild(del);
+      actions.appendChild(trainBtn); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
       card.appendChild(row); card.appendChild(detail);
       list.appendChild(card);
@@ -847,6 +1014,7 @@
     $("#btn-generar").onclick = generateRoutine;
     $("#btn-regenerar").onclick = generateRoutine;
     $("#btn-guardar").onclick = saveToHistory;
+    $("#btn-train").onclick = () => startTimer(state.routine);
 
     $("#btn-add-toggle").onclick = () => {
       const panel = $("#pool-form"); const open = panel.classList.contains("hidden");

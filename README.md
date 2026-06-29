@@ -22,6 +22,12 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
 - **Adjustable kettlebell**: set your range and each exercise suggests its kg.
 - **Editable pool**: add, edit and remove exercises (32 built-in).
 - **Session history** with detail view and completion mark.
+- **Progress chart**: per-session volume trend plus session/completion counts.
+- **Guided workout timer**: full-screen work/rest countdown that walks any
+  generated or saved routine set by set.
+- **Per-exercise kg memory**: the weight you dial in is remembered and offered
+  next time (the engine suggestion is the fallback).
+- **Reorderable pins**: order and per-block assignment of pinned exercises.
 - **Built-in guide** explaining each concept.
 
 ---

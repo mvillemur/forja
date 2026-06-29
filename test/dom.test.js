@@ -25,9 +25,29 @@ setTimeout(() => {
   ok("generates elements", d.querySelectorAll("#routine-out .element").length > 0);
   ok("shows suggested kg", d.querySelectorAll("#routine-out .ex-kg").length > 0);
 
+  // Persisted per-exercise kg: a freshly generated routine marks kg as
+  // "sugerido"; nudging it stores the value and clears the hint on re-render.
+  ok("kg shows a 'sugerido' hint before the user sets it", d.querySelectorAll("#routine-out .ex-kg-hint").length > 0);
+  const incKg = d.querySelector("#routine-out .ex-kg-row .kg-adj:last-child");
+  ok("editable routine exposes kg steppers", !!incKg);
+  incKg.click();
+
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);
+
+  // Workout timer: training a saved session opens the overlay with phases.
+  const trainBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "▶");
+  ok("saved session has a train button", !!trainBtn);
+  trainBtn.click();
+  const overlay = d.querySelector("#timer-overlay");
+  ok("timer overlay opens", overlay && !overlay.classList.contains("hidden"));
+  ok("timer shows a step counter", /Paso 1 \//.test(d.querySelector("#t-step").textContent));
+  ok("timer shows a countdown", /\d+:\d\d/.test(d.querySelector("#t-count").textContent));
+  d.querySelector("#t-skip").click();
+  ok("timer advances on skip", /Paso 2 \//.test(d.querySelector("#t-step").textContent));
+  d.querySelector("#t-close").click();
+  ok("timer closes", d.querySelector("#timer-overlay").classList.contains("hidden"));
 
   // CSV import: a tab-separated table with header maps each date to a session.
   const csv = [
@@ -41,6 +61,10 @@ setTimeout(() => {
   ok("CSV import adds 2 dated sessions", d.querySelectorAll("#hist-list .card").length === 3);
   const manual = [...d.querySelectorAll("#hist-list .hist-title")].filter(n => /Registro/.test(n.textContent));
   ok("CSV sessions render as manual cards", manual.length === 2);
+
+  // Progress stats: with >=2 sessions a trend chart + figures render.
+  ok("stats card renders with multiple sessions", !!d.querySelector("#hist-stats .stats-card"));
+  ok("stats chart draws one bar per session shown", d.querySelectorAll("#hist-stats .stats-svg rect").length >= 2);
   manual[0].click(); // expand newest (21/06)
   ok("manual card shows per-set reps", /20 · 20 · 20 · 20/.test(d.querySelector("#hist-list").textContent));
 
