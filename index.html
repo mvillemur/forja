@@ -168,6 +168,16 @@
     </div>
 
     <div id="pool-list"></div>
+
+    <div class="card" style="margin-top:12px;">
+      <div class="label" style="margin-bottom:10px;">Copia de seguridad</div>
+      <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">Exportar descarga un JSON con tu historial y pool. Importar reemplaza los datos actuales.</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btn-export">Exportar datos</button>
+        <button class="btn btn-ghost" id="btn-import-trigger">Importar datos</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display:none">
+    </div>
   </section>
 
   <!-- ===== GUIDE ===== -->

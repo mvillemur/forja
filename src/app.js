@@ -398,6 +398,47 @@
     $("#pool-form").classList.add("hidden"); resetForm(); toast("Ejercicio anadido");
   }
 
+  // ---- Export / Import
+  function exportData() {
+    const payload = JSON.stringify({
+      version: 1,
+      date: new Date().toISOString(),
+      hist: state.hist,
+      custom: state.custom,
+      removed: state.removed,
+      overrides: state.overrides,
+    }, null, 2);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    a.download = "forja-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data || typeof data !== "object") throw new Error("invalid");
+        state.hist = Array.isArray(data.hist) ? data.hist : state.hist;
+        state.custom = Array.isArray(data.custom) ? data.custom : state.custom;
+        state.removed = Array.isArray(data.removed) ? data.removed : state.removed;
+        state.overrides = (data.overrides && typeof data.overrides === "object") ? data.overrides : state.overrides;
+        await Promise.all([
+          Store.set(K.HIST, JSON.stringify(state.hist)),
+          savePoolState(),
+        ]);
+        computePool();
+        renderPool();
+        toast(`Importado: ${state.hist.length} sesiones, ${state.custom.length} ejercicios propios`);
+      } catch (_) {
+        toast("Error al importar: archivo no valido");
+      }
+    };
+    reader.readAsText(file);
+  }
+
   // ---- Generic controls (segmented + chips)
   function fillSelectOptions() {
     const fill = (sel, pairs, def) => {
@@ -504,6 +545,10 @@
     };
     $("#btn-add").onclick = saveExercise;
     $("#btn-add-cancel").onclick = () => { $("#pool-form").classList.add("hidden"); resetForm(); };
+
+    $("#btn-export").onclick = exportData;
+    $("#btn-import-trigger").onclick = () => $("#import-file").click();
+    $("#import-file").onchange = e => { if (e.target.files[0]) { importData(e.target.files[0]); e.target.value = ""; } };
 
     document.querySelectorAll(".nav button").forEach(b => b.onclick = () => showView(b.dataset.view));
 
