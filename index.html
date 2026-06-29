@@ -20,22 +20,22 @@
 </header>
 
 <main>
-  <!-- ===== GENERAR ===== -->
+  <!-- ===== GENERATE ===== -->
   <section id="view-gen" class="view active">
     <div class="card">
       <div class="label">Objetivo</div>
-      <div class="seg" id="seg-objetivo">
-        <button class="forge" data-val="FUERZA" aria-pressed="true">Fuerza</button>
-        <button class="forge" data-val="METABOLICO" aria-pressed="false">Metabolico</button>
+      <div class="seg" id="seg-objective">
+        <button class="forge" data-val="STRENGTH" aria-pressed="true">Fuerza</button>
+        <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabolico</button>
       </div>
     </div>
 
     <div class="card">
       <div class="label">Foco</div>
-      <div class="seg" id="seg-foco">
+      <div class="seg" id="seg-focus">
         <button data-val="FULL" aria-pressed="true">Full</button>
-        <button data-val="PIERNAS" aria-pressed="false">Piernas</button>
-        <button data-val="EMPUJE" aria-pressed="false">Empuje</button>
+        <button data-val="LEGS" aria-pressed="false">Piernas</button>
+        <button data-val="PUSH" aria-pressed="false">Empuje</button>
         <button data-val="PULL" aria-pressed="false">Pull</button>
       </div>
     </div>
@@ -44,7 +44,7 @@
       <div class="label">Equipamiento</div>
       <div class="chips">
         <span class="chip" data-locked="true" aria-pressed="true">Kettlebell</span>
-        <button class="chip" id="chip-barra" aria-pressed="false">Barra de dominadas</button>
+        <button class="chip" id="chip-barbell" aria-pressed="false">Barra de dominadas</button>
         <span class="chip" data-locked="true" aria-pressed="true">Suelo</span>
       </div>
     </div>
@@ -59,16 +59,16 @@
     <div class="card">
       <div class="label">Volumen</div>
       <div class="seg" id="seg-vol" style="margin-bottom:13px;">
-        <button data-val="tiempo" aria-pressed="true">Por tiempo</button>
-        <button data-val="estructura" aria-pressed="false">Por estructura</button>
+        <button data-val="time" aria-pressed="true">Por tiempo</button>
+        <button data-val="structure" aria-pressed="false">Por estructura</button>
       </div>
-      <div id="vol-tiempo">
+      <div id="vol-time">
         <div class="slider-row">
           <input type="range" id="m-range" min="15" max="75" step="5" value="45">
           <div class="readout"><span id="m-read">45</span> <small>min</small></div>
         </div>
       </div>
-      <div id="vol-estructura" class="hidden">
+      <div id="vol-structure" class="hidden">
         <div class="est-row"><span>Bloque A · Principal</span><div class="stepper"><button id="est-A-dec">−</button><span class="val" id="est-A-val">4</span><button id="est-A-inc">+</button></div></div>
         <div class="est-row"><span>Bloque B · Accesorios</span><div class="stepper"><button id="est-B-dec">−</button><span class="val" id="est-B-val">4</span><button id="est-B-inc">+</button></div></div>
         <div class="est-row"><span>Bloque C · Finalizador</span><div class="stepper"><button id="est-C-dec">−</button><span class="val" id="est-C-val">2</span><button id="est-C-inc">+</button></div></div>
@@ -77,11 +77,11 @@
 
     <div class="card" id="card-balance">
       <div class="label">Balance de patrones</div>
-      <div id="balance-nota" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
+      <div id="balance-note" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
       <div class="seg" id="seg-balance">
-        <button data-val="NINGUNO" aria-pressed="true">Ninguno</button>
-        <button data-val="SUAVE" aria-pressed="false">Suave</button>
-        <button data-val="DURO" aria-pressed="false">Duro</button>
+        <button data-val="NONE" aria-pressed="true">Ninguno</button>
+        <button data-val="SOFT" aria-pressed="false">Suave</button>
+        <button data-val="HARD" aria-pressed="false">Duro</button>
       </div>
       <div id="tol-wrap" class="hidden" style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;">
         <div class="label" style="margin:0;">Tolerancia</div>
@@ -96,24 +96,24 @@
         <div class="label" style="margin:0 0 2px;">Variar</div>
         <div style="font-size:11.5px;color:var(--ink-faint);">Evita repetir lo de sesiones recientes</div>
       </div>
-      <div class="seg" id="seg-variar" style="width:auto;flex:0 0 auto;">
-        <button data-val="si" aria-pressed="true">Si</button>
+      <div class="seg" id="seg-vary" style="width:auto;flex:0 0 auto;">
+        <button data-val="yes" aria-pressed="true">Si</button>
         <button data-val="no" aria-pressed="false">No</button>
       </div>
     </div>
 
     <div class="card">
-      <button class="btn btn-ghost" id="btn-fijar-toggle" style="width:100%;">Fijar ejercicios <span id="fijar-count"></span></button>
-      <div id="fijar-panel" class="hidden" style="margin-top:12px;">
+      <button class="btn btn-ghost" id="btn-pin-toggle" style="width:100%;">Fijar ejercicios <span id="pin-count"></span></button>
+      <div id="pin-panel" class="hidden" style="margin-top:12px;">
         <div class="label">Toca para incluir en la rutina; el resto se autocompleta.</div>
-        <div class="chips" id="fijar-chips"></div>
-        <div id="fijar-asignados" style="margin-top:12px;"></div>
+        <div class="chips" id="pin-chips"></div>
+        <div id="pin-assigned" style="margin-top:12px;"></div>
       </div>
     </div>
 
     <button class="btn btn-forge" id="btn-generar">Generar rutina</button>
 
-    <div id="rutina-out"></div>
+    <div id="routine-out"></div>
 
     <div id="save-row" class="btn-row hidden" style="margin-top:14px;">
       <button class="btn btn-ghost" id="btn-regenerar">Regenerar</button>
@@ -121,7 +121,7 @@
     </div>
   </section>
 
-  <!-- ===== HISTORIAL ===== -->
+  <!-- ===== HISTORY ===== -->
   <section id="view-hist" class="view">
     <div id="hist-list"></div>
   </section>
@@ -137,28 +137,28 @@
       <div class="label" id="pool-form-title" style="font-size:13px;color:var(--ink);margin-bottom:12px;">Nuevo ejercicio</div>
       <div class="field">
         <div class="label">Nombre</div>
-        <input type="text" id="f-nombre" placeholder="p. ej. Turkish Get-Up" autocomplete="off">
+        <input type="text" id="f-name" placeholder="p. ej. Turkish Get-Up" autocomplete="off">
       </div>
       <div class="field">
         <div class="label">Tier (importancia)</div>
         <select id="f-tier"></select>
       </div>
       <div class="grid2">
-        <div class="field"><div class="label">Patron</div><select id="f-patron"></select></div>
-        <div class="field"><div class="label">Dinamica</div><select id="f-dinamica"></select></div>
-        <div class="field"><div class="label">Simetria</div><select id="f-simetria"></select></div>
-        <div class="field"><div class="label">SNC</div><select id="f-snc"></select></div>
-        <div class="field"><div class="label">Carga ideal</div><select id="f-carga"></select></div>
+        <div class="field"><div class="label">Patron</div><select id="f-pattern"></select></div>
+        <div class="field"><div class="label">Dinamica</div><select id="f-dynamics"></select></div>
+        <div class="field"><div class="label">Simetria</div><select id="f-symmetry"></select></div>
+        <div class="field"><div class="label">SNC</div><select id="f-cns"></select></div>
+        <div class="field"><div class="label">Carga ideal</div><select id="f-load"></select></div>
         <div class="field"><div class="label">Agarre intensivo</div>
-          <label class="field-toggle"><input type="checkbox" id="f-agarre"> <span>Si</span></label>
+          <label class="field-toggle"><input type="checkbox" id="f-grip"> <span>Si</span></label>
         </div>
       </div>
       <div class="field">
         <div class="label">Equipamiento necesario</div>
         <div class="chips">
           <label class="field-toggle"><input type="checkbox" id="f-eq-kb" checked> Kettlebell</label>
-          <label class="field-toggle"><input type="checkbox" id="f-eq-barra"> Barra</label>
-          <label class="field-toggle"><input type="checkbox" id="f-eq-suelo"> Suelo</label>
+          <label class="field-toggle"><input type="checkbox" id="f-eq-barbell"> Barra</label>
+          <label class="field-toggle"><input type="checkbox" id="f-eq-floor"> Suelo</label>
         </div>
       </div>
       <div class="btn-row">
@@ -170,7 +170,7 @@
     <div id="pool-list"></div>
   </section>
 
-  <!-- ===== GUIA ===== -->
+  <!-- ===== GUIDE ===== -->
   <section id="view-guia" class="view">
     <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Como funciona FORJA y que significa cada cosa. Toca para desplegar.</p>
 
@@ -260,11 +260,11 @@
   <button data-view="guia" aria-current="false"><span class="ico">?</span>Guia</button>
 </nav>
 
-<!-- Motor de reglas (sin DOM) -> define window.FORJA -->
+<!-- Rules engine (no DOM) -> defines window.FORJA -->
 <script src="src/engine.js"></script>
-<!-- Capa de interfaz: estado, almacenamiento, render y eventos -->
+<!-- Interface layer: state, storage, render and events -->
 <script src="src/app.js"></script>
-<!-- Registro del service worker (PWA offline) -->
+<!-- Service worker registration (PWA offline) -->
 <script src="src/pwa.js"></script>
 </body>
 </html>
