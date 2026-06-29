@@ -128,7 +128,14 @@
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
 
   // ---- Formatting
-  const dose = p => p.exercise.dynamics === F.DIN.ISO ? `${p.sets}x ~35s` : `${p.sets}x${p.reps}`;
+  const dose = p => {
+    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
+    if (p.exercise.dynamics === F.DIN.ISO) {
+      const sec = p.exercise.holdSec || 35;
+      return `${p.sets}x ~${sec}s` + (perSide ? " / lado" : "");
+    }
+    return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
+  };
 
   // ---- Render: routine
   function renderRoutine(r, into, range, editable) {
@@ -139,6 +146,17 @@
     head.appendChild(el("div", "routine-title", r.template));
     head.appendChild(el("div", "routine-dur", `~${F.routineDurationMin(r)} min`));
     into.appendChild(head);
+
+    if (r.warmup && r.warmup.items && r.warmup.items.length) {
+      const wu = el("div", "block warmup");
+      const wh = el("div", "block-head");
+      wh.appendChild(el("div", "block-name", "Calentamiento · preparacion"));
+      wu.appendChild(wh);
+      const ul = el("ul", "warmup-list");
+      r.warmup.items.forEach(it => ul.appendChild(el("li", null, it)));
+      wu.appendChild(ul);
+      into.appendChild(wu);
+    }
 
     const blockName = { A: "Principal", B: "Accesorios", C: "Finalizador" };
     r.blocks.forEach(br => {
