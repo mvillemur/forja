@@ -315,21 +315,6 @@
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
           }
-          // Double progression + RPE autoregulation: rate the set to advance,
-          // hold, or back off the next target. Target reps shown above.
-          if (editable && p.exercise.dynamics !== F.DIN.ISO) {
-            doseEl.appendChild(el("div", "prog-target", `objetivo ${targetReps(p)} reps`));
-            const fbRow = el("div", "prog-fb");
-            [["easy", "Facil", "Demasiado facil: sube mas rapido"],
-             ["ok", "OK", "En punto: progresa normal"],
-             ["hard", "Duro", "Demasiado duro: baja un escalon"]].forEach(([fb, label, title]) => {
-              const b = el("button", "prog-btn prog-" + fb, label);
-              b.title = title;
-              b.onclick = () => applyProgression(p, fb);
-              fbRow.appendChild(b);
-            });
-            doseEl.appendChild(fbRow);
-          }
           ex.appendChild(doseEl);
           if (editable) {
             const isPinned = pinnedIndex(name) >= 0;
@@ -352,6 +337,23 @@
             ex.appendChild(pinBtn);
           }
           node.appendChild(ex);
+          // Double progression + RPE autoregulation as a clean full-width strip
+          // under the exercise: target reps on the left, Facil/OK/Duro on the right.
+          if (editable && p.exercise.dynamics !== F.DIN.ISO) {
+            const progRow = el("div", "prog-row");
+            progRow.appendChild(el("span", "prog-target", `objetivo ${targetReps(p)} reps`));
+            const fbRow = el("div", "prog-fb");
+            [["easy", "Facil", "Demasiado facil: sube mas rapido"],
+             ["ok", "OK", "En punto: progresa normal"],
+             ["hard", "Duro", "Demasiado duro: baja un escalon"]].forEach(([fb, label, title]) => {
+              const b = el("button", "prog-btn prog-" + fb, label);
+              b.title = title;
+              b.onclick = () => applyProgression(p, fb);
+              fbRow.appendChild(b);
+            });
+            progRow.appendChild(fbRow);
+            node.appendChild(progRow);
+          }
         });
         node.appendChild(el("div", "el-note", item.note));
         blk.appendChild(node);
