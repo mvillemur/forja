@@ -61,7 +61,8 @@
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
-           balance:"NONE", tolerance:1, pinned:[], vary:true },
+           balance:"NONE", tolerance:1, pinned:[], vary:true,
+           profile:{ bodyweight:null, sex:"", level:"INTER" } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
@@ -104,6 +105,9 @@
     // Migrate old single-string focus ("FULL"/"LEGS"/...) to array model.
     if (!Array.isArray(state.cfg.focus)) {
       state.cfg.focus = (state.cfg.focus && state.cfg.focus !== "FULL") ? [state.cfg.focus] : [];
+    }
+    if (!state.cfg.profile || typeof state.cfg.profile !== "object") {
+      state.cfg.profile = { bodyweight: null, sex: "", level: "INTER" };
     }
     let loaded = false;
     try {
@@ -201,7 +205,7 @@
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, dose(p)));
-          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max);
+          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
           if (baseKg != null) {
             const savedKg = state.kg[name];
             if (editable) {
@@ -601,7 +605,7 @@
     let vol = 0;
     h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
       const name = p.exercise.name;
-      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max) || 0);
+      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
       vol += kg * p.sets * p.reps;
     })));
     return Math.round(vol);
@@ -944,6 +948,8 @@
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
+    setSeg("#seg-sex", state.cfg.profile.sex);
+    setSeg("#seg-level", state.cfg.profile.level);
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
     $("#chip-barbell").setAttribute("aria-pressed", String(state.cfg.equipment.includes("BARBELL")));
     $("#m-range").value = state.cfg.minutes; $("#m-read").textContent = state.cfg.minutes;
@@ -990,6 +996,23 @@
       $("#est-" + k + "-dec").onclick = () => { state.cfg.structure[k] = Math.max(0, state.cfg.structure[k] - 1); $("#est-" + k + "-val").textContent = state.cfg.structure[k]; saveConfig(); };
       $("#est-" + k + "-inc").onclick = () => { state.cfg.structure[k] = Math.min(6, state.cfg.structure[k] + 1); $("#est-" + k + "-val").textContent = state.cfg.structure[k]; saveConfig(); };
     });
+
+    // Profile (cold-start seeding of suggested kg)
+    const LEVEL_LABEL = { BEG: "Principiante", INTER: "Intermedio", ADV: "Avanzado" };
+    const refreshProfile = () => {
+      const p = state.cfg.profile;
+      $("#bw-val").textContent = p.bodyweight ? p.bodyweight : "—";
+      const bits = [];
+      if (p.bodyweight) bits.push(p.bodyweight + " kg");
+      if (p.sex) bits.push(p.sex === "F" ? "Mujer" : "Hombre");
+      bits.push(LEVEL_LABEL[p.level] || "Intermedio");
+      $("#profile-sub").textContent = "· " + bits.join(" · ");
+    };
+    $("#bw-dec").onclick = () => { const c = state.cfg.profile.bodyweight || 70; state.cfg.profile.bodyweight = Math.max(35, c - 1); refreshProfile(); saveConfig(); };
+    $("#bw-inc").onclick = () => { const c = state.cfg.profile.bodyweight || 69; state.cfg.profile.bodyweight = Math.min(180, c + 1); refreshProfile(); saveConfig(); };
+    wireSeg("#seg-sex", v => { state.cfg.profile.sex = v; refreshProfile(); saveConfig(); });
+    wireSeg("#seg-level", v => { state.cfg.profile.level = v; refreshProfile(); saveConfig(); });
+    refreshProfile();
 
     $("#btn-pin-toggle").onclick = () => {
       const panel = $("#pin-panel"); const open = panel.classList.contains("hidden");

@@ -428,10 +428,28 @@
 
   // Kg suggestion for an adjustable kettlebell: maps the load tier (light/
   // medium/heavy) within the user's available range, rounded to 2 kg.
-  function suggestKg(load, min, max) {
+  // Cold-start seed multiplier from person features (doc: load-rep-individualization §3/§4).
+  // Returns 1 when no profile is given, so suggestKg(load,min,max) is unchanged.
+  const UPPER_PATTERNS = new Set([PAT.PUSH_H, PAT.PUSH_V, PAT.PULL_H, PAT.PULL_V]);
+  function personSeedMultiplier(person, exercise) {
+    if (!person) return 1;
+    let m = 1;
+    const lvl = (person.level || "").toUpperCase();
+    m *= { BEG: 0.85, INTER: 1, ADV: 1.12 }[lvl] || 1;
+    // Sex shifts upper-body strength norms more than lower-body.
+    if ((person.sex || "").toUpperCase() === "F" && exercise && UPPER_PATTERNS.has(exercise.pattern)) m *= 0.9;
+    // Bodyweight as a gentle anchor around a 75 kg reference.
+    const bw = +person.bodyweight;
+    if (bw > 0) m *= Math.max(0.9, Math.min(1.15, 1 + ((bw - 75) / 75) * 0.15));
+    return Math.max(0.7, Math.min(1.3, m));
+  }
+
+  function suggestKg(load, min, max, person, exercise) {
     if (min == null || max == null) return null;
-    const frac = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
-    const kg = Math.round((min + (frac == null ? 0.5 : frac) * (max - min)) / 2) * 2;
+    const base = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
+    let frac = base == null ? 0.5 : base;
+    frac = Math.max(0.1, Math.min(0.95, frac * personSeedMultiplier(person, exercise)));
+    const kg = Math.round((min + frac * (max - min)) / 2) * 2;
     return Math.max(min, Math.min(max, kg));
   }
 

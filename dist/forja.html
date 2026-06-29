@@ -329,6 +329,31 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
     </div>
 
+    <div class="card" style="padding:0;">
+      <details class="acc" style="margin:0;border:0;background:transparent;">
+        <summary>Perfil <span id="profile-sub" style="font-weight:400;color:var(--ink-faint);font-size:12px;"></span></summary>
+        <div class="acc-body">
+          <p style="margin:0 0 12px;">Afina los kg sugeridos para la primera sesion. Opcional; al ajustar pesos tu historial manda.</p>
+          <div class="est-row">
+            <span>Peso corporal (kg)</span>
+            <div class="stepper"><button id="bw-dec">−</button><span class="val" id="bw-val">—</span><button id="bw-inc">+</button></div>
+          </div>
+          <div class="label" style="margin:12px 0 6px;">Sexo</div>
+          <div class="seg" id="seg-sex">
+            <button data-val="" aria-pressed="true">—</button>
+            <button data-val="M" aria-pressed="false">Hombre</button>
+            <button data-val="F" aria-pressed="false">Mujer</button>
+          </div>
+          <div class="label" style="margin:12px 0 6px;">Nivel</div>
+          <div class="seg" id="seg-level">
+            <button data-val="BEG" aria-pressed="false">Principiante</button>
+            <button data-val="INTER" aria-pressed="true">Intermedio</button>
+            <button data-val="ADV" aria-pressed="false">Avanzado</button>
+          </div>
+        </div>
+      </details>
+    </div>
+
     <div class="card">
       <div class="label">Volumen</div>
       <div class="seg" id="seg-vol" style="margin-bottom:13px;">
@@ -537,6 +562,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <summary>Pesa y kg sugeridos</summary>
       <div class="acc-body">
         <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Perfil</summary>
+      <div class="acc-body">
+        <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
+        <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
       </div>
     </details>
 
@@ -1004,10 +1037,28 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   // Kg suggestion for an adjustable kettlebell: maps the load tier (light/
   // medium/heavy) within the user's available range, rounded to 2 kg.
-  function suggestKg(load, min, max) {
+  // Cold-start seed multiplier from person features (doc: load-rep-individualization §3/§4).
+  // Returns 1 when no profile is given, so suggestKg(load,min,max) is unchanged.
+  const UPPER_PATTERNS = new Set([PAT.PUSH_H, PAT.PUSH_V, PAT.PULL_H, PAT.PULL_V]);
+  function personSeedMultiplier(person, exercise) {
+    if (!person) return 1;
+    let m = 1;
+    const lvl = (person.level || "").toUpperCase();
+    m *= { BEG: 0.85, INTER: 1, ADV: 1.12 }[lvl] || 1;
+    // Sex shifts upper-body strength norms more than lower-body.
+    if ((person.sex || "").toUpperCase() === "F" && exercise && UPPER_PATTERNS.has(exercise.pattern)) m *= 0.9;
+    // Bodyweight as a gentle anchor around a 75 kg reference.
+    const bw = +person.bodyweight;
+    if (bw > 0) m *= Math.max(0.9, Math.min(1.15, 1 + ((bw - 75) / 75) * 0.15));
+    return Math.max(0.7, Math.min(1.3, m));
+  }
+
+  function suggestKg(load, min, max, person, exercise) {
     if (min == null || max == null) return null;
-    const frac = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
-    const kg = Math.round((min + (frac == null ? 0.5 : frac) * (max - min)) / 2) * 2;
+    const base = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
+    let frac = base == null ? 0.5 : base;
+    frac = Math.max(0.1, Math.min(0.95, frac * personSeedMultiplier(person, exercise)));
+    const kg = Math.round((min + frac * (max - min)) / 2) * 2;
     return Math.max(min, Math.min(max, kg));
   }
 
@@ -1372,7 +1423,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
-           balance:"NONE", tolerance:1, pinned:[], vary:true },
+           balance:"NONE", tolerance:1, pinned:[], vary:true,
+           profile:{ bodyweight:null, sex:"", level:"INTER" } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
@@ -1415,6 +1467,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // Migrate old single-string focus ("FULL"/"LEGS"/...) to array model.
     if (!Array.isArray(state.cfg.focus)) {
       state.cfg.focus = (state.cfg.focus && state.cfg.focus !== "FULL") ? [state.cfg.focus] : [];
+    }
+    if (!state.cfg.profile || typeof state.cfg.profile !== "object") {
+      state.cfg.profile = { bodyweight: null, sex: "", level: "INTER" };
     }
     let loaded = false;
     try {
@@ -1512,7 +1567,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, dose(p)));
-          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max);
+          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
           if (baseKg != null) {
             const savedKg = state.kg[name];
             if (editable) {
@@ -1912,7 +1967,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     let vol = 0;
     h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
       const name = p.exercise.name;
-      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max) || 0);
+      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
       vol += kg * p.sets * p.reps;
     })));
     return Math.round(vol);
@@ -2255,6 +2310,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
+    setSeg("#seg-sex", state.cfg.profile.sex);
+    setSeg("#seg-level", state.cfg.profile.level);
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
     $("#chip-barbell").setAttribute("aria-pressed", String(state.cfg.equipment.includes("BARBELL")));
     $("#m-range").value = state.cfg.minutes; $("#m-read").textContent = state.cfg.minutes;
@@ -2301,6 +2358,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       $("#est-" + k + "-dec").onclick = () => { state.cfg.structure[k] = Math.max(0, state.cfg.structure[k] - 1); $("#est-" + k + "-val").textContent = state.cfg.structure[k]; saveConfig(); };
       $("#est-" + k + "-inc").onclick = () => { state.cfg.structure[k] = Math.min(6, state.cfg.structure[k] + 1); $("#est-" + k + "-val").textContent = state.cfg.structure[k]; saveConfig(); };
     });
+
+    // Profile (cold-start seeding of suggested kg)
+    const LEVEL_LABEL = { BEG: "Principiante", INTER: "Intermedio", ADV: "Avanzado" };
+    const refreshProfile = () => {
+      const p = state.cfg.profile;
+      $("#bw-val").textContent = p.bodyweight ? p.bodyweight : "—";
+      const bits = [];
+      if (p.bodyweight) bits.push(p.bodyweight + " kg");
+      if (p.sex) bits.push(p.sex === "F" ? "Mujer" : "Hombre");
+      bits.push(LEVEL_LABEL[p.level] || "Intermedio");
+      $("#profile-sub").textContent = "· " + bits.join(" · ");
+    };
+    $("#bw-dec").onclick = () => { const c = state.cfg.profile.bodyweight || 70; state.cfg.profile.bodyweight = Math.max(35, c - 1); refreshProfile(); saveConfig(); };
+    $("#bw-inc").onclick = () => { const c = state.cfg.profile.bodyweight || 69; state.cfg.profile.bodyweight = Math.min(180, c + 1); refreshProfile(); saveConfig(); };
+    wireSeg("#seg-sex", v => { state.cfg.profile.sex = v; refreshProfile(); saveConfig(); });
+    wireSeg("#seg-level", v => { state.cfg.profile.level = v; refreshProfile(); saveConfig(); });
+    refreshProfile();
 
     $("#btn-pin-toggle").onclick = () => {
       const panel = $("#pin-panel"); const open = panel.classList.contains("hidden");

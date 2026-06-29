@@ -29,6 +29,21 @@ ok("two pulls are not antagonists", !F.areAntagonists("PULL_H", "PULL_V"));
 ok("heavy kg (12-32) = 30", F.suggestKg(3, 12, 32) === 30);
 ok("light kg (12-32) = 16", F.suggestKg(1, 12, 32) === 16);
 
+// Cold-start seeding: profile nudges the suggestion but defaults to old behavior.
+const press2 = F.BASE_CATALOG.find(e => e.name === "Goblet Shoulder Press"); // PUSH_V, load 1
+const swingHeavy = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)"); // HIP, load 3
+ok("seed: no profile == legacy suggestion", F.suggestKg(2, 12, 32) === F.suggestKg(2, 12, 32, null));
+ok("seed: beginner gets lighter than advanced",
+  F.suggestKg(3, 12, 40, { level: "BEG" }, swingHeavy) < F.suggestKg(3, 12, 40, { level: "ADV" }, swingHeavy));
+ok("seed: female lighter on upper body",
+  F.suggestKg(2, 12, 40, { sex: "F" }, press2) <= F.suggestKg(2, 12, 40, { sex: "M" }, press2));
+ok("seed: female shift does not apply to lower body (hinge)",
+  F.suggestKg(3, 12, 40, { sex: "F" }, swingHeavy) === F.suggestKg(3, 12, 40, { sex: "M" }, swingHeavy));
+ok("seed: result stays within range", (() => {
+  const k = F.suggestKg(3, 12, 32, { level: "ADV", bodyweight: 120 }, swingHeavy);
+  return k >= 12 && k <= 32;
+})());
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);
