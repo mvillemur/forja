@@ -164,6 +164,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .icon-btn.del { color: var(--danger); }
 
 /* --- Pool --- */
+.pool-search-wrap { display: flex; gap: 8px; margin-bottom: 10px; }
+.pool-search-wrap input { flex: 1; padding: 11px 13px; border-radius: var(--radius-sm); border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); font-size: 14px; font-family: var(--sans); }
+#pool-filters { margin-bottom: 12px; }
 .pool-item { display: flex; align-items: center; gap: 11px; padding: 11px 13px; }
 .pool-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-dim); }

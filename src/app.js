@@ -75,6 +75,8 @@
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
+  // UI-only filters for the Pool view: free-text search + tag selections.
+  const poolFilter = { text: "", pattern: [], dynamics: [], tier: [] };
   let manualEditId = null;   // id of the manual session currently being edited
   // Monotonic id generator: history/session ids must be unique even when two
   // are minted within the same millisecond (e.g. a save and a CSV import, or
@@ -788,10 +790,57 @@
     });
   }
 
+  // Pool filtering: free-text (accent/case-insensitive) AND tag selections.
+  function poolMatches(e) {
+    const q = deaccent(poolFilter.text);
+    if (q && !deaccent(e.name).includes(q)) return false;
+    if (poolFilter.pattern.length && !poolFilter.pattern.includes(e.pattern)) return false;
+    if (poolFilter.dynamics.length && !poolFilter.dynamics.includes(e.dynamics)) return false;
+    if (poolFilter.tier.length && !poolFilter.tier.includes(e.tier)) return false;
+    return true;
+  }
+  function poolFilterCount() {
+    return poolFilter.pattern.length + poolFilter.dynamics.length + poolFilter.tier.length;
+  }
+  function renderPoolFilters() {
+    const host = $("#pool-filters"); host.innerHTML = "";
+    const groups = [
+      { key: "pattern", label: "Patron", labels: F.PAT_LABEL },
+      { key: "dynamics", label: "Dinamica", labels: F.DIN_LABEL },
+      { key: "tier", label: "Tier", labels: F.TIER_LABEL },
+    ];
+    groups.forEach(g => {
+      const present = new Set(state.pool.map(x => x[g.key]));
+      const vals = Object.keys(g.labels).filter(v => present.has(v));
+      if (!vals.length) return;
+      host.appendChild(el("div", "label pin-filter-label", g.label));
+      const rowf = el("div", "chips pin-filter-row");
+      vals.forEach(v => {
+        const c = el("button", "chip filter-chip", g.labels[v]);
+        c.setAttribute("aria-pressed", String(poolFilter[g.key].includes(v)));
+        c.onclick = () => {
+          const i = poolFilter[g.key].indexOf(v);
+          if (i >= 0) poolFilter[g.key].splice(i, 1); else poolFilter[g.key].push(v);
+          renderPool();
+        };
+        rowf.appendChild(c);
+      });
+      host.appendChild(rowf);
+    });
+    const n = poolFilterCount();
+    $("#pool-filter-count").textContent = n ? "(" + n + ")" : "";
+  }
+
   // ---- Render: pool
   function renderPool() {
+    renderPoolFilters();
     const list = $("#pool-list"); list.innerHTML = "";
-    const sorted = state.pool.slice().sort((a, b) => a.pattern.localeCompare(b.pattern) || a.name.localeCompare(b.name));
+    const all = state.pool.slice().sort((a, b) => a.pattern.localeCompare(b.pattern) || a.name.localeCompare(b.name));
+    const sorted = all.filter(poolMatches);
+    $("#pool-count").textContent = sorted.length === all.length
+      ? all.length + " ejercicios"
+      : sorted.length + " de " + all.length;
+    if (!sorted.length) { list.appendChild(el("div", "empty", "<b>Sin resultados</b>Ajusta la busqueda o los filtros.")); return; }
     sorted.forEach(e => {
       const card = el("div", "card"); card.style.padding = "0";
       const row = el("div", "pool-item");
@@ -825,7 +874,6 @@
       row.appendChild(del);
       card.appendChild(row); list.appendChild(card);
     });
-    $("#pool-count").textContent = state.pool.length + " ejercicios";
   }
 
   function readForm() {
@@ -1160,6 +1208,10 @@
     };
     $("#btn-add").onclick = saveExercise;
     $("#btn-add-cancel").onclick = () => { $("#pool-form").classList.add("hidden"); resetForm(); };
+
+    // Pool search + filters
+    $("#pool-search").oninput = e => { poolFilter.text = e.target.value; renderPool(); };
+    $("#pool-filter-toggle").onclick = () => $("#pool-filters").classList.toggle("hidden");
 
     $("#btn-export").onclick = exportData;
     $("#btn-import-trigger").onclick = () => $("#import-file").click();

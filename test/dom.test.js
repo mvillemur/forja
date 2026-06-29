@@ -107,6 +107,20 @@ setTimeout(() => {
   ok("pool shows 38 exercises", d.querySelectorAll("#pool-list .card").length === 38);
   ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
+  // Pool search narrows the list by name; clearing restores it.
+  const search = d.querySelector("#pool-search");
+  search.value = "swing"; search.dispatchEvent(new window.Event("input"));
+  const swingHits = d.querySelectorAll("#pool-list .card").length;
+  ok("pool search narrows by name", swingHits > 0 && swingHits < 38);
+  search.value = ""; search.dispatchEvent(new window.Event("input"));
+  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 38);
+  // A tag filter narrows the pool too.
+  const pf = d.querySelector("#pool-filters .filter-chip");
+  ok("pool exposes tag filters", !!pf);
+  pf.click();
+  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 38);
+  pf.click(); // reset
+
   d.querySelector('.nav button[data-view="guia"]').click();
   ok("guide has 13 sections", d.querySelectorAll("#view-guia .acc").length === 13);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
