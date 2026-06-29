@@ -246,11 +246,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
     <div class="card">
       <div class="label">Foco</div>
-      <div class="seg" id="seg-focus">
+      <div class="seg" id="seg-focus" style="flex-wrap:wrap">
         <button data-val="FULL" aria-pressed="true">Full</button>
         <button data-val="LEGS" aria-pressed="false">Piernas</button>
         <button data-val="PUSH" aria-pressed="false">Empuje</button>
         <button data-val="PULL" aria-pressed="false">Pull</button>
+        <button data-val="SHOULDERS" aria-pressed="false">Hombros</button>
+        <button data-val="CHEST" aria-pressed="false">Pecho</button>
+        <button data-val="CORE" aria-pressed="false">Core</button>
       </div>
     </div>
 
@@ -1059,11 +1062,22 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   // --- High-level API --------------------------------------------------
   const FOCUS_PAT = {
-    LEGS: [PAT.HIP, PAT.KNEE],
-    PUSH: [PAT.PUSH_H, PAT.PUSH_V],
-    PULL: [PAT.PULL_H, PAT.PULL_V],
+    LEGS:      [PAT.HIP, PAT.KNEE],
+    PUSH:      [PAT.PUSH_H, PAT.PUSH_V],
+    PULL:      [PAT.PULL_H, PAT.PULL_V],
+    SHOULDERS: [PAT.PUSH_V, PAT.PULL_V],
+    CHEST:     [PAT.PUSH_H, PAT.PULL_H],
+    CORE:      [PAT.CORE, PAT.HYBRID],
   };
-  const FOCUS_LABEL = { FULL: "Full-body", LEGS: "Piernas", PUSH: "Empuje / hombros", PULL: "Pull / tiron" };
+  const FOCUS_LABEL = {
+    FULL:      "Full-body",
+    LEGS:      "Piernas",
+    PUSH:      "Empuje / hombros",
+    PULL:      "Pull / tirón",
+    SHOULDERS: "Hombros",
+    CHEST:     "Pecho",
+    CORE:      "Core / abdomen",
+  };
 
   function generate(pool, opts) {
     opts = opts || {};

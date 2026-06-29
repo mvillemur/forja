@@ -571,11 +571,22 @@
 
   // --- High-level API --------------------------------------------------
   const FOCUS_PAT = {
-    LEGS: [PAT.HIP, PAT.KNEE],
-    PUSH: [PAT.PUSH_H, PAT.PUSH_V],
-    PULL: [PAT.PULL_H, PAT.PULL_V],
+    LEGS:      [PAT.HIP, PAT.KNEE],
+    PUSH:      [PAT.PUSH_H, PAT.PUSH_V],
+    PULL:      [PAT.PULL_H, PAT.PULL_V],
+    SHOULDERS: [PAT.PUSH_V, PAT.PULL_V],
+    CHEST:     [PAT.PUSH_H, PAT.PULL_H],
+    CORE:      [PAT.CORE, PAT.HYBRID],
   };
-  const FOCUS_LABEL = { FULL: "Full-body", LEGS: "Piernas", PUSH: "Empuje / hombros", PULL: "Pull / tiron" };
+  const FOCUS_LABEL = {
+    FULL:      "Full-body",
+    LEGS:      "Piernas",
+    PUSH:      "Empuje / hombros",
+    PULL:      "Pull / tirón",
+    SHOULDERS: "Hombros",
+    CHEST:     "Pecho",
+    CORE:      "Core / abdomen",
+  };
 
   function generate(pool, opts) {
     opts = opts || {};
