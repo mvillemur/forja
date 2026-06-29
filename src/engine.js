@@ -309,13 +309,14 @@
         schema(BLOCK.C, 2, 3, 20, [DIN.METABOLIC]),
       ],
     },
-    // EMOM: pairs modelled as alternating-minute protocol.
-    // sets = number of minutes, reps = reps per minute.
+    // EMOM (Every Minute On the Minute): a small circuit of exercises done
+    // as solo slots (pair:false). Each minute you start one exercise's reps,
+    // rest the remainder of the minute, then move to the next. sets = number
+    // of rounds through the circuit; reps = reps to hit each minute.
     EMOM: {
       name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3,
       blocks: [
-        schema(BLOCK.A, 2, 10, 5, [DIN.BALLISTIC]),
-        schema(BLOCK.B, 3,  8, 6, [DIN.STRENGTH, DIN.BALLISTIC]),
+        schema(BLOCK.A, 3, 6, 8, [DIN.BALLISTIC, DIN.STRENGTH], false),
       ],
     },
     // AMRAP / circuit: pair:false keeps every exercise as a solo slot

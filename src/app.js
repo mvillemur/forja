@@ -93,6 +93,10 @@
   async function loadAll() {
     try { const h = await Store.get(K.HIST); if (h) state.hist = JSON.parse(h); } catch (e) {}
     try { const c = await Store.get(K.CFG); if (c) Object.assign(state.cfg, JSON.parse(c)); } catch (e) {}
+    // Migrate old single-string focus ("FULL"/"LEGS"/...) to array model.
+    if (!Array.isArray(state.cfg.focus)) {
+      state.cfg.focus = (state.cfg.focus && state.cfg.focus !== "FULL") ? [state.cfg.focus] : [];
+    }
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
