@@ -262,6 +262,33 @@
         schema(BLOCK.C, 2, 4, 20, [DIN.METABOLIC]),
       ],
     },
+    // Higher rep strength work; bridges strength and conditioning.
+    STRENGTH_ENDURANCE: {
+      name: "Resistencia de fuerza", maxCns: 3, maxGrip: 2,
+      blocks: [
+        schema(BLOCK.A, 3, 4, 8,  [DIN.STRENGTH, DIN.BALLISTIC]),
+        schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH]),
+        schema(BLOCK.C, 2, 3, 20, [DIN.METABOLIC]),
+      ],
+    },
+    // EMOM: pairs modelled as alternating-minute protocol.
+    // sets = number of minutes, reps = reps per minute.
+    EMOM: {
+      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3,
+      blocks: [
+        schema(BLOCK.A, 2, 10, 5, [DIN.BALLISTIC]),
+        schema(BLOCK.B, 3,  8, 6, [DIN.STRENGTH, DIN.BALLISTIC]),
+      ],
+    },
+    // AMRAP / circuit: pair:false keeps every exercise as a solo slot
+    // so the routine reads as a linear circuit to repeat for time.
+    AMRAP: {
+      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3,
+      blocks: [
+        schema(BLOCK.A, 5, 3, 10, [DIN.STRENGTH, DIN.BALLISTIC], false),
+        schema(BLOCK.C, 2, 3, 15, [DIN.METABOLIC],               false),
+      ],
+    },
   };
 
   // --- Scaling by minutes ----------------------------------------------
