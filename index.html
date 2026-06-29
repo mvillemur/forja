@@ -49,57 +49,6 @@
     </div>
 
     <div class="card">
-      <div class="label">Equipamiento</div>
-      <div class="chips">
-        <span class="chip" data-locked="true" aria-pressed="true">Kettlebell</span>
-        <button class="chip" id="chip-barbell" aria-pressed="false">Barra de dominadas</button>
-        <span class="chip" data-locked="true" aria-pressed="true">Suelo</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="label">Pesa ajustable (kg)</div>
-      <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
-      <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
-      <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
-        <div>
-          <div class="label" style="margin:0 0 2px;">Misma pesa por circuito</div>
-          <div style="font-size:11.5px;color:var(--ink-faint);">Al generar, agrupa ejercicios de carga similar y propone una sola pesa por bloque (ideal con una pesa ajustable)</div>
-        </div>
-        <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
-          <button data-val="no" aria-pressed="true">No</button>
-          <button data-val="yes" aria-pressed="false">Si</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="padding:0;">
-      <details class="acc" style="margin:0;border:0;background:transparent;">
-        <summary>Perfil <span id="profile-sub" style="font-weight:400;color:var(--ink-faint);font-size:12px;"></span></summary>
-        <div class="acc-body">
-          <p style="margin:0 0 12px;">Afina los kg sugeridos para la primera sesion. Opcional; al ajustar pesos tu historial manda.</p>
-          <div class="est-row">
-            <span>Peso corporal (kg)</span>
-            <div class="stepper"><button id="bw-dec">−</button><span class="val" id="bw-val">—</span><button id="bw-inc">+</button></div>
-          </div>
-          <div class="label" style="margin:12px 0 6px;">Sexo</div>
-          <div class="seg" id="seg-sex">
-            <button data-val="" aria-pressed="true">—</button>
-            <button data-val="M" aria-pressed="false">Hombre</button>
-            <button data-val="F" aria-pressed="false">Mujer</button>
-          </div>
-          <div class="label" style="margin:12px 0 6px;">Nivel</div>
-          <div class="seg" id="seg-level">
-            <button data-val="BEG" aria-pressed="false">Principiante</button>
-            <button data-val="INTER" aria-pressed="true">Intermedio</button>
-            <button data-val="ADV" aria-pressed="false">Avanzado</button>
-          </div>
-        </div>
-      </details>
-    </div>
-
-    <div class="card">
       <div class="label">Volumen</div>
       <div class="seg" id="seg-vol" style="margin-bottom:13px;">
         <button data-val="time" aria-pressed="true">Por tiempo</button>
@@ -118,32 +67,88 @@
       </div>
     </div>
 
-    <div class="card" id="card-balance">
-      <div class="label">Balance de patrones</div>
-      <div id="balance-note" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
-      <div class="seg" id="seg-balance">
-        <button data-val="NONE" aria-pressed="true">Ninguno</button>
-        <button data-val="SOFT" aria-pressed="false">Suave</button>
-        <button data-val="HARD" aria-pressed="false">Duro</button>
-      </div>
-      <div id="tol-wrap" class="hidden" style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;">
-        <div class="label" style="margin:0;">Tolerancia</div>
-        <div class="stepper">
-          <button id="tol-dec">−</button><span class="val" id="tol-val">1</span><button id="tol-inc">+</button>
+    <details class="card adv" id="adv-options" style="padding:0;">
+      <summary class="adv-sum">Opciones avanzadas</summary>
+      <div class="adv-body">
+        <div class="card">
+          <div class="label">Equipamiento</div>
+          <div class="chips">
+            <span class="chip" data-locked="true" aria-pressed="true">Kettlebell</span>
+            <button class="chip" id="chip-barbell" aria-pressed="false">Barra de dominadas</button>
+            <span class="chip" data-locked="true" aria-pressed="true">Suelo</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="label">Pesa ajustable (kg)</div>
+          <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
+          <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
+            <div>
+              <div class="label" style="margin:0 0 2px;">Misma pesa por circuito</div>
+              <div style="font-size:11.5px;color:var(--ink-faint);">Al generar, agrupa ejercicios de carga similar y propone una sola pesa por bloque (ideal con una pesa ajustable)</div>
+            </div>
+            <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
+              <button data-val="no" aria-pressed="true">No</button>
+              <button data-val="yes" aria-pressed="false">Si</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;">
+          <details class="acc" style="margin:0;border:0;background:transparent;">
+            <summary>Perfil <span id="profile-sub" style="font-weight:400;color:var(--ink-faint);font-size:12px;"></span></summary>
+            <div class="acc-body">
+              <p style="margin:0 0 12px;">Afina los kg sugeridos para la primera sesion. Opcional; al ajustar pesos tu historial manda.</p>
+              <div class="est-row">
+                <span>Peso corporal (kg)</span>
+                <div class="stepper"><button id="bw-dec">−</button><span class="val" id="bw-val">—</span><button id="bw-inc">+</button></div>
+              </div>
+              <div class="label" style="margin:12px 0 6px;">Sexo</div>
+              <div class="seg" id="seg-sex">
+                <button data-val="" aria-pressed="true">—</button>
+                <button data-val="M" aria-pressed="false">Hombre</button>
+                <button data-val="F" aria-pressed="false">Mujer</button>
+              </div>
+              <div class="label" style="margin:12px 0 6px;">Nivel</div>
+              <div class="seg" id="seg-level">
+                <button data-val="BEG" aria-pressed="false">Principiante</button>
+                <button data-val="INTER" aria-pressed="true">Intermedio</button>
+                <button data-val="ADV" aria-pressed="false">Avanzado</button>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="card" id="card-balance">
+          <div class="label">Balance de patrones</div>
+          <div id="balance-note" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
+          <div class="seg" id="seg-balance">
+            <button data-val="NONE" aria-pressed="true">Ninguno</button>
+            <button data-val="SOFT" aria-pressed="false">Suave</button>
+            <button data-val="HARD" aria-pressed="false">Duro</button>
+          </div>
+          <div id="tol-wrap" class="hidden" style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;">
+            <div class="label" style="margin:0;">Tolerancia</div>
+            <div class="stepper">
+              <button id="tol-dec">−</button><span class="val" id="tol-val">1</span><button id="tol-inc">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div class="label" style="margin:0 0 2px;">Variar</div>
+            <div style="font-size:11.5px;color:var(--ink-faint);">Evita repetir lo de sesiones recientes</div>
+          </div>
+          <div class="seg" id="seg-vary" style="width:auto;flex:0 0 auto;">
+            <button data-val="yes" aria-pressed="true">Si</button>
+            <button data-val="no" aria-pressed="false">No</button>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div>
-        <div class="label" style="margin:0 0 2px;">Variar</div>
-        <div style="font-size:11.5px;color:var(--ink-faint);">Evita repetir lo de sesiones recientes</div>
-      </div>
-      <div class="seg" id="seg-vary" style="width:auto;flex:0 0 auto;">
-        <button data-val="yes" aria-pressed="true">Si</button>
-        <button data-val="no" aria-pressed="false">No</button>
-      </div>
-    </div>
+    </details>
 
     <div class="card">
       <button class="btn btn-ghost" id="btn-pin-toggle" style="width:100%;">Fijar ejercicios <span id="pin-count"></span></button>
