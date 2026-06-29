@@ -32,6 +32,15 @@ setTimeout(() => {
   ok("editable routine exposes kg steppers", !!incKg);
   incKg.click();
 
+  // Double progression: the live routine shows a "✓ N reps" button; tapping it
+  // advances the rep target shown on the card.
+  const progBtn = d.querySelector("#routine-out .prog-done");
+  ok("editable routine shows a progression button", !!progBtn);
+  const beforeReps = progBtn.textContent;
+  progBtn.click();
+  const afterReps = d.querySelector("#routine-out .prog-done").textContent;
+  ok("progression button advances the rep target", afterReps !== beforeReps);
+
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);

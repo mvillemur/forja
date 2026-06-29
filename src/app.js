@@ -45,7 +45,7 @@
     return { get, set, get mode() { return mode; } };
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -71,6 +71,7 @@
     routine: null,
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
+    prog: {},         // name -> current rep target (double progression, persisted)
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
@@ -132,6 +133,7 @@
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
     try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
+    try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
     computePool();
     // Seed the id sequence above any id already in history.
     state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
@@ -146,6 +148,7 @@
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
+  const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
   // ---- Formatting
   const dose = p => {
@@ -156,6 +159,32 @@
     }
     return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
   };
+
+  // Current rep target for an exercise (double progression). Falls back to the
+  // template's prescribed reps until the user records a first "cumplido".
+  const targetReps = p => (state.prog[p.exercise.name] != null ? state.prog[p.exercise.name] : p.reps);
+  // Dose string using the progression target (for the live, editable routine).
+  function doseTarget(p) {
+    if (p.exercise.dynamics === F.DIN.ISO) return dose(p);
+    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
+    return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
+  }
+  // Record that the trainee cleared the current target on all sets and advance.
+  function applyProgression(p) {
+    const name = p.exercise.name;
+    const min = state.cfg.weightMin, max = state.cfg.weightMax;
+    const rng = F.progressionRange(p.reps, p.exercise.dynamics);
+    const curKg = state.kg[name] != null ? state.kg[name]
+      : F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+    const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
+    const next = F.nextTarget(cur, rng, true, { step: 2, min, max, startKg: curKg });
+    state.prog[name] = next.reps; saveProg();
+    const bumped = next.kg != null && next.kg !== curKg;
+    if (next.kg != null) { state.kg[name] = next.kg; saveKg(); }
+    toast(bumped ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
+                 : `Objetivo proxima vez: ${next.reps} reps`);
+    if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
+  }
 
   // ---- Render: routine
   function renderRoutine(r, into, range, editable) {
@@ -204,7 +233,7 @@
           body.appendChild(el("div", "ex-meta", `${F.PAT_LABEL[p.exercise.pattern]} · SNC ${p.exercise.cns}`));
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
-          doseEl.appendChild(el("div", null, dose(p)));
+          doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
           const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
           if (baseKg != null) {
             const savedKg = state.kg[name];
@@ -227,6 +256,13 @@
               // Show the user's last kg if known, else the suggestion.
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
+          }
+          // Double progression: one tap to record you cleared the target reps.
+          if (editable && p.exercise.dynamics !== F.DIN.ISO) {
+            const done = el("button", "prog-done", `✓ ${targetReps(p)} reps`);
+            done.title = `Marca si completaste ${targetReps(p)} reps en todas las series; subira el objetivo`;
+            done.onclick = () => applyProgression(p);
+            doseEl.appendChild(done);
           }
           ex.appendChild(doseEl);
           if (editable) {
@@ -265,7 +301,7 @@
   function timerDose(p) {
     const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + (perSide ? " / lado" : "");
-    return `${p.reps} reps` + (perSide ? " / lado" : "");
+    return `${targetReps(p)} reps` + (perSide ? " / lado" : "");
   }
   function buildTimerSteps(routine) {
     const steps = [];
@@ -793,6 +829,8 @@
       custom: state.custom,
       removed: state.removed,
       overrides: state.overrides,
+      kg: state.kg,
+      prog: state.prog,
     }, null, 2);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
@@ -811,8 +849,12 @@
         state.custom = Array.isArray(data.custom) ? data.custom : state.custom;
         state.removed = Array.isArray(data.removed) ? data.removed : state.removed;
         state.overrides = (data.overrides && typeof data.overrides === "object") ? data.overrides : state.overrides;
+        if (data.kg && typeof data.kg === "object") state.kg = data.kg;
+        if (data.prog && typeof data.prog === "object") state.prog = data.prog;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
+          Store.set(K.KG, JSON.stringify(state.kg)),
+          Store.set(K.PROG, JSON.stringify(state.prog)),
           savePoolState(),
         ]);
         computePool();

@@ -143,6 +143,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .kg-adj { background: none; border: 1px solid var(--line-2); border-radius: 5px; color: var(--ink-dim); font-size: 13px; width: 20px; height: 20px; line-height: 1; cursor: pointer; padding: 0; }
 .kg-adj:active { color: var(--ink); background: var(--bg-2); }
 .pin-ex { margin-left: 6px; flex-shrink: 0; }
+.prog-done { margin-top: 4px; background: none; border: 1px solid var(--line-2); border-radius: 6px; color: var(--ok); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; font-family: var(--mono); white-space: nowrap; }
+.prog-done:active { background: rgba(127,174,106,0.16); }
 .el-note { padding: 7px 13px 10px; font-size: 11.5px; color: var(--ink-dim); border-top: 1px solid var(--line); background: var(--bg-2); }
 
 /* --- Historial --- */

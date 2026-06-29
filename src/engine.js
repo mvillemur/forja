@@ -453,6 +453,42 @@
     return Math.max(min, Math.min(max, kg));
   }
 
+  // --- Double progression (doc: load-rep-individualization §2D/§6) -------
+  // Rep window for an exercise, derived from its prescribed reps' volume class.
+  // Progress reps from lo up to hi; on clearing hi across all sets, add load
+  // and reset to lo. ISO movements progress reps a bit higher (time-under-load).
+  const PROGRESSION_RANGE = { SP: [5, 8], HP: [8, 12], ME: [15, 20] };
+  function progressionRange(reps, dynamics) {
+    const r = PROGRESSION_RANGE[classifyVolume(reps)] || [reps, reps + 3];
+    if (dynamics === DIN.ISO) return [Math.max(r[0], 8), Math.max(r[1], 12)];
+    return r.slice();
+  }
+
+  // Given the current target {kg, reps} and whether the trainee cleared the
+  // target reps on ALL sets, return the next session's {kg, reps}.
+  //  - cleared & at top of range -> +step kg, reset reps to bottom.
+  //  - cleared but below top      -> same kg, reps + 1 (toward top).
+  //  - not cleared                -> repeat the same target.
+  // step defaults to 2 kg (adjustable kettlebell increment); kg stays in range.
+  function nextTarget(current, range, cleared, opts) {
+    opts = opts || {};
+    const step = opts.step || 2, min = opts.min, max = opts.max;
+    const [lo, hi] = range;
+    let kg = current && current.kg != null ? current.kg : (opts.startKg != null ? opts.startKg : null);
+    let reps = current && current.reps != null ? current.reps : lo;
+    if (reps < lo) reps = lo; if (reps > hi) reps = hi;
+    if (!cleared) return { kg, reps };
+    if (reps >= hi) {
+      let nk = kg == null ? null : kg + step;
+      if (nk != null && max != null) nk = Math.min(max, nk);
+      if (nk != null && min != null) nk = Math.max(min, nk);
+      // If load can't go higher (at max), keep climbing reps past the window.
+      if (kg != null && max != null && nk === kg) return { kg, reps: reps + 1 };
+      return { kg: nk, reps: lo };
+    }
+    return { kg, reps: reps + 1 };
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -743,6 +779,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
+    progressionRange, nextTarget,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;

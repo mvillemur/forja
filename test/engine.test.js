@@ -44,6 +44,19 @@ ok("seed: result stays within range", (() => {
   return k >= 12 && k <= 32;
 })());
 
+// Double progression
+ok("range: 10 reps -> HP [8,12]", JSON.stringify(F.progressionRange(10)) === JSON.stringify([8, 12]));
+ok("range: ISO bumps the window up", F.progressionRange(5, F.DIN.ISO)[0] >= 8);
+const RNG = [8, 12];
+const advReps = F.nextTarget({ kg: 16, reps: 10 }, RNG, true, { min: 12, max: 32 });
+ok("prog: cleared below top -> reps+1, same kg", advReps.kg === 16 && advReps.reps === 11);
+const advTop = F.nextTarget({ kg: 16, reps: 12 }, RNG, true, { min: 12, max: 32 });
+ok("prog: cleared at top -> +2 kg, reset to bottom", advTop.kg === 18 && advTop.reps === 8);
+const notCleared = F.nextTarget({ kg: 16, reps: 11 }, RNG, false, { min: 12, max: 32 });
+ok("prog: not cleared -> unchanged", notCleared.kg === 16 && notCleared.reps === 11);
+const atMax = F.nextTarget({ kg: 32, reps: 12 }, RNG, true, { min: 12, max: 32 });
+ok("prog: at max load keeps adding reps instead of kg", atMax.kg === 32 && atMax.reps === 13);
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);

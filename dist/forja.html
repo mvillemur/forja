@@ -156,6 +156,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .kg-adj { background: none; border: 1px solid var(--line-2); border-radius: 5px; color: var(--ink-dim); font-size: 13px; width: 20px; height: 20px; line-height: 1; cursor: pointer; padding: 0; }
 .kg-adj:active { color: var(--ink); background: var(--bg-2); }
 .pin-ex { margin-left: 6px; flex-shrink: 0; }
+.prog-done { margin-top: 4px; background: none; border: 1px solid var(--line-2); border-radius: 6px; color: var(--ok); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; font-family: var(--mono); white-space: nowrap; }
+.prog-done:active { background: rgba(127,174,106,0.16); }
 .el-note { padding: 7px 13px 10px; font-size: 11.5px; color: var(--ink-dim); border-top: 1px solid var(--line); background: var(--bg-2); }
 
 /* --- Historial --- */
@@ -1062,6 +1064,42 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return Math.max(min, Math.min(max, kg));
   }
 
+  // --- Double progression (doc: load-rep-individualization §2D/§6) -------
+  // Rep window for an exercise, derived from its prescribed reps' volume class.
+  // Progress reps from lo up to hi; on clearing hi across all sets, add load
+  // and reset to lo. ISO movements progress reps a bit higher (time-under-load).
+  const PROGRESSION_RANGE = { SP: [5, 8], HP: [8, 12], ME: [15, 20] };
+  function progressionRange(reps, dynamics) {
+    const r = PROGRESSION_RANGE[classifyVolume(reps)] || [reps, reps + 3];
+    if (dynamics === DIN.ISO) return [Math.max(r[0], 8), Math.max(r[1], 12)];
+    return r.slice();
+  }
+
+  // Given the current target {kg, reps} and whether the trainee cleared the
+  // target reps on ALL sets, return the next session's {kg, reps}.
+  //  - cleared & at top of range -> +step kg, reset reps to bottom.
+  //  - cleared but below top      -> same kg, reps + 1 (toward top).
+  //  - not cleared                -> repeat the same target.
+  // step defaults to 2 kg (adjustable kettlebell increment); kg stays in range.
+  function nextTarget(current, range, cleared, opts) {
+    opts = opts || {};
+    const step = opts.step || 2, min = opts.min, max = opts.max;
+    const [lo, hi] = range;
+    let kg = current && current.kg != null ? current.kg : (opts.startKg != null ? opts.startKg : null);
+    let reps = current && current.reps != null ? current.reps : lo;
+    if (reps < lo) reps = lo; if (reps > hi) reps = hi;
+    if (!cleared) return { kg, reps };
+    if (reps >= hi) {
+      let nk = kg == null ? null : kg + step;
+      if (nk != null && max != null) nk = Math.min(max, nk);
+      if (nk != null && min != null) nk = Math.max(min, nk);
+      // If load can't go higher (at max), keep climbing reps past the window.
+      if (kg != null && max != null && nk === kg) return { kg, reps: reps + 1 };
+      return { kg: nk, reps: lo };
+    }
+    return { kg, reps: reps + 1 };
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -1352,6 +1390,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
+    progressionRange, nextTarget,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;
@@ -1407,7 +1446,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { get, set, get mode() { return mode; } };
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -1433,6 +1472,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     routine: null,
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
+    prog: {},         // name -> current rep target (double progression, persisted)
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
@@ -1494,6 +1534,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
     try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
+    try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
     computePool();
     // Seed the id sequence above any id already in history.
     state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
@@ -1508,6 +1549,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
+  const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
   // ---- Formatting
   const dose = p => {
@@ -1518,6 +1560,32 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }
     return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
   };
+
+  // Current rep target for an exercise (double progression). Falls back to the
+  // template's prescribed reps until the user records a first "cumplido".
+  const targetReps = p => (state.prog[p.exercise.name] != null ? state.prog[p.exercise.name] : p.reps);
+  // Dose string using the progression target (for the live, editable routine).
+  function doseTarget(p) {
+    if (p.exercise.dynamics === F.DIN.ISO) return dose(p);
+    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
+    return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
+  }
+  // Record that the trainee cleared the current target on all sets and advance.
+  function applyProgression(p) {
+    const name = p.exercise.name;
+    const min = state.cfg.weightMin, max = state.cfg.weightMax;
+    const rng = F.progressionRange(p.reps, p.exercise.dynamics);
+    const curKg = state.kg[name] != null ? state.kg[name]
+      : F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+    const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
+    const next = F.nextTarget(cur, rng, true, { step: 2, min, max, startKg: curKg });
+    state.prog[name] = next.reps; saveProg();
+    const bumped = next.kg != null && next.kg !== curKg;
+    if (next.kg != null) { state.kg[name] = next.kg; saveKg(); }
+    toast(bumped ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
+                 : `Objetivo proxima vez: ${next.reps} reps`);
+    if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
+  }
 
   // ---- Render: routine
   function renderRoutine(r, into, range, editable) {
@@ -1566,7 +1634,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           body.appendChild(el("div", "ex-meta", `${F.PAT_LABEL[p.exercise.pattern]} · SNC ${p.exercise.cns}`));
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
-          doseEl.appendChild(el("div", null, dose(p)));
+          doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
           const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
           if (baseKg != null) {
             const savedKg = state.kg[name];
@@ -1589,6 +1657,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
               // Show the user's last kg if known, else the suggestion.
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
             }
+          }
+          // Double progression: one tap to record you cleared the target reps.
+          if (editable && p.exercise.dynamics !== F.DIN.ISO) {
+            const done = el("button", "prog-done", `✓ ${targetReps(p)} reps`);
+            done.title = `Marca si completaste ${targetReps(p)} reps en todas las series; subira el objetivo`;
+            done.onclick = () => applyProgression(p);
+            doseEl.appendChild(done);
           }
           ex.appendChild(doseEl);
           if (editable) {
@@ -1627,7 +1702,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function timerDose(p) {
     const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + (perSide ? " / lado" : "");
-    return `${p.reps} reps` + (perSide ? " / lado" : "");
+    return `${targetReps(p)} reps` + (perSide ? " / lado" : "");
   }
   function buildTimerSteps(routine) {
     const steps = [];
@@ -2155,6 +2230,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       custom: state.custom,
       removed: state.removed,
       overrides: state.overrides,
+      kg: state.kg,
+      prog: state.prog,
     }, null, 2);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
@@ -2173,8 +2250,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         state.custom = Array.isArray(data.custom) ? data.custom : state.custom;
         state.removed = Array.isArray(data.removed) ? data.removed : state.removed;
         state.overrides = (data.overrides && typeof data.overrides === "object") ? data.overrides : state.overrides;
+        if (data.kg && typeof data.kg === "object") state.kg = data.kg;
+        if (data.prog && typeof data.prog === "object") state.prog = data.prog;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
+          Store.set(K.KG, JSON.stringify(state.kg)),
+          Store.set(K.PROG, JSON.stringify(state.prog)),
           savePoolState(),
         ]);
         computePool();
