@@ -117,5 +117,29 @@ const meReps = 15;
 const meTime = ssTime(press, row5, meReps);
 ok("gap6: SP-range superset rests longer than ME-range", spPair > meTime);
 
+// --- Circuit protocols (EMOM / AMRAP) scale ROUNDS, not exercise count ---
+function countExercises(rt) {
+  return rt.blocks.reduce((a, b) => a + b.elements.reduce((x, e) => x + e.prescriptions.length, 0), 0);
+}
+function maxSets(rt) {
+  return Math.max(...rt.blocks.flatMap(b => b.elements.flatMap(e => e.prescriptions.map(p => p.sets))));
+}
+const amShort = F.generate(null, { objective: "AMRAP", equipment: ["KB"], minutes: 12, seed: 4 });
+const amLong  = F.generate(null, { objective: "AMRAP", equipment: ["KB"], minutes: 45, seed: 4 });
+ok("circuit: AMRAP stays a short circuit (<=6 exercises) even when long",
+  countExercises(amLong) <= 6);
+ok("circuit: AMRAP exercise count is stable across durations",
+  countExercises(amShort) === countExercises(amLong));
+ok("circuit: longer AMRAP means more rounds (sets)", maxSets(amLong) > maxSets(amShort));
+const emShort = F.generate(null, { objective: "EMOM", equipment: ["KB"], minutes: 10, seed: 6 });
+const emLong  = F.generate(null, { objective: "EMOM", equipment: ["KB"], minutes: 40, seed: 6 });
+ok("circuit: EMOM exercise count stable across durations",
+  countExercises(emShort) === countExercises(emLong) && countExercises(emLong) <= 5);
+ok("circuit: longer EMOM means more rounds", maxSets(emLong) > maxSets(emShort));
+// Contrast: a non-circuit objective DOES grow exercise count with time.
+const stShort = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 20, seed: 9 });
+const stLong  = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 60, seed: 9 });
+ok("non-circuit: STRENGTH adds exercises with time", countExercises(stLong) > countExercises(stShort));
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");
