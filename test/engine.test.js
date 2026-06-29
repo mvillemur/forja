@@ -11,7 +11,7 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 32 exercises", F.BASE_CATALOG.length === 32);
+ok("base catalog has 37 exercises", F.BASE_CATALOG.length === 37);
 ok("9 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 9);
 
 // RuleEngine: two high-CNS in block A -> invalid

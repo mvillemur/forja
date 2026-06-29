@@ -104,7 +104,7 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 32 exercises", d.querySelectorAll("#pool-list .card").length === 32);
+  ok("pool shows 37 exercises", d.querySelectorAll("#pool-list .card").length === 37);
 
   d.querySelector('.nav button[data-view="guia"]').click();
   ok("guide has 13 sections", d.querySelectorAll("#view-guia .acc").length === 13);
