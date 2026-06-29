@@ -61,6 +61,16 @@
       <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
       <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
       <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
+        <div>
+          <div class="label" style="margin:0 0 2px;">Misma pesa por circuito</div>
+          <div style="font-size:11.5px;color:var(--ink-faint);">Una sola pesa por bloque (ideal con una pesa ajustable)</div>
+        </div>
+        <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
+          <button data-val="no" aria-pressed="true">No</button>
+          <button data-val="yes" aria-pressed="false">Si</button>
+        </div>
+      </div>
     </div>
 
     <div class="card" style="padding:0;">
@@ -342,6 +352,7 @@
         <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
+        <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un unico kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
         <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el numero de ejercicios y series) o Por estructura (eliges cuantos ejercicios tiene cada bloque).</p>
         <p class="gloss"><b>Fijar ejercicios:</b> elige cuales quieres si o si; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
         <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos asi para que el agarre no falle antes que el musculo.</p>

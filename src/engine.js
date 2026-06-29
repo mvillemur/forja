@@ -524,6 +524,26 @@
     return k;
   }
 
+  // --- Single-kettlebell mode: one weight per circuit -------------------
+  // With a single adjustable kettlebell, changing the weight between every
+  // exercise of a series/circuit is friction. unifiedKg collapses a group of
+  // prescriptions to ONE suggested weight so the whole block can be trained
+  // without re-dialing the bell. The compromise is the MEDIAN of the per-
+  // exercise suggestions (snapped to 2 kg, clamped to range): heavy enough for
+  // the hinge/squat work, not so heavy it wrecks the light technical lifts.
+  // Returns null when no weight can be suggested (range missing / empty group).
+  function unifiedKg(prescriptions, range, person) {
+    if (!range || range.min == null || range.max == null) return null;
+    const ks = (prescriptions || [])
+      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise))
+      .filter(k => k != null)
+      .sort((a, b) => a - b);
+    if (!ks.length) return null;
+    const mid = ks.length >> 1;
+    const median = ks.length % 2 ? ks[mid] : (ks[mid - 1] + ks[mid]) / 2;
+    return snapKg(median, range.min, range.max);
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -814,7 +834,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight,
+    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;

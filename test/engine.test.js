@@ -84,6 +84,22 @@ ok("combo: factor never below 0.8", F.combinationFactor({ cnsAccum: 100, isSuper
 ok("snapKg: rounds to 2 kg and clamps", F.snapKg(17.3, 12, 32) === 18 && F.snapKg(50, 12, 32) === 32 && F.snapKg(4, 12, 32) === 12);
 ok("cnsWeight: HIGH > MEDIUM > LOW", F.cnsWeight("HIGH") > F.cnsWeight("MEDIUM") && F.cnsWeight("MEDIUM") > F.cnsWeight("LOW"));
 
+// Single-kettlebell mode: one weight per circuit (median of suggestions).
+const ps = [
+  { exercise: swingHeavy },                                                  // load 3 -> heavy
+  { exercise: press2 },                                                      // load 1 -> light
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo a una mano") },      // load 2 -> medium
+];
+const uni = F.unifiedKg(ps, { min: 12, max: 32 });
+ok("unifiedKg: within range", uni >= 12 && uni <= 32);
+ok("unifiedKg: snapped to 2 kg", uni % 2 === 0);
+ok("unifiedKg: between lightest and heaviest suggestion",
+  uni >= F.suggestKg(1, 12, 32) && uni <= F.suggestKg(3, 12, 32));
+ok("unifiedKg: single exercise == its suggestion",
+  F.unifiedKg([{ exercise: swingHeavy }], { min: 12, max: 32 }) === F.suggestKg(3, 12, 32, null, swingHeavy));
+ok("unifiedKg: null when range missing", F.unifiedKg(ps, null) === null);
+ok("unifiedKg: null when empty group", F.unifiedKg([], { min: 12, max: 32 }) === null);
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);

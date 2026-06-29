@@ -61,7 +61,7 @@
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
-           balance:"NONE", tolerance:1, pinned:[], vary:true,
+           balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
@@ -220,6 +220,15 @@
       bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br)} min`));
       blk.appendChild(bh);
 
+      // Single-kettlebell mode: one shared weight for the whole block/circuit,
+      // so the adjustable bell is dialed once. The override is stored per block
+      // (key "__sw:<block>"), keeping per-exercise kg untouched for progression.
+      const sameW = !!state.cfg.sameWeight;
+      const swKey = "__sw:" + br.block;
+      const blockKg = sameW
+        ? F.unifiedKg(br.elements.flatMap(e => e.prescriptions), range, state.cfg.profile)
+        : null;
+
       br.elements.forEach(item => {
         const accumBefore = cnsAccum;
         cnsAccum += item.prescriptions.reduce((a, pp) => a + F.cnsWeight(pp.exercise.cns), 0);
@@ -241,28 +250,43 @@
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
-          let baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
-          // Routine-combination taper: lighten the suggestion for the fatigued
-          // half of a non-ideal superset or a lift late in a CNS-heavy session.
-          if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
+          let baseKg;
+          if (sameW) {
+            // One weight for the whole circuit; the per-lift fatigue taper is
+            // intentionally skipped — the point is a single, constant load.
+            baseKg = blockKg;
+          } else {
+            baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            // Routine-combination taper: lighten the suggestion for the fatigued
+            // half of a non-ideal superset or a lift late in a CNS-heavy session.
+            if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
+          }
           if (baseKg != null) {
-            const savedKg = state.kg[name];
+            // In same-weight mode the override is shared across the block.
+            const kgKey = sameW ? swKey : name;
+            const savedKg = state.kg[kgKey];
             if (editable) {
-              // Default to the kg the user last dialed in for this exercise;
-              // fall back to the engine's suggestion. Persisted on change.
+              // Default to the kg the user last dialed in for this exercise
+              // (or this circuit); fall back to the engine's suggestion.
               let curKg = savedKg != null ? savedKg : baseKg;
               curKg = Math.max(range.min, Math.min(range.max, curKg));
               const kgRow = el("div", "ex-kg-row");
               const dec = el("button", "kg-adj", "−");
               const kgSpan = el("span", "ex-kg", curKg + " kg");
               const inc = el("button", "kg-adj", "+");
-              const set = v => { curKg = Math.max(range.min, Math.min(range.max, v)); kgSpan.textContent = curKg + " kg"; state.kg[name] = curKg; saveKg(); };
+              const set = v => {
+                curKg = Math.max(range.min, Math.min(range.max, v));
+                kgSpan.textContent = curKg + " kg"; state.kg[kgKey] = curKg; saveKg();
+                // Re-render so the shared circuit weight updates every exercise.
+                if (sameW) renderRoutine(r, into, range, editable);
+              };
               dec.onclick = () => set(curKg - 2);
               inc.onclick = () => set(curKg + 2);
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
               if (savedKg == null) {
-                const reason = ctxFactor < 1
+                const reason = sameW ? "misma pesa · circuito"
+                  : ctxFactor < 1
                   ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? "ajustado · 2º superserie" : "ajustado · fatiga")
                   : "sugerido";
                 doseEl.appendChild(el("div", "ex-kg-hint", reason));
@@ -1013,6 +1037,7 @@
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
+    setSeg("#seg-sameweight", state.cfg.sameWeight ? "yes" : "no");
     setSeg("#seg-sex", state.cfg.profile.sex);
     setSeg("#seg-level", state.cfg.profile.level);
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
@@ -1049,6 +1074,10 @@
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();
     });
     wireSeg("#seg-vary", v => { state.cfg.vary = (v === "yes"); saveConfig(); });
+    wireSeg("#seg-sameweight", v => {
+      state.cfg.sameWeight = (v === "yes"); saveConfig();
+      if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    });
 
     // Adjustable kettlebell: min/max in 2 kg steps, keeping min < max.
     const refreshKg = () => { $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax; };

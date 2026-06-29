@@ -335,6 +335,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
       <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
       <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
+        <div>
+          <div class="label" style="margin:0 0 2px;">Misma pesa por circuito</div>
+          <div style="font-size:11.5px;color:var(--ink-faint);">Una sola pesa por bloque (ideal con una pesa ajustable)</div>
+        </div>
+        <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
+          <button data-val="no" aria-pressed="true">No</button>
+          <button data-val="yes" aria-pressed="false">Si</button>
+        </div>
+      </div>
     </div>
 
     <div class="card" style="padding:0;">
@@ -616,6 +626,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
+        <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un unico kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
         <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el numero de ejercicios y series) o Por estructura (eliges cuantos ejercicios tiene cada bloque).</p>
         <p class="gloss"><b>Fijar ejercicios:</b> elige cuales quieres si o si; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
         <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos asi para que el agarre no falle antes que el musculo.</p>
@@ -1208,6 +1219,26 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return k;
   }
 
+  // --- Single-kettlebell mode: one weight per circuit -------------------
+  // With a single adjustable kettlebell, changing the weight between every
+  // exercise of a series/circuit is friction. unifiedKg collapses a group of
+  // prescriptions to ONE suggested weight so the whole block can be trained
+  // without re-dialing the bell. The compromise is the MEDIAN of the per-
+  // exercise suggestions (snapped to 2 kg, clamped to range): heavy enough for
+  // the hinge/squat work, not so heavy it wrecks the light technical lifts.
+  // Returns null when no weight can be suggested (range missing / empty group).
+  function unifiedKg(prescriptions, range, person) {
+    if (!range || range.min == null || range.max == null) return null;
+    const ks = (prescriptions || [])
+      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise))
+      .filter(k => k != null)
+      .sort((a, b) => a - b);
+    if (!ks.length) return null;
+    const mid = ks.length >> 1;
+    const median = ks.length % 2 ? ks[mid] : (ks[mid - 1] + ks[mid]) / 2;
+    return snapKg(median, range.min, range.max);
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -1498,7 +1529,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight,
+    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;
@@ -1570,7 +1601,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
-           balance:"NONE", tolerance:1, pinned:[], vary:true,
+           balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
@@ -1729,6 +1760,15 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br)} min`));
       blk.appendChild(bh);
 
+      // Single-kettlebell mode: one shared weight for the whole block/circuit,
+      // so the adjustable bell is dialed once. The override is stored per block
+      // (key "__sw:<block>"), keeping per-exercise kg untouched for progression.
+      const sameW = !!state.cfg.sameWeight;
+      const swKey = "__sw:" + br.block;
+      const blockKg = sameW
+        ? F.unifiedKg(br.elements.flatMap(e => e.prescriptions), range, state.cfg.profile)
+        : null;
+
       br.elements.forEach(item => {
         const accumBefore = cnsAccum;
         cnsAccum += item.prescriptions.reduce((a, pp) => a + F.cnsWeight(pp.exercise.cns), 0);
@@ -1750,28 +1790,43 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
-          let baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
-          // Routine-combination taper: lighten the suggestion for the fatigued
-          // half of a non-ideal superset or a lift late in a CNS-heavy session.
-          if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
+          let baseKg;
+          if (sameW) {
+            // One weight for the whole circuit; the per-lift fatigue taper is
+            // intentionally skipped — the point is a single, constant load.
+            baseKg = blockKg;
+          } else {
+            baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            // Routine-combination taper: lighten the suggestion for the fatigued
+            // half of a non-ideal superset or a lift late in a CNS-heavy session.
+            if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
+          }
           if (baseKg != null) {
-            const savedKg = state.kg[name];
+            // In same-weight mode the override is shared across the block.
+            const kgKey = sameW ? swKey : name;
+            const savedKg = state.kg[kgKey];
             if (editable) {
-              // Default to the kg the user last dialed in for this exercise;
-              // fall back to the engine's suggestion. Persisted on change.
+              // Default to the kg the user last dialed in for this exercise
+              // (or this circuit); fall back to the engine's suggestion.
               let curKg = savedKg != null ? savedKg : baseKg;
               curKg = Math.max(range.min, Math.min(range.max, curKg));
               const kgRow = el("div", "ex-kg-row");
               const dec = el("button", "kg-adj", "−");
               const kgSpan = el("span", "ex-kg", curKg + " kg");
               const inc = el("button", "kg-adj", "+");
-              const set = v => { curKg = Math.max(range.min, Math.min(range.max, v)); kgSpan.textContent = curKg + " kg"; state.kg[name] = curKg; saveKg(); };
+              const set = v => {
+                curKg = Math.max(range.min, Math.min(range.max, v));
+                kgSpan.textContent = curKg + " kg"; state.kg[kgKey] = curKg; saveKg();
+                // Re-render so the shared circuit weight updates every exercise.
+                if (sameW) renderRoutine(r, into, range, editable);
+              };
               dec.onclick = () => set(curKg - 2);
               inc.onclick = () => set(curKg + 2);
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
               if (savedKg == null) {
-                const reason = ctxFactor < 1
+                const reason = sameW ? "misma pesa · circuito"
+                  : ctxFactor < 1
                   ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? "ajustado · 2º superserie" : "ajustado · fatiga")
                   : "sugerido";
                 doseEl.appendChild(el("div", "ex-kg-hint", reason));
@@ -2522,6 +2577,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     setSeg("#seg-vol", state.cfg.volumeMode);
     setSeg("#seg-balance", state.cfg.balance);
     setSeg("#seg-vary", state.cfg.vary ? "yes" : "no");
+    setSeg("#seg-sameweight", state.cfg.sameWeight ? "yes" : "no");
     setSeg("#seg-sex", state.cfg.profile.sex);
     setSeg("#seg-level", state.cfg.profile.level);
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
@@ -2558,6 +2614,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();
     });
     wireSeg("#seg-vary", v => { state.cfg.vary = (v === "yes"); saveConfig(); });
+    wireSeg("#seg-sameweight", v => {
+      state.cfg.sameWeight = (v === "yes"); saveConfig();
+      if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    });
 
     // Adjustable kettlebell: min/max in 2 kg steps, keeping min < max.
     const refreshKg = () => { $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax; };
