@@ -211,6 +211,7 @@
     }
 
     const blockName = { A: "Principal", B: "Accesorios", C: "Finalizador" };
+    let cnsAccum = 0;   // CNS load placed before the current element (session fatigue)
     r.blocks.forEach(br => {
       if (!br.elements.length) return;
       const blk = el("div", "block");
@@ -220,13 +221,16 @@
       blk.appendChild(bh);
 
       br.elements.forEach(item => {
+        const accumBefore = cnsAccum;
+        cnsAccum += item.prescriptions.reduce((a, pp) => a + F.cnsWeight(pp.exercise.cns), 0);
         const node = el("div", "element" + (item.isSuperset ? " ss" : ""));
         const tag = el("div", "el-tag");
         tag.appendChild(el("span", "el-kind", item.isSuperset ? "Superserie" : "Set directo"));
         tag.appendChild(el("span", "quality q-" + item.quality, F.QUALITY_NAME[item.quality]));
         node.appendChild(tag);
-        item.prescriptions.forEach(p => {
+        item.prescriptions.forEach((p, pi) => {
           const name = p.exercise.name;
+          const ctxFactor = F.combinationFactor({ isSuperset: item.isSuperset, secondInPair: pi === 1, quality: item.quality, cnsAccum: accumBefore });
           const ex = el("div", "exercise");
           const st = el("div", "stripe"); st.style.background = STRIPE[p.exercise.pattern] || "#6b7280";
           ex.appendChild(st);
@@ -237,7 +241,10 @@
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
-          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+          let baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+          // Routine-combination taper: lighten the suggestion for the fatigued
+          // half of a non-ideal superset or a lift late in a CNS-heavy session.
+          if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
           if (baseKg != null) {
             const savedKg = state.kg[name];
             if (editable) {
@@ -254,7 +261,12 @@
               inc.onclick = () => set(curKg + 2);
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
-              if (savedKg == null) doseEl.appendChild(el("div", "ex-kg-hint", "sugerido"));
+              if (savedKg == null) {
+                const reason = ctxFactor < 1
+                  ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? "ajustado · 2º superserie" : "ajustado · fatiga")
+                  : "sugerido";
+                doseEl.appendChild(el("div", "ex-kg-hint", reason));
+              }
             } else {
               // Show the user's last kg if known, else the suggestion.
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));

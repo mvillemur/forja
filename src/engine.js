@@ -500,6 +500,30 @@
     return { kg, reps: reps + inc };
   }
 
+  // --- Routine-combination load modifier (doc §2C) ----------------------
+  // Down-modulates the SUGGESTED load for context: the fatigued half of a
+  // non-ideal superset, and lifts placed late in a CNS-heavy session. Returns
+  // a factor in [0.8, 1]; 1 means "no change". Applies only to the cold-start
+  // suggestion — a user-dialed kg always wins.
+  const CNS_WEIGHT = { HIGH: 2, MEDIUM: 1, LOW: 0 };
+  function cnsWeight(cns) { return CNS_WEIGHT[cns] || 0; }
+  function combinationFactor(ctx) {
+    ctx = ctx || {};
+    let f = 1;
+    // A merely-ACCEPTABLE superset pre-fatigues its second movement.
+    if (ctx.isSuperset && ctx.secondInPair && ctx.quality === QUALITY.ACCEPTABLE) f *= 0.92;
+    // Session fatigue: taper as cumulative CNS load builds before this lift.
+    f *= Math.max(0.85, 1 - 0.03 * (ctx.cnsAccum || 0));
+    return Math.max(0.8, Math.round(f * 100) / 100);
+  }
+  // Snap a raw kg to the 2 kg increment and clamp into [min, max].
+  function snapKg(kg, min, max) {
+    let k = Math.round(kg / 2) * 2;
+    if (min != null) k = Math.max(min, k);
+    if (max != null) k = Math.min(max, k);
+    return k;
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -790,7 +814,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    progressionRange, nextTarget,
+    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;

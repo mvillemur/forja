@@ -568,6 +568,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <summary>Pesa y kg sugeridos</summary>
       <div class="acc-body">
         <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
+        <p>La sugerencia se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
       </div>
     </details>
 
@@ -1126,6 +1127,30 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { kg, reps: reps + inc };
   }
 
+  // --- Routine-combination load modifier (doc §2C) ----------------------
+  // Down-modulates the SUGGESTED load for context: the fatigued half of a
+  // non-ideal superset, and lifts placed late in a CNS-heavy session. Returns
+  // a factor in [0.8, 1]; 1 means "no change". Applies only to the cold-start
+  // suggestion — a user-dialed kg always wins.
+  const CNS_WEIGHT = { HIGH: 2, MEDIUM: 1, LOW: 0 };
+  function cnsWeight(cns) { return CNS_WEIGHT[cns] || 0; }
+  function combinationFactor(ctx) {
+    ctx = ctx || {};
+    let f = 1;
+    // A merely-ACCEPTABLE superset pre-fatigues its second movement.
+    if (ctx.isSuperset && ctx.secondInPair && ctx.quality === QUALITY.ACCEPTABLE) f *= 0.92;
+    // Session fatigue: taper as cumulative CNS load builds before this lift.
+    f *= Math.max(0.85, 1 - 0.03 * (ctx.cnsAccum || 0));
+    return Math.max(0.8, Math.round(f * 100) / 100);
+  }
+  // Snap a raw kg to the 2 kg increment and clamp into [min, max].
+  function snapKg(kg, min, max) {
+    let k = Math.round(kg / 2) * 2;
+    if (min != null) k = Math.max(min, k);
+    if (max != null) k = Math.min(max, k);
+    return k;
+  }
+
   // Load warning: "low" = the kettlebell is too light for the exercise;
   // "high" = the kettlebell is excessive for a light/technical movement.
   function loadWarning(load, weightKb) {
@@ -1416,7 +1441,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    progressionRange, nextTarget,
+    progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;
@@ -1638,6 +1663,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }
 
     const blockName = { A: "Principal", B: "Accesorios", C: "Finalizador" };
+    let cnsAccum = 0;   // CNS load placed before the current element (session fatigue)
     r.blocks.forEach(br => {
       if (!br.elements.length) return;
       const blk = el("div", "block");
@@ -1647,13 +1673,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       blk.appendChild(bh);
 
       br.elements.forEach(item => {
+        const accumBefore = cnsAccum;
+        cnsAccum += item.prescriptions.reduce((a, pp) => a + F.cnsWeight(pp.exercise.cns), 0);
         const node = el("div", "element" + (item.isSuperset ? " ss" : ""));
         const tag = el("div", "el-tag");
         tag.appendChild(el("span", "el-kind", item.isSuperset ? "Superserie" : "Set directo"));
         tag.appendChild(el("span", "quality q-" + item.quality, F.QUALITY_NAME[item.quality]));
         node.appendChild(tag);
-        item.prescriptions.forEach(p => {
+        item.prescriptions.forEach((p, pi) => {
           const name = p.exercise.name;
+          const ctxFactor = F.combinationFactor({ isSuperset: item.isSuperset, secondInPair: pi === 1, quality: item.quality, cnsAccum: accumBefore });
           const ex = el("div", "exercise");
           const st = el("div", "stripe"); st.style.background = STRIPE[p.exercise.pattern] || "#6b7280";
           ex.appendChild(st);
@@ -1664,7 +1693,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
-          const baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+          let baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+          // Routine-combination taper: lighten the suggestion for the fatigued
+          // half of a non-ideal superset or a lift late in a CNS-heavy session.
+          if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
           if (baseKg != null) {
             const savedKg = state.kg[name];
             if (editable) {
@@ -1681,7 +1713,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
               inc.onclick = () => set(curKg + 2);
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
-              if (savedKg == null) doseEl.appendChild(el("div", "ex-kg-hint", "sugerido"));
+              if (savedKg == null) {
+                const reason = ctxFactor < 1
+                  ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? "ajustado · 2º superserie" : "ajustado · fatiga")
+                  : "sugerido";
+                doseEl.appendChild(el("div", "ex-kg-hint", reason));
+              }
             } else {
               // Show the user's last kg if known, else the suggestion.
               doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));

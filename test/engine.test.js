@@ -70,6 +70,20 @@ const hardMin = F.nextTarget({ kg: 12, reps: 8 }, RNG, "hard", { min: 12, max: 3
 ok("rpe: 'hard' deload respects min weight", hardMin.kg === 12 && hardMin.reps === 8);
 ok("rpe: 'ok' equals legacy cleared=true", JSON.stringify(F.nextTarget({ kg: 16, reps: 10 }, RNG, "ok", { min: 12, max: 32 })) === JSON.stringify(F.nextTarget({ kg: 16, reps: 10 }, RNG, true, { min: 12, max: 32 })));
 
+// Routine-combination load modifier
+ok("combo: no context -> factor 1", F.combinationFactor({}) === 1);
+ok("combo: 2nd of acceptable superset is lighter",
+  F.combinationFactor({ isSuperset: true, secondInPair: true, quality: F.QUALITY.ACCEPTABLE }) < 1);
+ok("combo: 2nd of OPTIMAL superset is not penalized",
+  F.combinationFactor({ isSuperset: true, secondInPair: true, quality: F.QUALITY.OPTIMAL }) === 1);
+ok("combo: first of a pair is not penalized",
+  F.combinationFactor({ isSuperset: true, secondInPair: false, quality: F.QUALITY.ACCEPTABLE }) === 1);
+ok("combo: session fatigue tapers later lifts",
+  F.combinationFactor({ cnsAccum: 6 }) < F.combinationFactor({ cnsAccum: 1 }));
+ok("combo: factor never below 0.8", F.combinationFactor({ cnsAccum: 100, isSuperset: true, secondInPair: true, quality: F.QUALITY.ACCEPTABLE }) >= 0.8);
+ok("snapKg: rounds to 2 kg and clamps", F.snapKg(17.3, 12, 32) === 18 && F.snapKg(50, 12, 32) === 32 && F.snapKg(4, 12, 32) === 12);
+ok("cnsWeight: HIGH > MEDIUM > LOW", F.cnsWeight("HIGH") > F.cnsWeight("MEDIUM") && F.cnsWeight("MEDIUM") > F.cnsWeight("LOW"));
+
 // Basic generation
 const r = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 7 });
 ok("routine has blocks", r.blocks.length > 0);
