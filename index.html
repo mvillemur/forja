@@ -232,7 +232,7 @@
 
   <!-- ===== GUIDE ===== -->
   <section id="view-guia" class="view">
-    <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Como funciona FORJA y que significa cada cosa. Toca para desplegar.</p>
+    <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Como funciona FORJA, como se calcula cada cosa y la ciencia que lo respalda. Toca para desplegar.</p>
 
     <details class="acc" open>
       <summary>Como usar la app</summary>
@@ -320,6 +320,23 @@
     </details>
 
     <details class="acc">
+      <summary>Como se calcula todo (en detalle)</summary>
+      <div class="acc-body">
+        <p>El <b>motor</b> de FORJA no toca la pantalla: recibe tus datos y devuelve la rutina, paso a paso. (1) Elige la plantilla del objetivo y la escala por tiempo o estructura. (2) Filtra el pool por equipamiento. (3) Arma cada bloque emparejando ejercicios con las reglas de superserie, el presupuesto de fatiga y el balance. (4) Calcula duracion, kg sugeridos y objetivos de repeticiones.</p>
+
+        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. La duracion total es la suma de todos los elementos.</p>
+
+        <p><b>Presupuesto de fatiga (SNC y agarre).</b> Cada objetivo fija un maximo de ejercicios de <b>SNC alta</b> por sesion (p. ej. Fuerza 2, Metabolico 4) y no se supera. El <b>agarre</b> es un acumulador ponderado: un balistico de agarre pesa 1,0 y otros de agarre (carries pesados, remos, get-up, bottoms-up) 0,5; el maximo cuenta "equivalentes balisticos".</p>
+
+        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+
+        <p><b>kg sugerido (3 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (3) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
+
+        <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
+      </div>
+    </details>
+
+    <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
         <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
@@ -337,6 +354,44 @@
         <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Ciencia y bibliografia</summary>
+      <div class="acc-body">
+        <p>FORJA es una herramienta <b>educativa</b>, no consejo medico. Sus numeros son <b>heuristicas practicas</b> inspiradas en principios de la ciencia del entrenamiento (no la salida directa de un unico estudio). Ajusta segun tu experiencia y, ante dudas o lesiones, consulta a un profesional.</p>
+        <p>Cada decision del motor se apoya en literatura reconocida:</p>
+
+        <p class="gloss"><b>Orden de ejercicios — lo exigente primero (bloque A).</b><br>
+        <span class="ref">Simao R, et al. Exercise order in resistance training. <i>Sports Med.</i> 2012;42(3):251–265.</span></p>
+
+        <p class="gloss"><b>Progresion y prescripcion (doble progresion, volumen, descansos).</b><br>
+        <span class="ref">American College of Sports Medicine. Progression models in resistance training for healthy adults. <i>Med Sci Sports Exerc.</i> 2009;41(3):687–708.<br>
+        Kraemer WJ, Ratamess NA. Fundamentals of resistance training: progression and exercise prescription. <i>Med Sci Sports Exerc.</i> 2004;36(4):674–688.</span></p>
+
+        <p class="gloss"><b>Rangos de repeticiones (fuerza vs hipertrofia).</b><br>
+        <span class="ref">Schoenfeld BJ. The mechanisms of muscle hypertrophy and their application to resistance training. <i>J Strength Cond Res.</i> 2010;24(10):2857–2872.<br>
+        Schoenfeld BJ, Grgic J, Ogborn D, Krieger JW. Strength and hypertrophy adaptations between low- vs high-load resistance training: a meta-analysis. <i>J Strength Cond Res.</i> 2017;31(12):3508–3523.</span></p>
+
+        <p class="gloss"><b>Superseries antagonistas (par opuesto que recupera).</b><br>
+        <span class="ref">Robbins DW, Young WB, Behm DG, Payne WR. Agonist–antagonist paired set resistance training: a brief review. <i>J Strength Cond Res.</i> 2010;24(10):2873–2882.</span></p>
+
+        <p class="gloss"><b>Autorregulacion por RPE/RIR (Facil / OK / Duro).</b><br>
+        <span class="ref">Helms ER, Cronin J, Storey A, Zourdos MC. Application of the repetitions-in-reserve-based RPE scale for resistance training. <i>Strength Cond J.</i> 2016;38(4):42–49.<br>
+        Zourdos MC, et al. Novel resistance training–specific RPE scale measuring repetitions in reserve. <i>J Strength Cond Res.</i> 2016;30(1):267–275.</span></p>
+
+        <p class="gloss"><b>Kettlebell: demandas y aplicaciones.</b><br>
+        <span class="ref">Lake JP, Lauder MA. Mechanical demands of kettlebell swing exercise. <i>J Strength Cond Res.</i> 2012;26(12):3209–3216.<br>
+        Beardsley C, Contreras B. The role of kettlebells in strength and conditioning: a review. <i>Strength Cond J.</i> 2014;36(3):64–70.</span></p>
+
+        <p class="gloss"><b>Fundamentos, fatiga y periodizacion.</b><br>
+        <span class="ref">Zatsiorsky VM, Kraemer WJ. <i>Science and Practice of Strength Training.</i> 2nd ed. Human Kinetics; 2006.<br>
+        Haff GG, Triplett NT (eds). <i>NSCA's Essentials of Strength Training and Conditioning.</i> 4th ed. Human Kinetics; 2016.<br>
+        Verkhoshansky Y, Siff M. <i>Supertraining.</i> 6th ed.; 2009.</span></p>
+
+        <p class="gloss"><b>Metodologia kettlebell (practica).</b><br>
+        <span class="ref">Tsatsouline P. <i>Enter the Kettlebell!</i> Dragon Door; 2006.</span></p>
       </div>
     </details>
   </section>

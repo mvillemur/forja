@@ -107,7 +107,8 @@ setTimeout(() => {
   ok("pool shows 32 exercises", d.querySelectorAll("#pool-list .card").length === 32);
 
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 11 sections", d.querySelectorAll("#view-guia .acc").length === 11);
+  ok("guide has 13 sections", d.querySelectorAll("#view-guia .acc").length === 13);
+  ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
 
   if (code) console.error("\n--- UI TEST FAILURES ---");
   else console.log("UI tests OK");
