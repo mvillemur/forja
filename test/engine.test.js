@@ -11,7 +11,7 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 38 exercises", F.BASE_CATALOG.length === 38);
+ok("base catalog has 40 exercises", F.BASE_CATALOG.length === 40);
 
 // Power / plyometrics
 ok("POWER objective generates a routine", (() => {

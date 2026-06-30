@@ -109,6 +109,8 @@
     exercise("KB Jump Squats", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("KB Push-Ups", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("Tuck Jumps", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
+    exercise("Strict Overhead Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Push Press", PAT.PUSH_V, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.HEAVY),
   ];
 
   // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.
