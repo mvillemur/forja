@@ -57,6 +57,17 @@ setTimeout(() => {
   const afterTgt = d.querySelector("#routine-out .prog-target").textContent;
   ok("RPE 'OK' advances the rep target", afterTgt !== beforeTgt);
 
+  // Same-weight mode: progression must bump the SHARED circuit weight (the
+  // displayed kg key matches the renderer's), then restore a normal routine.
+  d.querySelector('#seg-sameweight button[data-val="yes"]').click();
+  d.querySelector("#btn-generar").click();
+  const swBefore = [...d.querySelectorAll("#routine-out .ex-kg")].map(n => n.textContent).join("|");
+  for (let i = 0; i < 6; i++) { const b = d.querySelector("#routine-out .prog-btn.prog-ok"); if (b) b.click(); }
+  const swAfter = [...d.querySelectorAll("#routine-out .ex-kg")].map(n => n.textContent).join("|");
+  ok("same-weight: progression updates the shared circuit weight", swAfter !== swBefore);
+  d.querySelector('#seg-sameweight button[data-val="no"]').click();
+  d.querySelector("#btn-generar").click();
+
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);

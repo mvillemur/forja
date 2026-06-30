@@ -182,14 +182,24 @@
     const name = p.exercise.name;
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
-    const curKg = state.kg[name] != null ? state.kg[name]
-      : F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+    // Use the same kg key the renderer uses: a shared circuit key in
+    // same-weight mode, otherwise per-exercise. Keeps the bump visible.
+    const sameW = !!state.cfg.sameWeight;
+    const kgKey = sameW ? ("__sw:" + p.block) : name;
+    let curKg = state.kg[kgKey];
+    if (curKg == null) {
+      if (sameW && state.routine) {
+        const blk = state.routine.blocks.find(b => b.block === p.block);
+        curKg = blk ? F.unifiedKg(blk.elements.flatMap(e => e.prescriptions), { min, max }, state.cfg.profile) : null;
+      }
+      if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+    }
     const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
     const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
     state.prog[name] = next.reps; saveProg();
     const up = next.kg != null && next.kg > curKg;
     const down = next.kg != null && next.kg < curKg;
-    if (next.kg != null) { state.kg[name] = next.kg; saveKg(); }
+    if (next.kg != null) { state.kg[kgKey] = next.kg; saveKg(); }
     toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
        : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
                : `Objetivo proxima vez: ${next.reps} reps`);
@@ -797,7 +807,11 @@
     let vol = 0;
     h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
       const name = p.exercise.name;
-      const kg = state.kg[name] != null ? state.kg[name] : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
+      // Prefer the per-exercise kg; fall back to a shared circuit weight
+      // (same-weight mode), then to the engine suggestion.
+      const kg = state.kg[name] != null ? state.kg[name]
+        : state.kg["__sw:" + p.block] != null ? state.kg["__sw:" + p.block]
+        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
       vol += kg * p.sets * p.reps;
     })));
     return Math.round(vol);
