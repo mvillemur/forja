@@ -23,6 +23,11 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
 - **Editable pool**: add, edit and remove exercises (32 built-in).
 - **Session history** with detail view and completion mark.
 - **Progress chart**: per-session volume trend plus session/completion counts.
+- **Estimated 1-rep max (e1RM)**: per-exercise strength estimate (Epley) built
+  from your logged sets and current working weight. Shown with a trend in
+  History; once an exercise has enough data, the kg suggestion is derived from
+  your e1RM at the block's rep target instead of the generic load tier. Grinds
+  only — ballistics and carries progress by reps/density/time.
 - **Guided workout timer**: full-screen work/rest countdown that walks any
   generated or saved routine set by set.
 - **Per-exercise kg memory**: the weight you dial in is remembered and offered

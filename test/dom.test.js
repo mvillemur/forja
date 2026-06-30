@@ -61,8 +61,9 @@ setTimeout(() => {
   const csv = [
     "Fecha\tBloque / Orden\tEjercicio\tCarga (kg)\tSerie 1\tSerie 2\tSerie 3\tSerie 4\tReps Totales\tNotas Tecnicas",
     "15/06/2026\tBloque A\tPeso Muerto Rumano\t18\t16\t10\t10\t\t=SUMA(E2:H2)\tRitmo controlado.",
-    "15/06/2026\tBloque B\tHalos\t14\t8\t8\t8\t\t=SUMA(E3:H3)\tMovilidad.",
+    "15/06/2026\tBloque B\tSentadilla Goblet\t16\t8\t8\t8\t\t=SUMA(E3:H3)\tMovilidad.",
     "21/06/2026\tEjercicio 1\tPeso Muerto\t27\t20\t20\t20\t20\t=SUMA(E4:H4)\tFoco agarre.",
+    "21/06/2026\tEjercicio 2\tSentadilla Goblet\t20\t6\t6\t6\t\t=SUMA(E5:H5)\tMas pesado.",
   ].join("\n");
   d.querySelector("#csv-input").value = csv;
   d.querySelector("#btn-csv-import").click();
@@ -73,6 +74,13 @@ setTimeout(() => {
   // Progress stats: with >=2 sessions a trend chart + figures render.
   ok("stats card renders with multiple sessions", !!d.querySelector("#hist-stats .stats-card"));
   ok("stats chart draws one bar per session shown", d.querySelectorAll("#hist-stats .stats-svg rect").length >= 2);
+
+  // Estimated strength (e1RM): a grind logged across two dated sessions shows
+  // up in the panel with a value and an upward trend.
+  ok("e1RM panel renders for tracked grinds", !!d.querySelector("#hist-stats .e1rm-row"));
+  ok("e1RM panel lists the tracked exercise", /Sentadilla Goblet/.test(d.querySelector("#hist-stats").textContent));
+  ok("e1RM shows a trend after 2+ points", !!d.querySelector("#hist-stats .e1rm-trend.up"));
+
   manual[0].click(); // expand newest (21/06)
   ok("manual card shows per-set reps", /20 · 20 · 20 · 20/.test(d.querySelector("#hist-list").textContent));
 
@@ -122,8 +130,9 @@ setTimeout(() => {
   pf.click(); // reset
 
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 13 sections", d.querySelectorAll("#view-guia .acc").length === 13);
+  ok("guide has 14 sections", d.querySelectorAll("#view-guia .acc").length === 14);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
+  ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
 
   if (code) console.error("\n--- UI TEST FAILURES ---");
   else console.log("UI tests OK");

@@ -115,6 +115,27 @@ ok("unifiedKg: single exercise == its suggestion",
 ok("unifiedKg: null when range missing", F.unifiedKg(ps, null) === null);
 ok("unifiedKg: null when empty group", F.unifiedKg([], { min: 12, max: 32 }) === null);
 
+// Estimated 1-rep max (e1RM)
+ok("e1rm: Epley at reps=1 equals the weight", F.e1rm(20, 1) === 20);
+ok("e1rm: 16 kg x 6 ≈ 19.2 kg", Math.abs(F.e1rm(16, 6) - 16 * (1 + 6 / 30)) < 1e-9);
+ok("e1rm: more reps at same load -> higher estimate", F.e1rm(16, 8) > F.e1rm(16, 5));
+ok("e1rm: reps clamped at 12 (no runaway)", F.e1rm(16, 20) === F.e1rm(16, 12));
+ok("e1rm: non-positive inputs -> null", F.e1rm(0, 5) === null && F.e1rm(16, 0) === null && F.e1rm(null, 5) === null);
+ok("e1rmEligible: grind yes, ballistic/ISO no",
+  F.e1rmEligible({ dynamics: F.DIN.STRENGTH }) &&
+  !F.e1rmEligible({ dynamics: F.DIN.BALLISTIC }) && !F.e1rmEligible({ dynamics: F.DIN.ISO }));
+ok("bestE1rm: picks the heaviest-equivalent set",
+  F.bestE1rm([{ kg: 16, reps: 5 }, { kg: 16, reps: 8 }, { kg: 14, reps: 6 }]) === F.e1rm(16, 8));
+ok("bestE1rm: empty -> null", F.bestE1rm([]) === null);
+// Inverse Epley round-trips: load that yields an e1RM at N reps, snapped to 2 kg.
+ok("loadForReps: inverts e1rm (snapped)", F.loadForReps(F.e1rm(20, 5), 5, { min: 8, max: 32 }) === 20);
+ok("loadForReps: lighter for more reps", F.loadForReps(24, 10, { min: 8, max: 40 }) < F.loadForReps(24, 3, { min: 8, max: 40 }));
+ok("loadForReps: clamps to range", F.loadForReps(80, 1, { min: 8, max: 32 }) === 32);
+ok("loadForReps: null on bad input", F.loadForReps(null, 5) === null && F.loadForReps(20, 0) === null);
+ok("smoothE1rm: weights recent points more (EMA)", F.smoothE1rm([10, 20]) === 0.5 * 20 + 0.5 * 10);
+ok("smoothE1rm: single point is itself", F.smoothE1rm([18]) === 18);
+ok("smoothE1rm: empty -> null", F.smoothE1rm([]) === null);
+
 // Single-kettlebell SELECTION: sameWeight clusters each block's loads so the
 // shared weight fits. Compare average per-block load spread over many seeds.
 function blockLoadSpread(rt) {

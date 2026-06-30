@@ -249,6 +249,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .stat-num { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--forge-hi); }
 .stat-lbl { font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; }
 
+/* --- Estimated strength (e1RM) panel --- */
+.e1rm-note { font-size: 11.5px; color: var(--ink-dim); margin: -2px 0 10px; line-height: 1.4; }
+.e1rm-list { display: flex; flex-direction: column; gap: 1px; }
+.e1rm-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+.e1rm-row:first-child { border-top: 0; }
+.e1rm-name { font-size: 13px; color: var(--ink); }
+.e1rm-val { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--forge-hi); white-space: nowrap; }
+.e1rm-trend { font-size: 11px; font-weight: 600; margin-left: 4px; }
+.e1rm-trend.up { color: var(--ok); }
+.e1rm-trend.down { color: var(--ink-dim); }
+
 /* --- Workout timer overlay --- */
 .timer-overlay { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .timer-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; text-align: center; }

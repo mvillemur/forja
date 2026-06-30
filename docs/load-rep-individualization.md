@@ -185,6 +185,16 @@ adjustable-range. The above closes the loop for *generated* sessions.
    converging into the history loop. (Removes the "everyone starts identical".)
 4. **e1RM + autoregulation** — per-pattern e1RM tracking and RPE nudges for
    finer load precision on grinds; ballistics stay rep/density-driven.
+   **(Implemented.)** `engine.js` exposes `e1rm` (Epley, reps clamped at 12),
+   `e1rmEligible` (grinds only — excludes ballistic/ISO), `bestE1rm`,
+   `loadForReps` (inverse Epley → snapped, clamped working load) and
+   `smoothE1rm` (EMA, α 0.5). `app.js` `computeE1rm()` builds a per-exercise
+   series from manual session logs + the live working set (`state.kg` +
+   `state.prog` rep target); once a movement has ≥2 data points the kg
+   suggestion is `loadForReps(e1RM, targetReps)` instead of the cold-start
+   tier (a user-dialed `state.kg` still wins). Surfaced in History as the
+   "Fuerza estimada · e1RM" panel and documented for users in the in-app Guide.
+   RPE autoregulation (Fácil/OK/Duro) already ships via `nextTarget`.
 5. **Routine-combination modifiers** — down-modulate load/reps by superset
    quality and accumulated CNS/grip budget within a session.
 

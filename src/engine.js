@@ -551,6 +551,56 @@
     return { kg, reps: reps + inc };
   }
 
+  // --- Estimated 1-rep max (e1RM) ---------------------------------------
+  // (doc: load-rep-individualization §2D phase 4). An e1RM is the load a
+  // trainee could lift ONCE, estimated from a set taken closer to failure.
+  // It turns "I did 16 kg x 6" into a single comparable number that tracks
+  // strength over time and can be inverted to prescribe a working weight.
+  //
+  // Epley's formula: 1RM ≈ w · (1 + reps/30). It is exact at reps = 1 and
+  // drifts high for very high reps, so we clamp the rep count used in the
+  // estimate (E1RM_MAX_REPS). e1RM is only meaningful for grind / strength
+  // work: ballistics are power (load chosen for speed, not a max) and ISO is
+  // time-under-load, so callers must gate on e1rmEligible for those.
+  const E1RM_MAX_REPS = 12;
+  function e1rmEligible(exercise) {
+    return !!exercise && exercise.dynamics !== DIN.BALLISTIC && exercise.dynamics !== DIN.ISO;
+  }
+  // Epley e1RM for one set. Returns null for a non-positive load or rep count.
+  function e1rm(kg, reps) {
+    if (kg == null || !(kg > 0) || !(reps > 0)) return null;
+    if (reps === 1) return kg;     // a single rep IS the 1RM (Epley is for reps>1)
+    return kg * (1 + Math.min(reps, E1RM_MAX_REPS) / 30);
+  }
+  // Highest e1RM across the logged sets of one exercise. `sets` is an array of
+  // { kg, reps }; the best (heaviest-equivalent) set wins. null if none usable.
+  function bestE1rm(sets) {
+    let best = null;
+    (sets || []).forEach(s => {
+      const v = s && e1rm(s.kg, s.reps);
+      if (v != null && (best == null || v > best)) best = v;
+    });
+    return best;
+  }
+  // Inverse Epley: the working load that yields `e1` at `reps` reps. Snapped to
+  // the 2 kg increment and clamped to [min,max] (opts) so it lands on the
+  // adjustable kettlebell. Used to prescribe a weight from a tracked e1RM.
+  function loadForReps(e1, reps, opts) {
+    if (e1 == null || !(e1 > 0) || !(reps > 0)) return null;
+    const raw = e1 / (1 + Math.min(reps, E1RM_MAX_REPS) / 30);
+    opts = opts || {};
+    return snapKg(raw, opts.min, opts.max);
+  }
+  // Smooth a chronological list of e1RM estimates with an exponential moving
+  // average (default alpha 0.5): the latest session weighs most, a single
+  // noisy near-failure set less. Returns null for an empty list.
+  function smoothE1rm(values, alpha) {
+    const a = alpha == null ? 0.5 : alpha;
+    let ema = null;
+    (values || []).forEach(v => { if (v == null) return; ema = ema == null ? v : a * v + (1 - a) * ema; });
+    return ema;
+  }
+
   // --- Routine-combination load modifier (doc §2C) ----------------------
   // Down-modulates the SUGGESTED load for context: the fatigued half of a
   // non-ideal superset, and lifts placed late in a CNS-heavy session. Returns
@@ -928,6 +978,7 @@
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
+    e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;

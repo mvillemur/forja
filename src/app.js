@@ -191,6 +191,51 @@
     if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
   }
 
+  // ---- Estimated 1-rep max (e1RM) tracking ------------------------------
+  // Builds a per-exercise strength estimate from the data we already keep.
+  // Two sources, in chronological order:
+  //   1. Manual session logs (real kg + per-set reps) — the strongest signal.
+  //   2. The current working set the trainee is on (state.kg dialed weight +
+  //      state.prog rep target) as the most recent point.
+  // Only grind/strength movements are tracked (e1rmEligible); ballistics and
+  // ISO are progressed by reps/density/time, not a max. Each series is EMA-
+  // smoothed so one noisy near-failure set can't spike the number.
+  function poolByName() {
+    const m = {};
+    state.pool.forEach(e => { m[e.name] = e; });
+    return m;
+  }
+  // Minimum data points before an e1RM is trusted to drive a kg suggestion.
+  const E1RM_MIN_POINTS = 2;
+  function computeE1rm() {
+    const pool = poolByName();
+    const series = {};                    // name -> [values, oldest first]
+    const push = (name, v) => { if (v != null) (series[name] || (series[name] = [])).push(v); };
+    // 1) Manual logs, oldest session first.
+    state.hist.slice().reverse().forEach(h => {
+      if (!h.manual || !Array.isArray(h.exercises)) return;
+      h.exercises.forEach(ex => {
+        const def = pool[ex.name];
+        if (!def || !F.e1rmEligible(def)) return;
+        push(ex.name, F.bestE1rm((ex.sets || []).map(r => ({ kg: ex.kg, reps: r }))));
+      });
+    });
+    // 2) Current working set (latest point) from the live progression state.
+    Object.keys(state.kg).forEach(name => {
+      if (name.indexOf("__sw:") === 0) return;     // circuit shared-weight key
+      const def = pool[name];
+      const reps = state.prog[name];
+      if (!def || !F.e1rmEligible(def) || reps == null) return;
+      push(name, F.e1rm(state.kg[name], reps));
+    });
+    const out = {};
+    Object.keys(series).forEach(name => {
+      const v = series[name];
+      out[name] = { current: F.smoothE1rm(v), first: v[0], last: v[v.length - 1], n: v.length };
+    });
+    return out;
+  }
+
   // Smooth-scroll helpers (no-ops / guarded for jsdom).
   function scrollToY(y) {
     try { if (window.scrollTo) window.scrollTo({ top: Math.max(0, y), behavior: "smooth" }); } catch (e) {}
@@ -230,6 +275,7 @@
     }
 
     const blockName = { A: "Principal", B: "Accesorios", C: "Finalizador" };
+    const e1map = computeE1rm();   // per-exercise estimated 1RM, drives kg below
     let cnsAccum = 0;   // CNS load placed before the current element (session fatigue)
     r.blocks.forEach(br => {
       if (!br.elements.length) return;
@@ -269,13 +315,22 @@
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
           doseEl.appendChild(el("div", null, editable ? doseTarget(p) : dose(p)));
-          let baseKg;
+          let baseKg, usedE1 = false;
           if (sameW) {
             // One weight for the whole circuit; the per-lift fatigue taper is
             // intentionally skipped — the point is a single, constant load.
             baseKg = blockKg;
           } else {
-            baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            // Prefer the trainee's tracked strength (e1RM) once it has enough
+            // data points: load = inverse-Epley at this exercise's rep target.
+            // Otherwise fall back to the cold-start tier suggestion.
+            const est = e1map[name];
+            const reps = editable ? targetReps(p) : p.reps;
+            if (est && est.n >= E1RM_MIN_POINTS && F.e1rmEligible(p.exercise)) {
+              baseKg = F.loadForReps(est.current, reps, { min: range.min, max: range.max });
+              usedE1 = baseKg != null;
+            }
+            if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
             // Routine-combination taper: lighten the suggestion for the fatigued
             // half of a non-ideal superset or a lift late in a CNS-heavy session.
             if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
@@ -304,10 +359,12 @@
               kgRow.appendChild(dec); kgRow.appendChild(kgSpan); kgRow.appendChild(inc);
               doseEl.appendChild(kgRow);
               if (savedKg == null) {
+                const tapered = ctxFactor < 1
+                  ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? " · ajustado 2º superserie" : " · ajustado fatiga")
+                  : "";
                 const reason = sameW ? "misma pesa · circuito"
-                  : ctxFactor < 1
-                  ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? "ajustado · 2º superserie" : "ajustado · fatiga")
-                  : "sugerido";
+                  : usedE1 ? "segun tu e1RM" + tapered
+                  : tapered ? tapered.replace(" · ", "") : "sugerido";
                 doseEl.appendChild(el("div", "ex-kg-hint", reason));
               }
             } else {
@@ -717,9 +774,41 @@
     return Math.round(vol);
   }
 
+  // Estimated-strength panel: current e1RM per tracked exercise, with the
+  // change since the first logged point. A coarse but motivating "are my
+  // numbers moving?" readout. Grinds only (see computeE1rm).
+  function renderE1rmPanel(host) {
+    const map = computeE1rm();
+    const names = Object.keys(map).sort((a, b) => map[b].current - map[a].current);
+    if (!names.length) return;
+    const card = el("div", "card stats-card");
+    card.appendChild(el("div", "label", "Fuerza estimada · e1RM"));
+    card.appendChild(el("div", "e1rm-note",
+      "Tu 1RM estimado (el peso que moverias una sola vez) por ejercicio, a partir de tus series. Es una estimacion, no un maximo real."));
+    const list = el("div", "e1rm-list");
+    names.forEach(name => {
+      const e = map[name];
+      const cur = Math.round(e.current);
+      const delta = Math.round(e.current - e.first);
+      const row = el("div", "e1rm-row");
+      row.appendChild(el("span", "e1rm-name", name));
+      const val = el("span", "e1rm-val", cur + " kg");
+      if (e.n >= 2 && delta !== 0) {
+        const up = delta > 0;
+        val.appendChild(el("span", "e1rm-trend " + (up ? "up" : "down"),
+          (up ? " ▲ +" : " ▼ ") + delta + " kg"));
+      }
+      row.appendChild(val);
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+    host.appendChild(card);
+  }
+
   function renderStats() {
     const host = $("#hist-stats"); host.innerHTML = "";
-    if (state.hist.length < 2) return;   // not enough data to be interesting
+    renderE1rmPanel(host);
+    if (state.hist.length < 2) return;   // not enough data for the volume trend
     const card = el("div", "card stats-card");
     card.appendChild(el("div", "label", "Progreso · volumen por sesion"));
 
