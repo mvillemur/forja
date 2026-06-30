@@ -928,29 +928,25 @@
   //   cnsFactor     tightens the high-CNS budget on rough days — engine.
   //   sore (Set)    de-prioritizes sore movement patterns in selection — engine.
   //   loadFactor    multiplies the SUGGESTED kg (lighter when flat) — app render.
-  //   intensityBias nudges the rep target toward lighter/heavier — app render.
   // All factors are 1 / 0 / empty for a missing or "normal" check, so behavior
   // is unchanged without readiness. A user-dialed kg always wins over loadFactor.
   function readinessFactors(readiness) {
-    const neutral = { volumeFactor: 1, loadFactor: 1, cnsFactor: 1, intensityBias: 0, sore: new Set(), energy: 3, level: "normal" };
+    const neutral = { volumeFactor: 1, loadFactor: 1, cnsFactor: 1, sore: new Set(), energy: 3, level: "normal" };
     if (!readiness) return neutral;
     const e = Math.max(1, Math.min(5, +readiness.energy || 3));
     const poor = (readiness.sleep || "").toLowerCase() === "poor";
     const VOL  = { 1: 0.70, 2: 0.85, 3: 1, 4: 1.10, 5: 1.15 };
     const LOAD = { 1: 0.88, 2: 0.94, 3: 1, 4: 1.02, 5: 1.05 };
     const CNS  = { 1: 0.50, 2: 0.75, 3: 1, 4: 1.00, 5: 1.00 };
-    const BIAS = { 1: -0.6, 2: -0.3, 3: 0, 4: 0.3,  5: 0.5  };   // -1 lighter .. +1 heavier
     const f = {
       volumeFactor: VOL[e]  * (poor ? 0.92 : 1),
       loadFactor:   LOAD[e] * (poor ? 0.96 : 1),
       cnsFactor:    CNS[e]  * (poor ? 0.85 : 1),
-      intensityBias: BIAS[e] - (poor ? 0.2 : 0),
       sore: new Set(readiness.sore || []),
       energy: e,
       level: e <= 2 ? "low" : e >= 4 ? "high" : "normal",
     };
     f.loadFactor = Math.max(0.85, Math.min(1.06, f.loadFactor));
-    f.intensityBias = Math.max(-1, Math.min(1, f.intensityBias));
     return f;
   }
 
@@ -980,7 +976,7 @@
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
-      rt.readiness = { loadFactor: rf.loadFactor, intensityBias: rf.intensityBias, level: rf.level };
+      rt.readiness = { loadFactor: rf.loadFactor, level: rf.level };
       return rt;
     };
 

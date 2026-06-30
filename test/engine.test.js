@@ -139,7 +139,7 @@ ok("smoothE1rm: empty -> null", F.smoothE1rm([]) === null);
 // Daily readiness / mood autoregulation
 ok("readiness: missing -> neutral (no change)", (() => {
   const f = F.readinessFactors(null);
-  return f.volumeFactor === 1 && f.loadFactor === 1 && f.cnsFactor === 1 && f.intensityBias === 0 && f.sore.size === 0;
+  return f.volumeFactor === 1 && f.loadFactor === 1 && f.cnsFactor === 1 && f.sore.size === 0;
 })());
 ok("readiness: 'normal' (energy 3) is neutral", (() => {
   const f = F.readinessFactors({ energy: 3, sleep: "ok" });
@@ -149,8 +149,7 @@ const flat = F.readinessFactors({ energy: 1, sleep: "ok" });
 const fresh = F.readinessFactors({ energy: 5, sleep: "ok" });
 ok("readiness: low energy trims volume and load", flat.volumeFactor < 1 && flat.loadFactor < 1);
 ok("readiness: low energy tightens the CNS budget", flat.cnsFactor < 1);
-ok("readiness: low energy biases lighter (negative)", flat.intensityBias < 0);
-ok("readiness: high energy adds volume and biases heavier", fresh.volumeFactor > 1 && fresh.intensityBias > 0);
+ok("readiness: high energy adds volume and raises load", fresh.volumeFactor > 1 && fresh.loadFactor > 1);
 ok("readiness: poor sleep lowers factors vs ok", F.readinessFactors({ energy: 3, sleep: "poor" }).volumeFactor < 1);
 ok("readiness: loadFactor stays in a safe band", flat.loadFactor >= 0.85 && fresh.loadFactor <= 1.06);
 ok("readiness: levels classify low/normal/high",
