@@ -136,6 +136,38 @@ ok("smoothE1rm: weights recent points more (EMA)", F.smoothE1rm([10, 20]) === 0.
 ok("smoothE1rm: single point is itself", F.smoothE1rm([18]) === 18);
 ok("smoothE1rm: empty -> null", F.smoothE1rm([]) === null);
 
+// Daily readiness / mood autoregulation
+ok("readiness: missing -> neutral (no change)", (() => {
+  const f = F.readinessFactors(null);
+  return f.volumeFactor === 1 && f.loadFactor === 1 && f.cnsFactor === 1 && f.intensityBias === 0 && f.sore.size === 0;
+})());
+ok("readiness: 'normal' (energy 3) is neutral", (() => {
+  const f = F.readinessFactors({ energy: 3, sleep: "ok" });
+  return f.volumeFactor === 1 && f.loadFactor === 1 && f.cnsFactor === 1;
+})());
+const flat = F.readinessFactors({ energy: 1, sleep: "ok" });
+const fresh = F.readinessFactors({ energy: 5, sleep: "ok" });
+ok("readiness: low energy trims volume and load", flat.volumeFactor < 1 && flat.loadFactor < 1);
+ok("readiness: low energy tightens the CNS budget", flat.cnsFactor < 1);
+ok("readiness: low energy biases lighter (negative)", flat.intensityBias < 0);
+ok("readiness: high energy adds volume and biases heavier", fresh.volumeFactor > 1 && fresh.intensityBias > 0);
+ok("readiness: poor sleep lowers factors vs ok", F.readinessFactors({ energy: 3, sleep: "poor" }).volumeFactor < 1);
+ok("readiness: loadFactor stays in a safe band", flat.loadFactor >= 0.85 && fresh.loadFactor <= 1.06);
+ok("readiness: levels classify low/normal/high",
+  flat.level === "low" && F.readinessFactors({ energy: 3 }).level === "normal" && fresh.level === "high");
+ok("readiness: sore zones surface as a pattern set",
+  F.readinessFactors({ energy: 3, sore: ["HIP", "KNEE"] }).sore.has("HIP"));
+// End-to-end: a rough day yields a shorter session than a great day, same opts.
+const lowDay = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 4, readiness: { energy: 1, sleep: "poor" } });
+const bigDay = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 4, readiness: { energy: 5, sleep: "ok" } });
+ok("readiness: low-energy session is shorter than high-energy", F.routineDurationMin(lowDay) < F.routineDurationMin(bigDay));
+ok("readiness: routine carries its load factor for the app", lowDay.readiness && lowDay.readiness.loadFactor < 1);
+ok("readiness: no readiness opt == today's behavior (duration unchanged)", (() => {
+  const a = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 9 });
+  const b = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 9, readiness: { energy: 3, sleep: "ok" } });
+  return F.routineDurationMin(a) === F.routineDurationMin(b);
+})());
+
 // Single-kettlebell SELECTION: sameWeight clusters each block's loads so the
 // shared weight fits. Compare average per-block load spread over many seeds.
 function blockLoadSpread(rt) {

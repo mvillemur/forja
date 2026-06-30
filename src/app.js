@@ -62,7 +62,8 @@
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
-           profile:{ bodyweight:null, sex:"", level:"INTER" } },
+           profile:{ bodyweight:null, sex:"", level:"INTER" },
+           readiness:{ energy:3, sleep:"ok", sore:[] } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
@@ -112,6 +113,10 @@
     if (!state.cfg.profile || typeof state.cfg.profile !== "object") {
       state.cfg.profile = { bodyweight: null, sex: "", level: "INTER" };
     }
+    if (!state.cfg.readiness || typeof state.cfg.readiness !== "object") {
+      state.cfg.readiness = { energy: 3, sleep: "ok", sore: [] };
+    }
+    if (!Array.isArray(state.cfg.readiness.sore)) state.cfg.readiness.sore = [];
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
@@ -331,6 +336,11 @@
               usedE1 = baseKg != null;
             }
             if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            // Daily readiness: lighten (or slightly raise) the suggestion to match
+            // how the trainee shows up today. Only touches the suggestion — a
+            // dialed kg (savedKg) still wins below.
+            const loadF = r.readiness ? r.readiness.loadFactor : 1;
+            if (baseKg != null && loadF !== 1) baseKg = F.snapKg(baseKg * loadF, range.min, range.max);
             // Routine-combination taper: lighten the suggestion for the fatigued
             // half of a non-ideal superset or a lift late in a CNS-heavy session.
             if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
@@ -525,7 +535,7 @@
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
-      sameWeight: c.sameWeight };
+      sameWeight: c.sameWeight, readiness: c.readiness };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
@@ -533,6 +543,25 @@
     $("#save-row").classList.remove("hidden");
     saveConfig();
     scrollToRoutine();   // jump straight to the result, not the bottom of the form
+  }
+
+  // Plain-language summary of how today's readiness will bend the session,
+  // plus an objective suggestion when energy is low but a heavy goal is set.
+  function updateReadinessHint() {
+    const c = state.cfg, f = F.readinessFactors(c.readiness);
+    const host = $("#readiness-hint");
+    if (!host) return;
+    const parts = [];
+    if (f.level === "low") {
+      parts.push("Dia flojo: menos volumen y cargas mas suaves.");
+      if (c.objective === "STRENGTH" || c.objective === "POWER")
+        parts.push("Quiza hoy rinda mas un dia metabolico o de tecnica que ir a fuerza maxima.");
+    } else if (f.level === "high") {
+      parts.push("Buen dia: algo mas de volumen y permiso para cargar.");
+    }
+    if (c.readiness.sore && c.readiness.sore.length) parts.push("Aliviamos las zonas doloridas.");
+    host.innerHTML = parts.join(" ");
+    host.classList.toggle("hidden", parts.length === 0);
   }
 
   function applyFocusUI() {
@@ -1200,6 +1229,13 @@
     setSeg("#seg-sameweight", state.cfg.sameWeight ? "yes" : "no");
     setSeg("#seg-sex", state.cfg.profile.sex);
     setSeg("#seg-level", state.cfg.profile.level);
+    setSeg("#seg-energy", state.cfg.readiness.energy);
+    setSeg("#seg-sleep", state.cfg.readiness.sleep);
+    document.querySelectorAll("#sore-chips .chip").forEach(ch => {
+      const keys = (ch.dataset.val || "").split(",");
+      ch.setAttribute("aria-pressed", String(keys.some(k => state.cfg.readiness.sore.includes(k))));
+    });
+    updateReadinessHint();
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
     $("#chip-barbell").setAttribute("aria-pressed", String(state.cfg.equipment.includes("BARBELL")));
     $("#m-range").value = state.cfg.minutes; $("#m-read").textContent = state.cfg.minutes;
@@ -1208,7 +1244,7 @@
     ["A", "B", "C"].forEach(k => { $("#est-" + k + "-val").textContent = state.cfg.structure[k]; });
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
-    wireSeg("#seg-objective", v => { state.cfg.objective = v; saveConfig(); });
+    wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
     // focus chips — multi-select, shortcuts expand to multiple keys
     document.querySelectorAll("#focus-chips .chip").forEach(ch => {
       ch.onclick = () => {
@@ -1237,6 +1273,21 @@
     wireSeg("#seg-sameweight", v => {
       state.cfg.sameWeight = (v === "yes"); saveConfig();
       if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    });
+
+    // Daily readiness (mood / sleep / soreness) — bends the next generated
+    // session to the trainee's day. Persists so the last check is the default.
+    wireSeg("#seg-energy", v => { state.cfg.readiness.energy = +v; updateReadinessHint(); saveConfig(); });
+    wireSeg("#seg-sleep", v => { state.cfg.readiness.sleep = v; updateReadinessHint(); saveConfig(); });
+    document.querySelectorAll("#sore-chips .chip").forEach(ch => {
+      ch.onclick = () => {
+        const keys = (ch.dataset.val || "").split(",");
+        const isOn = ch.getAttribute("aria-pressed") === "true";
+        if (isOn) state.cfg.readiness.sore = state.cfg.readiness.sore.filter(k => !keys.includes(k));
+        else keys.forEach(k => { if (!state.cfg.readiness.sore.includes(k)) state.cfg.readiness.sore.push(k); });
+        ch.setAttribute("aria-pressed", String(!isOn));
+        updateReadinessHint(); saveConfig();
+      };
     });
 
     // Adjustable kettlebell: min/max in 2 kg steps, keeping min < max.

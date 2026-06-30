@@ -134,6 +134,35 @@ and with no program the generator is byte-for-byte unchanged. Deload safety
 (never auto-ramp ballistic/high-CNS load aggressively) is inherited from the
 e1RM caps already in place.
 
+### 4b. Readiness composes with the phase (already shipped)
+
+Daily readiness — energy, sleep, soreness — is **already implemented** as a
+standalone autoregulation layer (`readinessFactors` in `engine.js`; the "¿Cómo
+llegas hoy?" card in Generar). It maps the trainee's day to the **same levers**:
+`volumeFactor`, `loadFactor`, `cnsFactor`, `intensityBias`, and a sore-pattern
+penalty. A program does not replace it — it **multiplies into it**:
+
+```
+volume    = baseMinutes × phase.volumeFactor   × readiness.volumeFactor
+intensity = phase.intensityFactor              + readiness.intensityBias   // clamped [-1,1]
+cnsCap    = round(maxCns × phase.cnsFactor      × readiness.cnsFactor)
+load      = suggestion × phase.loadFactor       × readiness.loadFactor
+sore      = readiness.sore   (always honored, day-level)
+```
+
+So the program sets the week's *intent* (ramp / deload) and readiness bends that
+intent to the *day*: a heavy week + a wrecked day still backs off; a deload week
++ a great day stays easy (deload wins by design — readiness only nudges).
+Practically, the JIT `opts` in §3 just carries **both** `readiness` (from the
+card) and the program-phase factors, and the engine already knows how to apply
+the readiness half. Because every factor is neutral by default, the program, the
+readiness check, and plain one-off generation all share one code path.
+
+The product principle behind this: **what's best to train is decided in the
+moment** — not only from history, progression and objective, but from how the
+trainee actually shows up. Readiness is the "in the moment" input; the program
+is the longer arc it bends against.
+
 ---
 
 ## 5. UI surface

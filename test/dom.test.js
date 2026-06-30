@@ -25,6 +25,23 @@ setTimeout(() => {
   ok("generates elements", d.querySelectorAll("#routine-out .element").length > 0);
   ok("shows suggested kg", d.querySelectorAll("#routine-out .ex-kg").length > 0);
 
+  // Daily readiness: a "low energy" check surfaces a hint and still generates a
+  // session; soreness toggles too. (The duration/load effect is covered
+  // deterministically in the engine tests, which the random UI seed can't be.)
+  ok("readiness controls render", !!d.querySelector("#seg-energy") && d.querySelectorAll("#sore-chips .chip").length === 4);
+  ok("normal energy hides the readiness hint", d.querySelector("#readiness-hint").classList.contains("hidden"));
+  d.querySelector('#seg-energy button[data-val="1"]').click();
+  ok("low-energy surfaces a readiness hint", !d.querySelector("#readiness-hint").classList.contains("hidden"));
+  ok("low-energy + strength suggests an easier objective", /metabolico|tecnica/i.test(d.querySelector("#readiness-hint").textContent));
+  const soreChip = d.querySelector('#sore-chips .chip[data-val="HIP,KNEE"]');
+  soreChip.click();
+  ok("sore zone toggles on", soreChip.getAttribute("aria-pressed") === "true");
+  d.querySelector("#btn-generar").click();
+  ok("still generates a routine on a rough day", d.querySelectorAll("#routine-out .element").length > 0);
+  d.querySelector('#seg-energy button[data-val="3"]').click();
+  soreChip.click(); // reset to normal for the rest of the flow
+  d.querySelector("#btn-generar").click();
+
   // Persisted per-exercise kg: a freshly generated routine marks kg as
   // "sugerido"; nudging it stores the value and clears the hint on re-render.
   ok("kg shows a 'sugerido' hint before the user sets it", d.querySelectorAll("#routine-out .ex-kg-hint").length > 0);
@@ -130,9 +147,10 @@ setTimeout(() => {
   pf.click(); // reset
 
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 14 sections", d.querySelectorAll("#view-guia .acc").length === 14);
+  ok("guide has 15 sections", d.querySelectorAll("#view-guia .acc").length === 15);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
   ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
+  ok("guide documents daily readiness", /llegas hoy/i.test(d.querySelector("#view-guia").textContent));
 
   if (code) console.error("\n--- UI TEST FAILURES ---");
   else console.log("UI tests OK");

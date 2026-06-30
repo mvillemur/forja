@@ -23,6 +23,11 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
 - **Editable pool**: add, edit and remove exercises (32 built-in).
 - **Session history** with detail view and completion mark.
 - **Progress chart**: per-session volume trend plus session/completion counts.
+- **Daily readiness (mood autoregulation)**: a quick pre-session check —
+  energy, sleep, sore zones — bends the generated session to how you show up
+  today: scales volume, eases or raises suggested load, tightens the high-CNS
+  budget on rough days, steers away from sore patterns, and suggests an easier
+  objective when you're flat. Neutral by default; a dialed kg always wins.
 - **Estimated 1-rep max (e1RM)**: per-exercise strength estimate (Epley) built
   from your logged sets and current working weight. Shown with a trend in
   History; once an exercise has enough data, the kg suggestion is derived from

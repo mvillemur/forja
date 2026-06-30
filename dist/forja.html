@@ -463,6 +463,32 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       </div>
     </div>
 
+    <div class="card" id="card-readiness">
+      <div class="label">¿Como llegas hoy? <span style="font-weight:400;color:var(--ink-faint)">(ajusta la sesion a tu dia)</span></div>
+      <div class="seg" id="seg-energy" style="flex-wrap:wrap;margin-bottom:12px;">
+        <button class="forge" data-val="1" aria-pressed="false">Agotado</button>
+        <button class="forge" data-val="2" aria-pressed="false">Flojo</button>
+        <button class="forge" data-val="3" aria-pressed="true">Normal</button>
+        <button class="forge" data-val="4" aria-pressed="false">Fuerte</button>
+        <button class="forge" data-val="5" aria-pressed="false">A tope</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px;">
+        <div class="label" style="margin:0;">Descanso / sueño</div>
+        <div class="seg" id="seg-sleep" style="width:auto;flex:0 0 auto;">
+          <button data-val="ok" aria-pressed="true">Ok</button>
+          <button data-val="poor" aria-pressed="false">Mal</button>
+        </div>
+      </div>
+      <div class="label" style="margin:0 0 6px;">Zonas doloridas <span style="font-weight:400;color:var(--ink-faint)">(opcional)</span></div>
+      <div class="chips" id="sore-chips">
+        <button class="chip" data-val="HIP,KNEE" aria-pressed="false">Piernas</button>
+        <button class="chip" data-val="PUSH_H,PUSH_V" aria-pressed="false">Empuje</button>
+        <button class="chip" data-val="PULL_H,PULL_V" aria-pressed="false">Pull</button>
+        <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
+      </div>
+      <div id="readiness-hint" class="hidden" style="font-size:12px;color:var(--forge-hi);margin-top:11px;line-height:1.4;"></div>
+    </div>
+
     <button class="btn btn-forge" id="btn-generar">Generar rutina</button>
 
     <div id="routine-out"></div>
@@ -650,6 +676,18 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     </details>
 
     <details class="acc">
+      <summary>¿Como llegas hoy? (estado del dia)</summary>
+      <div class="acc-body">
+        <p>Lo que toca entrenar no depende solo de tu objetivo y tu progresion: depende tambien de <b>como llegas hoy</b>. Antes de generar puedes decir tu <b>energia</b> (agotado → a tope), si <b>dormiste/descansaste</b> bien y que <b>zonas tienes doloridas</b>. La sesion se ajusta a eso.</p>
+        <p class="gloss"><b>Energia.</b> Un dia flojo baja el <b>volumen</b> (menos series/ejercicios) y suaviza un poco los <b>kg sugeridos</b>; un buen dia sube algo el volumen y te da permiso para cargar. "Normal" no cambia nada.</p>
+        <p class="gloss"><b>Descanso / sueño.</b> Si marcas que dormiste mal, recorta un poco mas el volumen, la carga y el cupo de ejercicios muy exigentes (SNC alta).</p>
+        <p class="gloss"><b>Zonas doloridas.</b> Las que marques pierden prioridad al elegir ejercicios, asi la sesion se va hacia patrones frescos en vez de insistir sobre lo dolorido.</p>
+        <p class="gloss"><b>Sugerencia de objetivo.</b> Si llegas muy flojo pero tenias puesto Fuerza o Potencia, la app te avisa de que quiza rindas mas con un dia metabolico o de tecnica. Tu decides: es un consejo, no un cambio automatico.</p>
+        <p>Es <b>autorregulacion</b>: tu pesa fijada siempre manda, y dejarlo en "Normal / Ok / sin dolor" deja la app como siempre.</p>
+      </div>
+    </details>
+
+    <details class="acc">
       <summary>Fuerza estimada (e1RM)</summary>
       <div class="acc-body">
         <p>El <b>e1RM</b> es tu <b>1RM estimado</b>: el peso que podrias levantar <b>una sola vez</b> en un ejercicio. No hace falta que lo intentes de verdad —se <b>calcula</b> a partir de una serie normal—, asi tienes un unico numero comparable para ver si te haces mas fuerte.</p>
@@ -677,6 +715,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p><b>kg sugerido (3 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (3) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
 
         <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
+
+        <p><b>Estado del dia (autorregulacion).</b> Tu energia (1–5), el descanso y las zonas doloridas se traducen en factores que alimentan las mismas palancas que la periodizacion: volumen (escala los minutos objetivo → series/ejercicios), carga (×0,85–1,06 sobre los kg sugeridos), cupo de SNC alta (se recorta en dias flojos) y un sesgo de intensidad. Las zonas doloridas restan prioridad a esos patrones en la seleccion. Con energia "Normal", sueño "Ok" y sin dolor, los factores valen 1/0 y no cambian nada.</p>
 
         <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque (carga = e1RM ÷ (1 + reps/30), redondeada a 2 kg y acotada a tu rango), en vez de la sugerencia generica por carga. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
       </div>
@@ -728,6 +768,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p class="gloss"><b>Autorregulacion por RPE/RIR (Facil / OK / Duro).</b><br>
         <span class="ref">Helms ER, Cronin J, Storey A, Zourdos MC. Application of the repetitions-in-reserve-based RPE scale for resistance training. <i>Strength Cond J.</i> 2016;38(4):42–49.<br>
         Zourdos MC, et al. Novel resistance training–specific RPE scale measuring repetitions in reserve. <i>J Strength Cond Res.</i> 2016;30(1):267–275.</span></p>
+
+        <p class="gloss"><b>Estado del dia / disposicion subjetiva (energia, sueño, dolor).</b><br>
+        <span class="ref">Saw AE, Main LC, Gastin PB. Monitoring the athlete training response: subjective self-reported measures trump commonly used objective measures: a systematic review. <i>Br J Sports Med.</i> 2016;50(5):281–291.<br>
+        Greig L, et al. Autoregulation in resistance training: a review. <i>Sports Med.</i> 2020;50(11):1873–1887.</span></p>
 
         <p class="gloss"><b>1RM estimado (e1RM) a partir de series submaximas.</b><br>
         <span class="ref">Epley B. Poundage chart. <i>Boyd Epley Workout.</i> Lincoln, NE: Body Enterprises; 1985.<br>
@@ -1235,6 +1279,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
+    if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
@@ -1589,6 +1634,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     bal.focus = focus || null;
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
+    bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -1679,6 +1725,41 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, blocks };
   }
 
+  // --- Daily readiness / mood autoregulation ----------------------------
+  // The plan (objective + progression) says what's *due*; readiness bends it to
+  // how the trainee actually shows up today. A pre-session check — energy (1..5),
+  // sleep (ok|poor) and sore zones — maps to factors that feed the SAME levers
+  // as periodization, so the day's session = objective × phase × readiness:
+  //   volumeFactor  scales target minutes (fewer/more sets) — engine.
+  //   cnsFactor     tightens the high-CNS budget on rough days — engine.
+  //   sore (Set)    de-prioritizes sore movement patterns in selection — engine.
+  //   loadFactor    multiplies the SUGGESTED kg (lighter when flat) — app render.
+  //   intensityBias nudges the rep target toward lighter/heavier — app render.
+  // All factors are 1 / 0 / empty for a missing or "normal" check, so behavior
+  // is unchanged without readiness. A user-dialed kg always wins over loadFactor.
+  function readinessFactors(readiness) {
+    const neutral = { volumeFactor: 1, loadFactor: 1, cnsFactor: 1, intensityBias: 0, sore: new Set(), energy: 3, level: "normal" };
+    if (!readiness) return neutral;
+    const e = Math.max(1, Math.min(5, +readiness.energy || 3));
+    const poor = (readiness.sleep || "").toLowerCase() === "poor";
+    const VOL  = { 1: 0.70, 2: 0.85, 3: 1, 4: 1.10, 5: 1.15 };
+    const LOAD = { 1: 0.88, 2: 0.94, 3: 1, 4: 1.02, 5: 1.05 };
+    const CNS  = { 1: 0.50, 2: 0.75, 3: 1, 4: 1.00, 5: 1.00 };
+    const BIAS = { 1: -0.6, 2: -0.3, 3: 0, 4: 0.3,  5: 0.5  };   // -1 lighter .. +1 heavier
+    const f = {
+      volumeFactor: VOL[e]  * (poor ? 0.92 : 1),
+      loadFactor:   LOAD[e] * (poor ? 0.96 : 1),
+      cnsFactor:    CNS[e]  * (poor ? 0.85 : 1),
+      intensityBias: BIAS[e] - (poor ? 0.2 : 0),
+      sore: new Set(readiness.sore || []),
+      energy: e,
+      level: e <= 2 ? "low" : e >= 4 ? "high" : "normal",
+    };
+    f.loadFactor = Math.max(0.85, Math.min(1.06, f.loadFactor));
+    f.intensityBias = Math.max(-1, Math.min(1, f.intensityBias));
+    return f;
+  }
+
   function generate(pool, opts) {
     opts = opts || {};
     const obj = (opts.objective || "STRENGTH").toUpperCase();
@@ -1692,12 +1773,21 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
+    // Daily readiness bends the session: trim the high-CNS budget, steer away
+    // from sore patterns (engine), and scale volume (below). loadFactor /
+    // intensityBias ride along on the routine for the app's prescription pass.
+    const rf = readinessFactors(opts.readiness);
+    const cnsCap = Math.max(1, Math.round(base.maxCns * rf.cnsFactor));
+
     const build = tpl => {
-      tpl.maxCns = base.maxCns; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
-      return buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
+      tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
+      tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
+      rt.readiness = { loadFactor: rf.loadFactor, intensityBias: rf.intensityBias, level: rf.level };
+      return rt;
     };
 
     // Structure mode: the user fixed the exact exercise counts; no time fit.
@@ -1708,7 +1798,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // exercises get picked, unilateral/ISO/long-rest costs, etc.), so build,
     // measure the REAL duration and correct the counts toward the target. Keep
     // the closest result; stop early once within 10% or when it stops improving.
-    const minutes = opts.minutes || 45;
+    const minutes = Math.round((opts.minutes || 45) * rf.volumeFactor);
     let tpl = scaleTemplate(base, minutes);
     let routine = build(tpl);
     let best = routine, bestErr = Math.abs(routineDurationMin(routine) - minutes);
@@ -1740,7 +1830,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
-    e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm,
+    e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;
@@ -1813,7 +1903,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
-           profile:{ bodyweight:null, sex:"", level:"INTER" } },
+           profile:{ bodyweight:null, sex:"", level:"INTER" },
+           readiness:{ energy:3, sleep:"ok", sore:[] } },
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
@@ -1863,6 +1954,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (!state.cfg.profile || typeof state.cfg.profile !== "object") {
       state.cfg.profile = { bodyweight: null, sex: "", level: "INTER" };
     }
+    if (!state.cfg.readiness || typeof state.cfg.readiness !== "object") {
+      state.cfg.readiness = { energy: 3, sleep: "ok", sore: [] };
+    }
+    if (!Array.isArray(state.cfg.readiness.sore)) state.cfg.readiness.sore = [];
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
@@ -2082,6 +2177,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
               usedE1 = baseKg != null;
             }
             if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            // Daily readiness: lighten (or slightly raise) the suggestion to match
+            // how the trainee shows up today. Only touches the suggestion — a
+            // dialed kg (savedKg) still wins below.
+            const loadF = r.readiness ? r.readiness.loadFactor : 1;
+            if (baseKg != null && loadF !== 1) baseKg = F.snapKg(baseKg * loadF, range.min, range.max);
             // Routine-combination taper: lighten the suggestion for the fatigued
             // half of a non-ideal superset or a lift late in a CNS-heavy session.
             if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
@@ -2276,7 +2376,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
-      sameWeight: c.sameWeight };
+      sameWeight: c.sameWeight, readiness: c.readiness };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
@@ -2284,6 +2384,25 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#save-row").classList.remove("hidden");
     saveConfig();
     scrollToRoutine();   // jump straight to the result, not the bottom of the form
+  }
+
+  // Plain-language summary of how today's readiness will bend the session,
+  // plus an objective suggestion when energy is low but a heavy goal is set.
+  function updateReadinessHint() {
+    const c = state.cfg, f = F.readinessFactors(c.readiness);
+    const host = $("#readiness-hint");
+    if (!host) return;
+    const parts = [];
+    if (f.level === "low") {
+      parts.push("Dia flojo: menos volumen y cargas mas suaves.");
+      if (c.objective === "STRENGTH" || c.objective === "POWER")
+        parts.push("Quiza hoy rinda mas un dia metabolico o de tecnica que ir a fuerza maxima.");
+    } else if (f.level === "high") {
+      parts.push("Buen dia: algo mas de volumen y permiso para cargar.");
+    }
+    if (c.readiness.sore && c.readiness.sore.length) parts.push("Aliviamos las zonas doloridas.");
+    host.innerHTML = parts.join(" ");
+    host.classList.toggle("hidden", parts.length === 0);
   }
 
   function applyFocusUI() {
@@ -2951,6 +3070,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     setSeg("#seg-sameweight", state.cfg.sameWeight ? "yes" : "no");
     setSeg("#seg-sex", state.cfg.profile.sex);
     setSeg("#seg-level", state.cfg.profile.level);
+    setSeg("#seg-energy", state.cfg.readiness.energy);
+    setSeg("#seg-sleep", state.cfg.readiness.sleep);
+    document.querySelectorAll("#sore-chips .chip").forEach(ch => {
+      const keys = (ch.dataset.val || "").split(",");
+      ch.setAttribute("aria-pressed", String(keys.some(k => state.cfg.readiness.sore.includes(k))));
+    });
+    updateReadinessHint();
     $("#kg-min-val").textContent = state.cfg.weightMin; $("#kg-max-val").textContent = state.cfg.weightMax;
     $("#chip-barbell").setAttribute("aria-pressed", String(state.cfg.equipment.includes("BARBELL")));
     $("#m-range").value = state.cfg.minutes; $("#m-read").textContent = state.cfg.minutes;
@@ -2959,7 +3085,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     ["A", "B", "C"].forEach(k => { $("#est-" + k + "-val").textContent = state.cfg.structure[k]; });
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
-    wireSeg("#seg-objective", v => { state.cfg.objective = v; saveConfig(); });
+    wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
     // focus chips — multi-select, shortcuts expand to multiple keys
     document.querySelectorAll("#focus-chips .chip").forEach(ch => {
       ch.onclick = () => {
@@ -2988,6 +3114,21 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     wireSeg("#seg-sameweight", v => {
       state.cfg.sameWeight = (v === "yes"); saveConfig();
       if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    });
+
+    // Daily readiness (mood / sleep / soreness) — bends the next generated
+    // session to the trainee's day. Persists so the last check is the default.
+    wireSeg("#seg-energy", v => { state.cfg.readiness.energy = +v; updateReadinessHint(); saveConfig(); });
+    wireSeg("#seg-sleep", v => { state.cfg.readiness.sleep = v; updateReadinessHint(); saveConfig(); });
+    document.querySelectorAll("#sore-chips .chip").forEach(ch => {
+      ch.onclick = () => {
+        const keys = (ch.dataset.val || "").split(",");
+        const isOn = ch.getAttribute("aria-pressed") === "true";
+        if (isOn) state.cfg.readiness.sore = state.cfg.readiness.sore.filter(k => !keys.includes(k));
+        else keys.forEach(k => { if (!state.cfg.readiness.sore.includes(k)) state.cfg.readiness.sore.push(k); });
+        ch.setAttribute("aria-pressed", String(!isOn));
+        updateReadinessHint(); saveConfig();
+      };
     });
 
     // Adjustable kettlebell: min/max in 2 kg steps, keeping min < max.

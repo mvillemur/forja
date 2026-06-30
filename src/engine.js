@@ -473,6 +473,7 @@
     if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
+    if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
@@ -827,6 +828,7 @@
     bal.focus = focus || null;
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
+    bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -917,6 +919,41 @@
     return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, blocks };
   }
 
+  // --- Daily readiness / mood autoregulation ----------------------------
+  // The plan (objective + progression) says what's *due*; readiness bends it to
+  // how the trainee actually shows up today. A pre-session check — energy (1..5),
+  // sleep (ok|poor) and sore zones — maps to factors that feed the SAME levers
+  // as periodization, so the day's session = objective × phase × readiness:
+  //   volumeFactor  scales target minutes (fewer/more sets) — engine.
+  //   cnsFactor     tightens the high-CNS budget on rough days — engine.
+  //   sore (Set)    de-prioritizes sore movement patterns in selection — engine.
+  //   loadFactor    multiplies the SUGGESTED kg (lighter when flat) — app render.
+  //   intensityBias nudges the rep target toward lighter/heavier — app render.
+  // All factors are 1 / 0 / empty for a missing or "normal" check, so behavior
+  // is unchanged without readiness. A user-dialed kg always wins over loadFactor.
+  function readinessFactors(readiness) {
+    const neutral = { volumeFactor: 1, loadFactor: 1, cnsFactor: 1, intensityBias: 0, sore: new Set(), energy: 3, level: "normal" };
+    if (!readiness) return neutral;
+    const e = Math.max(1, Math.min(5, +readiness.energy || 3));
+    const poor = (readiness.sleep || "").toLowerCase() === "poor";
+    const VOL  = { 1: 0.70, 2: 0.85, 3: 1, 4: 1.10, 5: 1.15 };
+    const LOAD = { 1: 0.88, 2: 0.94, 3: 1, 4: 1.02, 5: 1.05 };
+    const CNS  = { 1: 0.50, 2: 0.75, 3: 1, 4: 1.00, 5: 1.00 };
+    const BIAS = { 1: -0.6, 2: -0.3, 3: 0, 4: 0.3,  5: 0.5  };   // -1 lighter .. +1 heavier
+    const f = {
+      volumeFactor: VOL[e]  * (poor ? 0.92 : 1),
+      loadFactor:   LOAD[e] * (poor ? 0.96 : 1),
+      cnsFactor:    CNS[e]  * (poor ? 0.85 : 1),
+      intensityBias: BIAS[e] - (poor ? 0.2 : 0),
+      sore: new Set(readiness.sore || []),
+      energy: e,
+      level: e <= 2 ? "low" : e >= 4 ? "high" : "normal",
+    };
+    f.loadFactor = Math.max(0.85, Math.min(1.06, f.loadFactor));
+    f.intensityBias = Math.max(-1, Math.min(1, f.intensityBias));
+    return f;
+  }
+
   function generate(pool, opts) {
     opts = opts || {};
     const obj = (opts.objective || "STRENGTH").toUpperCase();
@@ -930,12 +967,21 @@
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
+    // Daily readiness bends the session: trim the high-CNS budget, steer away
+    // from sore patterns (engine), and scale volume (below). loadFactor /
+    // intensityBias ride along on the routine for the app's prescription pass.
+    const rf = readinessFactors(opts.readiness);
+    const cnsCap = Math.max(1, Math.round(base.maxCns * rf.cnsFactor));
+
     const build = tpl => {
-      tpl.maxCns = base.maxCns; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
-      return buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
+      tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
+      tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
+      rt.readiness = { loadFactor: rf.loadFactor, intensityBias: rf.intensityBias, level: rf.level };
+      return rt;
     };
 
     // Structure mode: the user fixed the exact exercise counts; no time fit.
@@ -946,7 +992,7 @@
     // exercises get picked, unilateral/ISO/long-rest costs, etc.), so build,
     // measure the REAL duration and correct the counts toward the target. Keep
     // the closest result; stop early once within 10% or when it stops improving.
-    const minutes = opts.minutes || 45;
+    const minutes = Math.round((opts.minutes || 45) * rf.volumeFactor);
     let tpl = scaleTemplate(base, minutes);
     let routine = build(tpl);
     let best = routine, bestErr = Math.abs(routineDurationMin(routine) - minutes);
@@ -978,7 +1024,7 @@
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
-    e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm,
+    e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.FORJA = API;
