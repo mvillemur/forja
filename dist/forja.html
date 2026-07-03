@@ -311,6 +311,38 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .acc-body b { color: var(--ink); font-weight: 600; }
 .ref { display: block; font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); line-height: 1.5; margin-top: 2px; }
 .ref i { font-style: italic; color: var(--ink-dim); }
+/* --- Manual routine builder --- */
+.mk-row { padding: 10px 0; border-top: 1px solid var(--line); }
+.mk-row:first-child { border-top: 0; padding-top: 2px; }
+.mk-row.paired { border-left: 3px solid var(--forge); padding-left: 10px; margin-left: -2px; }
+.mk-select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); font-size: 13px; font-family: var(--sans); font-weight: 600; }
+.mk-ctl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.mk-step { display: flex; align-items: center; gap: 4px; }
+.mk-val { font-family: var(--mono); font-size: 12.5px; color: var(--forge-hi); font-weight: 700; min-width: 46px; text-align: center; }
+.mk-pair { font-size: 11px; padding: 4px 10px; }
+.mk-pair[aria-pressed="true"] { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
+.mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
+.mk-add { margin-top: 10px; padding: 10px; font-size: 13px; }
+
+/* --- Scrutiny (routine audit) --- */
+.audit-card { border-left: 3px solid var(--forge); }
+.audit-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.audit-head .label { margin-bottom: 0; }
+.audit-score { font-family: var(--mono); font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; white-space: nowrap; }
+.audit-score.aud-ok  { background: rgba(127,174,106,0.16); color: var(--ok); }
+.audit-score.aud-mid { background: rgba(230,180,80,0.16); color: var(--gold); }
+.audit-score.aud-bad { background: rgba(217,83,59,0.16); color: var(--danger); }
+.audit-stats { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 8px 0 4px; }
+.audit-clean { font-size: 13px; color: var(--ok); margin-top: 8px; }
+.audit-list { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
+.audit-item { display: flex; gap: 9px; font-size: 12.5px; line-height: 1.45; color: var(--ink-dim); }
+.audit-ico { font-family: var(--mono); font-weight: 800; flex-shrink: 0; width: 14px; text-align: center; }
+.audit-item.aud-error .audit-ico { color: var(--danger); }
+.audit-item.aud-warn  .audit-ico { color: var(--gold); }
+.audit-item.aud-tip   .audit-ico { color: var(--ink-faint); }
+.audit-item.aud-error .audit-msg { color: var(--ink); }
+.audit-btn { margin-top: 10px; padding: 10px; font-size: 13px; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
 </style>
@@ -325,6 +357,15 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 <main>
   <!-- ===== GENERATE ===== -->
   <section id="view-gen" class="view active">
+    <div class="card">
+      <div class="label">Rutina</div>
+      <div class="seg" id="seg-mode">
+        <button data-val="auto" aria-pressed="true">Generada</button>
+        <button data-val="manual" aria-pressed="false">Creada por mi</button>
+      </div>
+    </div>
+
+    <div id="mode-auto">
     <div class="card">
       <div class="label">Objetivo</div>
       <div class="seg" id="seg-objective" style="flex-wrap:wrap">
@@ -490,8 +531,34 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     </div>
 
     <button class="btn btn-forge" id="btn-generar">Generar rutina</button>
+    </div><!-- /mode-auto -->
+
+    <!-- Manual builder: the trainee composes the routine; the engine scrutinizes it. -->
+    <div id="mode-manual" class="hidden">
+      <div class="card" style="padding-bottom:10px;">
+        <div class="label">Compon tu rutina</div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:4px;">Anade ejercicios a cada bloque con sus series y repeticiones. Marca ⇄ para hacer superserie con el anterior. Al evaluar, el motor la revisa con sus propias reglas.</div>
+      </div>
+      <div class="card">
+        <div class="label">Bloque A · Principal</div>
+        <div id="mk-A"></div>
+        <button class="btn btn-ghost mk-add" data-block="A">+ Anadir a A</button>
+      </div>
+      <div class="card">
+        <div class="label">Bloque B · Accesorios</div>
+        <div id="mk-B"></div>
+        <button class="btn btn-ghost mk-add" data-block="B">+ Anadir a B</button>
+      </div>
+      <div class="card">
+        <div class="label">Bloque C · Finalizador</div>
+        <div id="mk-C"></div>
+        <button class="btn btn-ghost mk-add" data-block="C">+ Anadir a C</button>
+      </div>
+      <button class="btn btn-forge" id="btn-componer">Evaluar mi rutina</button>
+    </div><!-- /mode-manual -->
 
     <div id="routine-out"></div>
+    <div id="audit-out"></div>
 
     <div id="save-row" class="hidden" style="margin-top:14px;">
       <div class="btn-row">
@@ -742,6 +809,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Crear tu propia rutina (y su escrutinio)</summary>
+      <div class="acc-body">
+        <p>En <b>Generar</b>, cambia a <b>Creada por mi</b> para componer la sesion a mano: anade ejercicios a cada bloque (A/B/C) con sus series y repeticiones, y marca <b>⇄</b> en un ejercicio para hacerlo en superserie con el anterior.</p>
+        <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuacion (0–100), un veredicto y la lista de objeciones encontradas.</p>
+        <p class="gloss"><b>Que revisa:</b> superseries invalidas o mejorables (mismo patron, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tiron y cadera/rodilla, y el orden (lo exigente al principio, lo metabolico al final).</p>
+        <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (valido pero mejorable).</p>
+        <p>La rutina creada se guarda en el <b>Historial</b> como cualquier otra y puedes entrenarla con el temporizador. Al abrir el detalle de cualquier sesion guardada veras el boton <b>Escrutinio</b> para auditarla mas tarde, tambien las generadas.</p>
       </div>
     </details>
 
@@ -1692,6 +1770,127 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { items, rampUp };
   }
 
+  // --- Manual routines: compose + audit ---------------------------------
+  // The generator is not the only path to a session: the trainee can hand-
+  // build one and have the SAME rule engine scrutinize it. composeRoutine
+  // turns a flat list of user entries into the routine shape the rest of the
+  // app understands; auditRoutine walks any routine (manual or generated) and
+  // returns a scored critique instead of silently fixing it.
+
+  // entries: [{ exercise, block:"A"|"B"|"C", sets, reps, pair }] in user order.
+  // pair=true merges the entry into the PREVIOUS entry of the same block as a
+  // superset (only if that element is still a single). Quality/notes come from
+  // validateCombination so the trainee sees the same verdicts the engine uses.
+  function composeRoutine(entries) {
+    const byBlock = { A: [], B: [], C: [] };
+    (entries || []).forEach(en => {
+      if (!en || !en.exercise) return;
+      const blockId = byBlock[en.block] ? en.block : BLOCK.B;
+      const list = byBlock[blockId];
+      const p = { exercise: en.exercise, block: blockId,
+                  sets: Math.max(1, en.sets || 3), reps: Math.max(1, en.reps || 8) };
+      const prev = list[list.length - 1];
+      if (en.pair && prev && prev.prescriptions.length === 1) {
+        prev.prescriptions.push(p);
+        const res = validateCombination(prev.prescriptions[0], p);
+        prev.quality = res.quality;
+        prev.isSuperset = true;
+        prev.note = "Definida por ti · " + res.reasons.join(" | ");
+      } else {
+        list.push(makeSlot([p], QUALITY.ACCEPTABLE, "Definida por ti."));
+      }
+    });
+    const blocks = [BLOCK.A, BLOCK.B, BLOCK.C]
+      .filter(k => byBlock[k].length)
+      .map(k => ({ block: k, elements: byBlock[k] }));
+    return { template: "Rutina manual", warmup: buildWarmup(blocks), blocks };
+  }
+
+  // Scrutiny: score a routine against the engine's own rules. Unlike the
+  // generator (which enforces budgets while selecting), the audit takes a
+  // finished routine and reports what it finds: findings [{level, msg, block}]
+  // with level "error" (breaks a hard rule), "warn" (budget/balance risk) or
+  // "tip" (suboptimal but defensible). Score starts at 100 and drops per
+  // finding; verdict is a plain-language label. Caps default to a mid-range
+  // budget (between the strictest and loosest objective templates) and can be
+  // overridden via opts {maxCns, maxGrip} to audit against a specific goal.
+  const AUDIT_PENALTY = { error: 25, warn: 10, tip: 3 };
+  function auditVerdict(score) {
+    return score >= 90 ? "Solida" : score >= 70 ? "Con matices"
+         : score >= 45 ? "Mejorable" : "Arriesgada";
+  }
+  function auditRoutine(routine, opts) {
+    opts = opts || {};
+    const maxCns = opts.maxCns == null ? 3 : opts.maxCns;
+    const maxGrip = opts.maxGrip == null ? 3 : opts.maxGrip;
+    const findings = [];
+    const add = (level, msg, block) => findings.push({ level, msg, block: block || null });
+    const blocks = (routine && routine.blocks) || [];
+    const all = [];   // [prescription, blockId]
+    blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => all.push([p, br.block]))));
+
+    if (!all.length) {
+      add("error", "Rutina vacia: anade al menos un ejercicio.");
+      return { score: 0, verdict: auditVerdict(0), findings, stats: { exercises: 0, highCns: 0, grip: 0, minutes: 0 } };
+    }
+
+    // 1) Supersets: the same block-A/B rules the generator enforces.
+    blocks.forEach(br => br.elements.forEach(elm => {
+      if (elm.prescriptions.length !== 2) return;
+      const [a, b] = elm.prescriptions;
+      const names = a.exercise.name + " + " + b.exercise.name;
+      const res = validateCombination(a, b);
+      if (!res.valid) add("error", "Superserie " + names + ": " + res.reasons.join(" "), br.block);
+      else if (res.quality === QUALITY.ACCEPTABLE) add("tip", "Superserie " + names + ": " + res.reasons.join(" "), br.block);
+    }));
+
+    // 2) Fatigue budgets: high-CNS count and weighted grip accumulator.
+    const highCns = all.filter(([p]) => p.exercise.cns === CNS.HIGH).length;
+    if (highCns > maxCns)
+      add(highCns > maxCns + 1 ? "error" : "warn",
+        highCns + " ejercicios de SNC alta (presupuesto: " + maxCns + "): la sesion puede fundirte antes del final.");
+    const grip = all.reduce((acc, [p]) => acc + gripWeight(p.exercise), 0);
+    if (grip > maxGrip + 1e-9)
+      add("warn", "Carga de agarre " + (Math.round(grip * 10) / 10) + " sobre un maximo de " + maxGrip +
+        ": el agarre puede fallar antes que el musculo objetivo.");
+
+    // 3) Repeated exercise across the session.
+    const seen = {};
+    all.forEach(([p]) => { seen[p.exercise.name] = (seen[p.exercise.name] || 0) + 1; });
+    Object.keys(seen).forEach(n => {
+      if (seen[n] > 1) add("warn", n + " aparece " + seen[n] + " veces: reparte ese volumen en un solo hueco o cambia la variante.");
+    });
+
+    // 4) Pattern balance: push/pull and hip/knee should not diverge by 2+.
+    const cat = {};
+    all.forEach(([p]) => { const c = PAT_CATEGORY[p.exercise.pattern]; if (c !== "NEUTRAL") cat[c] = (cat[c] || 0) + 1; });
+    [["PUSH", "PULL", "empuje", "tiron"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
+      const nx = cat[x] || 0, ny = cat[y] || 0;
+      if (Math.abs(nx - ny) >= 2)
+        add("warn", "Desequilibrio " + lx + "/" + ly + " (" + nx + " vs " + ny + "): a la larga pasa factura; compensa el patron contrario.");
+    });
+
+    // 5) Order: demanding work belongs early, metabolic work late.
+    blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => {
+      if (br.block === BLOCK.C && p.exercise.cns === CNS.HIGH)
+        add("tip", p.exercise.name + " en el finalizador: lo de SNC alta rinde mas al principio, en fresco.", br.block);
+      if (br.block === BLOCK.A && p.exercise.dynamics === DIN.METABOLIC)
+        add("tip", p.exercise.name + " en el bloque A: lo metabolico encaja mejor como finalizador (C).", br.block);
+      if (p.exercise.dynamics === DIN.STRENGTH && p.reps >= 15)
+        add("tip", p.exercise.name + " a " + p.reps + " reps: eso ya es resistencia, no fuerza; sube carga o baja reps.", br.block);
+      if (p.sets > 6)
+        add("tip", p.exercise.name + " a " + p.sets + " series: mas de 6 rara vez suma; reparte en otro ejercicio.", br.block);
+    })));
+
+    let score = 100;
+    findings.forEach(f => { score -= AUDIT_PENALTY[f.level] || 0; });
+    score = Math.max(0, score);
+    return {
+      score, verdict: auditVerdict(score), findings,
+      stats: { exercises: all.length, highCns, grip: Math.round(grip * 10) / 10, minutes: routineDurationMin(routine) },
+    };
+  }
+
   // --- High-level API --------------------------------------------------
   const FOCUS_PAT = {
     LEGS:      [PAT.HIP, PAT.KNEE],
@@ -1826,6 +2025,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
+    composeRoutine, auditRoutine,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
@@ -1901,13 +2101,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" },
-           readiness:{ energy:3, sleep:"ok", sore:[] } },
+           readiness:{ energy:3, sleep:"ok", sore:[] },
+           mode:"auto",                        // "auto" (generator) | "manual" (builder)
+           manual:{ A:[], B:[], C:[] } },      // builder draft: {name, sets, reps, pair} per block
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
     pool: [],         // computed
     hist: [],
     routine: null,
+    routineSource: "auto",   // where state.routine came from: generator or manual builder
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
     prog: {},         // name -> current rep target (double progression, persisted)
@@ -1955,6 +2158,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       state.cfg.readiness = { energy: 3, sleep: "ok", sore: [] };
     }
     if (!Array.isArray(state.cfg.readiness.sore)) state.cfg.readiness.sore = [];
+    if (state.cfg.mode !== "manual") state.cfg.mode = "auto";
+    if (!state.cfg.manual || typeof state.cfg.manual !== "object") state.cfg.manual = {};
+    ["A", "B", "C"].forEach(k => { if (!Array.isArray(state.cfg.manual[k])) state.cfg.manual[k] = []; });
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
@@ -2387,10 +2593,124 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
+    state.routineSource = "auto";
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
+    $("#audit-out").innerHTML = "";
+    $("#btn-regenerar").classList.remove("hidden");
     $("#save-row").classList.remove("hidden");
     saveConfig();
     scrollToRoutine();   // jump straight to the result, not the bottom of the form
+  }
+
+  // ---- Manual routine builder ("Creada por mi") --------------------------
+  // The trainee composes the session by hand: rows per block with exercise,
+  // sets, reps and an optional superset link to the previous row. The draft
+  // persists in cfg.manual; "Evaluar mi rutina" composes it through the engine
+  // and renders the scrutiny (auditRoutine) next to the routine itself.
+  const MK_DEFAULTS = { A: { sets: 4, reps: 6 }, B: { sets: 3, reps: 10 }, C: { sets: 3, reps: 15 } };
+
+  function renderBuilder() {
+    const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
+    const names = new Set(pool.map(e => e.name));
+    ["A", "B", "C"].forEach(k => {
+      const host = $("#mk-" + k); if (!host) return;
+      host.innerHTML = "";
+      // Drop rows whose exercise left the pool (equipment change / removal).
+      const kept = state.cfg.manual[k].filter(it => names.has(it.name));
+      if (kept.length !== state.cfg.manual[k].length) { state.cfg.manual[k] = kept; saveConfig(); }
+      const items = state.cfg.manual[k];
+      items.forEach((it, i) => {
+        // Un-pair rows whose previous row is itself paired (an element only
+        // holds two exercises).
+        if (it.pair && (i === 0 || items[i - 1].pair)) it.pair = false;
+        const row = el("div", "mk-row");
+        if (it.pair) row.classList.add("paired");
+        const sel = document.createElement("select");
+        sel.className = "mk-select";
+        pool.forEach(e => {
+          const op = document.createElement("option");
+          op.value = e.name; op.textContent = e.name; op.selected = e.name === it.name;
+          sel.appendChild(op);
+        });
+        sel.onchange = () => { it.name = sel.value; saveConfig(); };
+        row.appendChild(sel);
+        const ctl = el("div", "mk-ctl");
+        const stepper = (label, get, set, min, max) => {
+          const wrap = el("div", "mk-step");
+          const dec = el("button", "kg-adj", "−");
+          const val = el("span", "mk-val", get() + label);
+          const inc = el("button", "kg-adj", "+");
+          const upd = d => { set(Math.max(min, Math.min(max, get() + d))); val.textContent = get() + label; saveConfig(); };
+          dec.onclick = () => upd(-1); inc.onclick = () => upd(1);
+          wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
+          return wrap;
+        };
+        ctl.appendChild(stepper("x", () => it.sets, v => { it.sets = v; }, 1, 8));
+        ctl.appendChild(stepper(" reps", () => it.reps, v => { it.reps = v; }, 1, 30));
+        if (i > 0 && !items[i - 1].pair) {
+          const pairBtn = el("button", "chip mk-pair", "⇄ superserie");
+          pairBtn.setAttribute("aria-pressed", String(!!it.pair));
+          pairBtn.title = "En superserie con el anterior";
+          pairBtn.onclick = () => { it.pair = !it.pair; saveConfig(); renderBuilder(); };
+          ctl.appendChild(pairBtn);
+        }
+        const rm = el("button", "icon-btn del mk-rm", "✕");
+        rm.title = "Quitar";
+        rm.onclick = () => { items.splice(i, 1); saveConfig(); renderBuilder(); };
+        ctl.appendChild(rm);
+        row.appendChild(ctl);
+        host.appendChild(row);
+      });
+      if (!items.length) host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+    });
+  }
+
+  function composeManual() {
+    const pool = poolByName();
+    const entries = [];
+    ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => {
+      const e = pool[it.name];
+      if (e) entries.push({ exercise: e, block: k, sets: it.sets, reps: it.reps, pair: it.pair });
+    }));
+    if (!entries.length) { toast("Anade al menos un ejercicio a la rutina"); return; }
+    const r = F.composeRoutine(entries);
+    state.routine = r;
+    state.routineSource = "manual";
+    renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    renderAudit(F.auditRoutine(r), $("#audit-out"));
+    $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
+    $("#save-row").classList.remove("hidden");
+    saveConfig();
+    scrollToRoutine();
+  }
+
+  // ---- Render: scrutiny (audit) of a routine
+  const AUDIT_ICON = { error: "✕", warn: "!", tip: "·" };
+  function renderAudit(a, host) {
+    host.innerHTML = "";
+    const card = el("div", "card audit-card");
+    const head = el("div", "audit-head");
+    head.appendChild(el("div", "label", "Escrutinio"));
+    const badge = el("div", "audit-score " +
+      (a.score >= 90 ? "aud-ok" : a.score >= 45 ? "aud-mid" : "aud-bad"),
+      a.score + "/100 · " + a.verdict);
+    head.appendChild(badge);
+    card.appendChild(head);
+    card.appendChild(el("div", "audit-stats",
+      `~${a.stats.minutes} min · ${a.stats.exercises} ejercicios · SNC alta ${a.stats.highCns} · agarre ${a.stats.grip}`));
+    if (!a.findings.length) {
+      card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
+    } else {
+      const ul = el("div", "audit-list");
+      a.findings.forEach(f => {
+        const row = el("div", "audit-item aud-" + f.level);
+        row.appendChild(el("span", "audit-ico", AUDIT_ICON[f.level] || "·"));
+        row.appendChild(el("span", "audit-msg", (f.block ? "[" + f.block + "] " : "") + f.msg));
+        ul.appendChild(row);
+      });
+      card.appendChild(ul);
+    }
+    host.appendChild(card);
   }
 
   // Plain-language summary of how today's readiness will bend the session,
@@ -2519,7 +2839,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     state.hist.unshift({
       id: nextId(),
       date: new Date().toISOString(),
-      objective: state.cfg.objective, minutes: state.cfg.minutes, balance: state.cfg.balance,
+      objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
+      minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
     });
     saveHistory(); toast("Guardada en el historial"); renderHistory();
@@ -2739,12 +3060,28 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const d = new Date(h.date);
       const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
         d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-      meta.appendChild(el("div", "hist-title", (h.objective === "STRENGTH" ? "Fuerza" : "Metabolico")));
+      const OBJ_LABEL = { STRENGTH: "Fuerza", METABOLIC: "Metabolico", STRENGTH_ENDURANCE: "Resistencia",
+        POWER: "Potencia", EMOM: "EMOM", AMRAP: "AMRAP", MANUAL: "Creada por mi" };
+      meta.appendChild(el("div", "hist-title", OBJ_LABEL[h.objective] || h.objective));
       meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
       meta.style.cursor = "pointer";
       const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
       meta.onclick = () => {
-        if (detail.classList.contains("hidden")) { renderRoutine(h.routine, detail, h.range); detail.classList.remove("hidden"); }
+        if (detail.classList.contains("hidden")) {
+          renderRoutine(h.routine, detail, h.range);
+          // Scrutinize later: audit any saved session on demand, against the
+          // budgets of its own objective (manual sessions use the defaults).
+          const auditBtn = el("button", "btn btn-ghost audit-btn", "Escrutinio");
+          const auditHost = el("div");
+          auditBtn.onclick = () => {
+            const tpl = F.TEMPLATES[h.objective];
+            const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost);
+            auditBtn.classList.add("hidden");
+          };
+          detail.appendChild(auditBtn); detail.appendChild(auditHost);
+          detail.classList.remove("hidden");
+        }
         else detail.classList.add("hidden");
       };
       const actions = el("div", "hist-actions");
@@ -3096,6 +3433,28 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     ["A", "B", "C"].forEach(k => { $("#est-" + k + "-val").textContent = state.cfg.structure[k]; });
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
+    // Routine mode: generator vs manual builder.
+    const applyMode = () => {
+      const manual = state.cfg.mode === "manual";
+      $("#mode-auto").classList.toggle("hidden", manual);
+      $("#mode-manual").classList.toggle("hidden", !manual);
+      if (manual) renderBuilder();
+    };
+    setSeg("#seg-mode", state.cfg.mode);
+    applyMode();
+    wireSeg("#seg-mode", v => { state.cfg.mode = v; saveConfig(); applyMode(); });
+    document.querySelectorAll(".mk-add").forEach(b => {
+      b.onclick = () => {
+        const k = b.dataset.block;
+        const pool = filteredPool().slice().sort((x, y) => x.name.localeCompare(y.name));
+        if (!pool.length) { toast("No hay ejercicios disponibles"); return; }
+        const d = MK_DEFAULTS[k];
+        state.cfg.manual[k].push({ name: pool[0].name, sets: d.sets, reps: d.reps, pair: false });
+        saveConfig(); renderBuilder();
+      };
+    });
+    $("#btn-componer").onclick = composeManual;
+
     wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
     // focus chips — multi-select, shortcuts expand to multiple keys
     document.querySelectorAll("#focus-chips .chip").forEach(ch => {
@@ -3182,6 +3541,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       state.cfg.equipment = on ? ["KB", "BARBELL"] : ["KB"];
       prunePinned(); updatePinnedCount();
       if (!$("#pin-panel").classList.contains("hidden")) renderPinned();
+      if (state.cfg.mode === "manual") renderBuilder();   // barbell rows may (dis)appear
       saveConfig();
     };
 

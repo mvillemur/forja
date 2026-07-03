@@ -321,5 +321,42 @@ const tlSS = F.elementTimeline({ isSuperset: true, prescriptions: [
   { exercise: pressEx, block: "A", sets: 2, reps: 8 }, { exercise: swing, block: "A", sets: 2, reps: 8 }] });
 ok("timeline: superset 2 sets -> 4 work + 1 rest", tlSS.filter(s => s.kind === "work").length === 4 && tlSS.filter(s => s.kind === "rest").length === 1);
 
+// Manual routines: compose (user-built) + audit (scrutiny)
+const rowEx = F.BASE_CATALOG.find(e => e.name === "Two Hand Row");
+const squatEx = F.BASE_CATALOG.find(e => e.name === "Sentadilla Goblet");
+const manual = F.composeRoutine([
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: pressEx, block: "B", sets: 3, reps: 10 },
+  { exercise: rowEx, block: "B", sets: 3, reps: 10, pair: true },
+]);
+ok("compose: only non-empty blocks appear", manual.blocks.map(b => b.block).join("") === "AB");
+ok("compose: pair flag merges into a superset", manual.blocks[1].elements.length === 1 && manual.blocks[1].elements[0].isSuperset === true);
+ok("compose: superset quality comes from the rule engine", manual.blocks[1].elements[0].quality === F.QUALITY.OPTIMAL);
+ok("compose: warmup is built for manual routines", manual.warmup && manual.warmup.items.length > 0);
+
+const clean = F.auditRoutine(manual);
+ok("audit: clean routine scores 100 with no findings", clean.score === 100 && clean.findings.length === 0);
+ok("audit: stats reflect the routine", clean.stats.exercises === 3 && clean.stats.highCns === 1 && clean.stats.minutes > 0);
+ok("audit: empty routine is an error at score 0", F.auditRoutine({ blocks: [] }).score === 0);
+
+const risky = F.composeRoutine([
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: snatch, block: "A", sets: 5, reps: 5, pair: true },   // two high-CNS: invalid superset
+  { exercise: squatEx, block: "C", sets: 3, reps: 15 },             // 15-rep grind: tip
+]);
+const riskyAudit = F.auditRoutine(risky);
+ok("audit: invalid superset reported as error", riskyAudit.findings.some(f => f.level === "error" && /Superserie/.test(f.msg)));
+ok("audit: high-rep grind gets a tip", riskyAudit.findings.some(f => f.level === "tip" && /resistencia/.test(f.msg)));
+ok("audit: findings lower the score", riskyAudit.score < 100);
+ok("audit: caps are configurable", F.auditRoutine(manual, { maxCns: 0 }).findings.some(f => /SNC alta/.test(f.msg)));
+
+const dupImbal = F.composeRoutine([
+  { exercise: pressEx, block: "B", sets: 3, reps: 10 },
+  { exercise: pressEx, block: "B", sets: 3, reps: 10 },
+]);
+const dupAudit = F.auditRoutine(dupImbal);
+ok("audit: repeated exercise is flagged", dupAudit.findings.some(f => /2 veces/.test(f.msg)));
+ok("audit: push/pull imbalance is flagged", dupAudit.findings.some(f => /empuje\/tiron/.test(f.msg)));
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

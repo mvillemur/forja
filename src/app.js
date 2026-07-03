@@ -63,13 +63,16 @@
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" },
-           readiness:{ energy:3, sleep:"ok", sore:[] } },
+           readiness:{ energy:3, sleep:"ok", sore:[] },
+           mode:"auto",                        // "auto" (generator) | "manual" (builder)
+           manual:{ A:[], B:[], C:[] } },      // builder draft: {name, sets, reps, pair} per block
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
     pool: [],         // computed
     hist: [],
     routine: null,
+    routineSource: "auto",   // where state.routine came from: generator or manual builder
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
     prog: {},         // name -> current rep target (double progression, persisted)
@@ -117,6 +120,9 @@
       state.cfg.readiness = { energy: 3, sleep: "ok", sore: [] };
     }
     if (!Array.isArray(state.cfg.readiness.sore)) state.cfg.readiness.sore = [];
+    if (state.cfg.mode !== "manual") state.cfg.mode = "auto";
+    if (!state.cfg.manual || typeof state.cfg.manual !== "object") state.cfg.manual = {};
+    ["A", "B", "C"].forEach(k => { if (!Array.isArray(state.cfg.manual[k])) state.cfg.manual[k] = []; });
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
@@ -549,10 +555,124 @@
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
+    state.routineSource = "auto";
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
+    $("#audit-out").innerHTML = "";
+    $("#btn-regenerar").classList.remove("hidden");
     $("#save-row").classList.remove("hidden");
     saveConfig();
     scrollToRoutine();   // jump straight to the result, not the bottom of the form
+  }
+
+  // ---- Manual routine builder ("Creada por mi") --------------------------
+  // The trainee composes the session by hand: rows per block with exercise,
+  // sets, reps and an optional superset link to the previous row. The draft
+  // persists in cfg.manual; "Evaluar mi rutina" composes it through the engine
+  // and renders the scrutiny (auditRoutine) next to the routine itself.
+  const MK_DEFAULTS = { A: { sets: 4, reps: 6 }, B: { sets: 3, reps: 10 }, C: { sets: 3, reps: 15 } };
+
+  function renderBuilder() {
+    const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
+    const names = new Set(pool.map(e => e.name));
+    ["A", "B", "C"].forEach(k => {
+      const host = $("#mk-" + k); if (!host) return;
+      host.innerHTML = "";
+      // Drop rows whose exercise left the pool (equipment change / removal).
+      const kept = state.cfg.manual[k].filter(it => names.has(it.name));
+      if (kept.length !== state.cfg.manual[k].length) { state.cfg.manual[k] = kept; saveConfig(); }
+      const items = state.cfg.manual[k];
+      items.forEach((it, i) => {
+        // Un-pair rows whose previous row is itself paired (an element only
+        // holds two exercises).
+        if (it.pair && (i === 0 || items[i - 1].pair)) it.pair = false;
+        const row = el("div", "mk-row");
+        if (it.pair) row.classList.add("paired");
+        const sel = document.createElement("select");
+        sel.className = "mk-select";
+        pool.forEach(e => {
+          const op = document.createElement("option");
+          op.value = e.name; op.textContent = e.name; op.selected = e.name === it.name;
+          sel.appendChild(op);
+        });
+        sel.onchange = () => { it.name = sel.value; saveConfig(); };
+        row.appendChild(sel);
+        const ctl = el("div", "mk-ctl");
+        const stepper = (label, get, set, min, max) => {
+          const wrap = el("div", "mk-step");
+          const dec = el("button", "kg-adj", "−");
+          const val = el("span", "mk-val", get() + label);
+          const inc = el("button", "kg-adj", "+");
+          const upd = d => { set(Math.max(min, Math.min(max, get() + d))); val.textContent = get() + label; saveConfig(); };
+          dec.onclick = () => upd(-1); inc.onclick = () => upd(1);
+          wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
+          return wrap;
+        };
+        ctl.appendChild(stepper("x", () => it.sets, v => { it.sets = v; }, 1, 8));
+        ctl.appendChild(stepper(" reps", () => it.reps, v => { it.reps = v; }, 1, 30));
+        if (i > 0 && !items[i - 1].pair) {
+          const pairBtn = el("button", "chip mk-pair", "⇄ superserie");
+          pairBtn.setAttribute("aria-pressed", String(!!it.pair));
+          pairBtn.title = "En superserie con el anterior";
+          pairBtn.onclick = () => { it.pair = !it.pair; saveConfig(); renderBuilder(); };
+          ctl.appendChild(pairBtn);
+        }
+        const rm = el("button", "icon-btn del mk-rm", "✕");
+        rm.title = "Quitar";
+        rm.onclick = () => { items.splice(i, 1); saveConfig(); renderBuilder(); };
+        ctl.appendChild(rm);
+        row.appendChild(ctl);
+        host.appendChild(row);
+      });
+      if (!items.length) host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+    });
+  }
+
+  function composeManual() {
+    const pool = poolByName();
+    const entries = [];
+    ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => {
+      const e = pool[it.name];
+      if (e) entries.push({ exercise: e, block: k, sets: it.sets, reps: it.reps, pair: it.pair });
+    }));
+    if (!entries.length) { toast("Anade al menos un ejercicio a la rutina"); return; }
+    const r = F.composeRoutine(entries);
+    state.routine = r;
+    state.routineSource = "manual";
+    renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    renderAudit(F.auditRoutine(r), $("#audit-out"));
+    $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
+    $("#save-row").classList.remove("hidden");
+    saveConfig();
+    scrollToRoutine();
+  }
+
+  // ---- Render: scrutiny (audit) of a routine
+  const AUDIT_ICON = { error: "✕", warn: "!", tip: "·" };
+  function renderAudit(a, host) {
+    host.innerHTML = "";
+    const card = el("div", "card audit-card");
+    const head = el("div", "audit-head");
+    head.appendChild(el("div", "label", "Escrutinio"));
+    const badge = el("div", "audit-score " +
+      (a.score >= 90 ? "aud-ok" : a.score >= 45 ? "aud-mid" : "aud-bad"),
+      a.score + "/100 · " + a.verdict);
+    head.appendChild(badge);
+    card.appendChild(head);
+    card.appendChild(el("div", "audit-stats",
+      `~${a.stats.minutes} min · ${a.stats.exercises} ejercicios · SNC alta ${a.stats.highCns} · agarre ${a.stats.grip}`));
+    if (!a.findings.length) {
+      card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
+    } else {
+      const ul = el("div", "audit-list");
+      a.findings.forEach(f => {
+        const row = el("div", "audit-item aud-" + f.level);
+        row.appendChild(el("span", "audit-ico", AUDIT_ICON[f.level] || "·"));
+        row.appendChild(el("span", "audit-msg", (f.block ? "[" + f.block + "] " : "") + f.msg));
+        ul.appendChild(row);
+      });
+      card.appendChild(ul);
+    }
+    host.appendChild(card);
   }
 
   // Plain-language summary of how today's readiness will bend the session,
@@ -681,7 +801,8 @@
     state.hist.unshift({
       id: nextId(),
       date: new Date().toISOString(),
-      objective: state.cfg.objective, minutes: state.cfg.minutes, balance: state.cfg.balance,
+      objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
+      minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
     });
     saveHistory(); toast("Guardada en el historial"); renderHistory();
@@ -901,12 +1022,28 @@
       const d = new Date(h.date);
       const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
         d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-      meta.appendChild(el("div", "hist-title", (h.objective === "STRENGTH" ? "Fuerza" : "Metabolico")));
+      const OBJ_LABEL = { STRENGTH: "Fuerza", METABOLIC: "Metabolico", STRENGTH_ENDURANCE: "Resistencia",
+        POWER: "Potencia", EMOM: "EMOM", AMRAP: "AMRAP", MANUAL: "Creada por mi" };
+      meta.appendChild(el("div", "hist-title", OBJ_LABEL[h.objective] || h.objective));
       meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
       meta.style.cursor = "pointer";
       const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
       meta.onclick = () => {
-        if (detail.classList.contains("hidden")) { renderRoutine(h.routine, detail, h.range); detail.classList.remove("hidden"); }
+        if (detail.classList.contains("hidden")) {
+          renderRoutine(h.routine, detail, h.range);
+          // Scrutinize later: audit any saved session on demand, against the
+          // budgets of its own objective (manual sessions use the defaults).
+          const auditBtn = el("button", "btn btn-ghost audit-btn", "Escrutinio");
+          const auditHost = el("div");
+          auditBtn.onclick = () => {
+            const tpl = F.TEMPLATES[h.objective];
+            const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost);
+            auditBtn.classList.add("hidden");
+          };
+          detail.appendChild(auditBtn); detail.appendChild(auditHost);
+          detail.classList.remove("hidden");
+        }
         else detail.classList.add("hidden");
       };
       const actions = el("div", "hist-actions");
@@ -1258,6 +1395,28 @@
     ["A", "B", "C"].forEach(k => { $("#est-" + k + "-val").textContent = state.cfg.structure[k]; });
     applyFocusUI(); applyVolumeUI(); updatePinnedCount();
 
+    // Routine mode: generator vs manual builder.
+    const applyMode = () => {
+      const manual = state.cfg.mode === "manual";
+      $("#mode-auto").classList.toggle("hidden", manual);
+      $("#mode-manual").classList.toggle("hidden", !manual);
+      if (manual) renderBuilder();
+    };
+    setSeg("#seg-mode", state.cfg.mode);
+    applyMode();
+    wireSeg("#seg-mode", v => { state.cfg.mode = v; saveConfig(); applyMode(); });
+    document.querySelectorAll(".mk-add").forEach(b => {
+      b.onclick = () => {
+        const k = b.dataset.block;
+        const pool = filteredPool().slice().sort((x, y) => x.name.localeCompare(y.name));
+        if (!pool.length) { toast("No hay ejercicios disponibles"); return; }
+        const d = MK_DEFAULTS[k];
+        state.cfg.manual[k].push({ name: pool[0].name, sets: d.sets, reps: d.reps, pair: false });
+        saveConfig(); renderBuilder();
+      };
+    });
+    $("#btn-componer").onclick = composeManual;
+
     wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
     // focus chips — multi-select, shortcuts expand to multiple keys
     document.querySelectorAll("#focus-chips .chip").forEach(ch => {
@@ -1344,6 +1503,7 @@
       state.cfg.equipment = on ? ["KB", "BARBELL"] : ["KB"];
       prunePinned(); updatePinnedCount();
       if (!$("#pin-panel").classList.contains("hidden")) renderPinned();
+      if (state.cfg.mode === "manual") renderBuilder();   // barbell rows may (dis)appear
       saveConfig();
     };
 

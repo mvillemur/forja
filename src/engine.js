@@ -886,6 +886,127 @@
     return { items, rampUp };
   }
 
+  // --- Manual routines: compose + audit ---------------------------------
+  // The generator is not the only path to a session: the trainee can hand-
+  // build one and have the SAME rule engine scrutinize it. composeRoutine
+  // turns a flat list of user entries into the routine shape the rest of the
+  // app understands; auditRoutine walks any routine (manual or generated) and
+  // returns a scored critique instead of silently fixing it.
+
+  // entries: [{ exercise, block:"A"|"B"|"C", sets, reps, pair }] in user order.
+  // pair=true merges the entry into the PREVIOUS entry of the same block as a
+  // superset (only if that element is still a single). Quality/notes come from
+  // validateCombination so the trainee sees the same verdicts the engine uses.
+  function composeRoutine(entries) {
+    const byBlock = { A: [], B: [], C: [] };
+    (entries || []).forEach(en => {
+      if (!en || !en.exercise) return;
+      const blockId = byBlock[en.block] ? en.block : BLOCK.B;
+      const list = byBlock[blockId];
+      const p = { exercise: en.exercise, block: blockId,
+                  sets: Math.max(1, en.sets || 3), reps: Math.max(1, en.reps || 8) };
+      const prev = list[list.length - 1];
+      if (en.pair && prev && prev.prescriptions.length === 1) {
+        prev.prescriptions.push(p);
+        const res = validateCombination(prev.prescriptions[0], p);
+        prev.quality = res.quality;
+        prev.isSuperset = true;
+        prev.note = "Definida por ti · " + res.reasons.join(" | ");
+      } else {
+        list.push(makeSlot([p], QUALITY.ACCEPTABLE, "Definida por ti."));
+      }
+    });
+    const blocks = [BLOCK.A, BLOCK.B, BLOCK.C]
+      .filter(k => byBlock[k].length)
+      .map(k => ({ block: k, elements: byBlock[k] }));
+    return { template: "Rutina manual", warmup: buildWarmup(blocks), blocks };
+  }
+
+  // Scrutiny: score a routine against the engine's own rules. Unlike the
+  // generator (which enforces budgets while selecting), the audit takes a
+  // finished routine and reports what it finds: findings [{level, msg, block}]
+  // with level "error" (breaks a hard rule), "warn" (budget/balance risk) or
+  // "tip" (suboptimal but defensible). Score starts at 100 and drops per
+  // finding; verdict is a plain-language label. Caps default to a mid-range
+  // budget (between the strictest and loosest objective templates) and can be
+  // overridden via opts {maxCns, maxGrip} to audit against a specific goal.
+  const AUDIT_PENALTY = { error: 25, warn: 10, tip: 3 };
+  function auditVerdict(score) {
+    return score >= 90 ? "Solida" : score >= 70 ? "Con matices"
+         : score >= 45 ? "Mejorable" : "Arriesgada";
+  }
+  function auditRoutine(routine, opts) {
+    opts = opts || {};
+    const maxCns = opts.maxCns == null ? 3 : opts.maxCns;
+    const maxGrip = opts.maxGrip == null ? 3 : opts.maxGrip;
+    const findings = [];
+    const add = (level, msg, block) => findings.push({ level, msg, block: block || null });
+    const blocks = (routine && routine.blocks) || [];
+    const all = [];   // [prescription, blockId]
+    blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => all.push([p, br.block]))));
+
+    if (!all.length) {
+      add("error", "Rutina vacia: anade al menos un ejercicio.");
+      return { score: 0, verdict: auditVerdict(0), findings, stats: { exercises: 0, highCns: 0, grip: 0, minutes: 0 } };
+    }
+
+    // 1) Supersets: the same block-A/B rules the generator enforces.
+    blocks.forEach(br => br.elements.forEach(elm => {
+      if (elm.prescriptions.length !== 2) return;
+      const [a, b] = elm.prescriptions;
+      const names = a.exercise.name + " + " + b.exercise.name;
+      const res = validateCombination(a, b);
+      if (!res.valid) add("error", "Superserie " + names + ": " + res.reasons.join(" "), br.block);
+      else if (res.quality === QUALITY.ACCEPTABLE) add("tip", "Superserie " + names + ": " + res.reasons.join(" "), br.block);
+    }));
+
+    // 2) Fatigue budgets: high-CNS count and weighted grip accumulator.
+    const highCns = all.filter(([p]) => p.exercise.cns === CNS.HIGH).length;
+    if (highCns > maxCns)
+      add(highCns > maxCns + 1 ? "error" : "warn",
+        highCns + " ejercicios de SNC alta (presupuesto: " + maxCns + "): la sesion puede fundirte antes del final.");
+    const grip = all.reduce((acc, [p]) => acc + gripWeight(p.exercise), 0);
+    if (grip > maxGrip + 1e-9)
+      add("warn", "Carga de agarre " + (Math.round(grip * 10) / 10) + " sobre un maximo de " + maxGrip +
+        ": el agarre puede fallar antes que el musculo objetivo.");
+
+    // 3) Repeated exercise across the session.
+    const seen = {};
+    all.forEach(([p]) => { seen[p.exercise.name] = (seen[p.exercise.name] || 0) + 1; });
+    Object.keys(seen).forEach(n => {
+      if (seen[n] > 1) add("warn", n + " aparece " + seen[n] + " veces: reparte ese volumen en un solo hueco o cambia la variante.");
+    });
+
+    // 4) Pattern balance: push/pull and hip/knee should not diverge by 2+.
+    const cat = {};
+    all.forEach(([p]) => { const c = PAT_CATEGORY[p.exercise.pattern]; if (c !== "NEUTRAL") cat[c] = (cat[c] || 0) + 1; });
+    [["PUSH", "PULL", "empuje", "tiron"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
+      const nx = cat[x] || 0, ny = cat[y] || 0;
+      if (Math.abs(nx - ny) >= 2)
+        add("warn", "Desequilibrio " + lx + "/" + ly + " (" + nx + " vs " + ny + "): a la larga pasa factura; compensa el patron contrario.");
+    });
+
+    // 5) Order: demanding work belongs early, metabolic work late.
+    blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => {
+      if (br.block === BLOCK.C && p.exercise.cns === CNS.HIGH)
+        add("tip", p.exercise.name + " en el finalizador: lo de SNC alta rinde mas al principio, en fresco.", br.block);
+      if (br.block === BLOCK.A && p.exercise.dynamics === DIN.METABOLIC)
+        add("tip", p.exercise.name + " en el bloque A: lo metabolico encaja mejor como finalizador (C).", br.block);
+      if (p.exercise.dynamics === DIN.STRENGTH && p.reps >= 15)
+        add("tip", p.exercise.name + " a " + p.reps + " reps: eso ya es resistencia, no fuerza; sube carga o baja reps.", br.block);
+      if (p.sets > 6)
+        add("tip", p.exercise.name + " a " + p.sets + " series: mas de 6 rara vez suma; reparte en otro ejercicio.", br.block);
+    })));
+
+    let score = 100;
+    findings.forEach(f => { score -= AUDIT_PENALTY[f.level] || 0; });
+    score = Math.max(0, score);
+    return {
+      score, verdict: auditVerdict(score), findings,
+      stats: { exercises: all.length, highCns, grip: Math.round(grip * 10) / 10, minutes: routineDurationMin(routine) },
+    };
+  }
+
   // --- High-level API --------------------------------------------------
   const FOCUS_PAT = {
     LEGS:      [PAT.HIP, PAT.KNEE],
@@ -1020,6 +1141,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
+    composeRoutine, auditRoutine,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };

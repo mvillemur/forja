@@ -23,6 +23,15 @@
   <!-- ===== GENERATE ===== -->
   <section id="view-gen" class="view active">
     <div class="card">
+      <div class="label">Rutina</div>
+      <div class="seg" id="seg-mode">
+        <button data-val="auto" aria-pressed="true">Generada</button>
+        <button data-val="manual" aria-pressed="false">Creada por mi</button>
+      </div>
+    </div>
+
+    <div id="mode-auto">
+    <div class="card">
       <div class="label">Objetivo</div>
       <div class="seg" id="seg-objective" style="flex-wrap:wrap">
         <button class="forge" data-val="STRENGTH" aria-pressed="true">Fuerza</button>
@@ -187,8 +196,34 @@
     </div>
 
     <button class="btn btn-forge" id="btn-generar">Generar rutina</button>
+    </div><!-- /mode-auto -->
+
+    <!-- Manual builder: the trainee composes the routine; the engine scrutinizes it. -->
+    <div id="mode-manual" class="hidden">
+      <div class="card" style="padding-bottom:10px;">
+        <div class="label">Compon tu rutina</div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:4px;">Anade ejercicios a cada bloque con sus series y repeticiones. Marca ⇄ para hacer superserie con el anterior. Al evaluar, el motor la revisa con sus propias reglas.</div>
+      </div>
+      <div class="card">
+        <div class="label">Bloque A · Principal</div>
+        <div id="mk-A"></div>
+        <button class="btn btn-ghost mk-add" data-block="A">+ Anadir a A</button>
+      </div>
+      <div class="card">
+        <div class="label">Bloque B · Accesorios</div>
+        <div id="mk-B"></div>
+        <button class="btn btn-ghost mk-add" data-block="B">+ Anadir a B</button>
+      </div>
+      <div class="card">
+        <div class="label">Bloque C · Finalizador</div>
+        <div id="mk-C"></div>
+        <button class="btn btn-ghost mk-add" data-block="C">+ Anadir a C</button>
+      </div>
+      <button class="btn btn-forge" id="btn-componer">Evaluar mi rutina</button>
+    </div><!-- /mode-manual -->
 
     <div id="routine-out"></div>
+    <div id="audit-out"></div>
 
     <div id="save-row" class="hidden" style="margin-top:14px;">
       <div class="btn-row">
@@ -439,6 +474,17 @@
         <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Crear tu propia rutina (y su escrutinio)</summary>
+      <div class="acc-body">
+        <p>En <b>Generar</b>, cambia a <b>Creada por mi</b> para componer la sesion a mano: anade ejercicios a cada bloque (A/B/C) con sus series y repeticiones, y marca <b>⇄</b> en un ejercicio para hacerlo en superserie con el anterior.</p>
+        <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuacion (0–100), un veredicto y la lista de objeciones encontradas.</p>
+        <p class="gloss"><b>Que revisa:</b> superseries invalidas o mejorables (mismo patron, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tiron y cadera/rodilla, y el orden (lo exigente al principio, lo metabolico al final).</p>
+        <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (valido pero mejorable).</p>
+        <p>La rutina creada se guarda en el <b>Historial</b> como cualquier otra y puedes entrenarla con el temporizador. Al abrir el detalle de cualquier sesion guardada veras el boton <b>Escrutinio</b> para auditarla mas tarde, tambien las generadas.</p>
       </div>
     </details>
 
