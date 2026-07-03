@@ -139,6 +139,15 @@ setTimeout(() => {
   ok("add opens a searchable picker", !!d.querySelector("#mk-A .mk-pick"));
   const mkSearch = d.querySelector("#mk-A .mk-pick-search");
   const allChips = d.querySelectorAll("#mk-A .mk-pick-chips .chip").length;
+  // Tag/category search: "balistico" (dynamics) matches swings by what they are.
+  mkSearch.value = "balistico"; mkSearch.dispatchEvent(new window.Event("input"));
+  const tagChips = [...d.querySelectorAll("#mk-A .mk-pick-chips .chip")];
+  ok("picker search matches by tag/category", tagChips.length > 0 && tagChips.length < allChips &&
+    tagChips.some(c => /Swings/.test(c.textContent)));
+  mkSearch.value = "tiron balistico"; mkSearch.dispatchEvent(new window.Event("input"));
+  const comboChips = [...d.querySelectorAll("#mk-A .mk-pick-chips .chip")];
+  ok("picker search ANDs multiple terms", comboChips.length > 0 && comboChips.length < tagChips.length &&
+    comboChips.every(c => /Row|Remo/.test(c.textContent)));
   mkSearch.value = "swing"; mkSearch.dispatchEvent(new window.Event("input"));
   const hitChips = d.querySelectorAll("#mk-A .mk-pick-chips .chip");
   ok("picker search narrows the exercises", hitChips.length > 0 && hitChips.length < allChips);
@@ -197,6 +206,9 @@ setTimeout(() => {
   search.value = "swing"; search.dispatchEvent(new window.Event("input"));
   const swingHits = d.querySelectorAll("#pool-list .card").length;
   ok("pool search narrows by name", swingHits > 0 && swingHits < 41);
+  search.value = "cadera"; search.dispatchEvent(new window.Event("input"));
+  const catHits = d.querySelectorAll("#pool-list .card").length;
+  ok("pool search matches by category too", catHits > 0 && catHits < 41);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
   ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 41);
   // A tag filter narrows the pool too.

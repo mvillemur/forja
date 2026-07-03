@@ -661,15 +661,14 @@
   function renderMkPicker(k, pool) {
     const panel = el("div", "mk-pick");
     const input = document.createElement("input");
-    input.type = "text"; input.placeholder = "Buscar ejercicio…";
+    input.type = "text"; input.placeholder = "Buscar por nombre, patron, tag…";
     input.autocomplete = "off"; input.className = "mk-pick-search";
     input.value = mkPicker.text;
     panel.appendChild(input);
     const wrap = el("div", "chips mk-pick-chips");
     const fill = () => {
       wrap.innerHTML = "";
-      const q = deaccent(mkPicker.text);
-      const hits = pool.filter(e => !q || deaccent(e.name).includes(q));
+      const hits = pool.filter(e => matchesQuery(e, mkPicker.text));
       if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
       hits.forEach(e => {
         const c = el("button", "chip", e.name);
@@ -1130,10 +1129,33 @@
     });
   }
 
+  // Searchable text of an exercise: the name PLUS its tag/category labels
+  // (pattern, dynamics, tier, load, CNS, grip, plyo, equipment — Spanish
+  // labels and raw enum keys), so a query like "balistico", "cadera" or
+  // "fundamental" finds exercises by what they ARE, not only by name.
+  function exerciseHaystack(e) {
+    return deaccent([
+      e.name,
+      F.PAT_LABEL[e.pattern] || "", e.pattern,
+      F.DIN_LABEL[e.dynamics] || "", e.dynamics,
+      F.TIER_LABEL[e.tier] || "",
+      F.LOAD_LABEL[e.load] ? "carga " + F.LOAD_LABEL[e.load] : "",
+      "snc " + e.cns,
+      e.grip ? "agarre" : "",
+      e.plyo ? "pliometrico salto" : "",
+      e.equipment.join(" "),
+    ].join(" "));
+  }
+  // Every whitespace-separated term must match somewhere in the haystack,
+  // so "tiron balistico" narrows to ballistic pulls. Empty query matches all.
+  function matchesQuery(e, text) {
+    const hay = exerciseHaystack(e);
+    return deaccent(text || "").split(/\s+/).filter(Boolean).every(t => hay.includes(t));
+  }
+
   // Pool filtering: free-text (accent/case-insensitive) AND tag selections.
   function poolMatches(e) {
-    const q = deaccent(poolFilter.text);
-    if (q && !deaccent(e.name).includes(q)) return false;
+    if (!matchesQuery(e, poolFilter.text)) return false;
     if (poolFilter.pattern.length && !poolFilter.pattern.includes(e.pattern)) return false;
     if (poolFilter.dynamics.length && !poolFilter.dynamics.includes(e.dynamics)) return false;
     if (poolFilter.tier.length && !poolFilter.tier.includes(e.tier)) return false;
