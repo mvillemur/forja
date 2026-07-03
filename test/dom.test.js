@@ -128,6 +128,35 @@ setTimeout(() => {
   ok("edited note persists", /Nota editada/.test(histTxt));
   ok("edited reps persist", /22 · 22 · 22 · 22/.test(histTxt));
 
+  // Manual routine builder: compose a routine by hand and get it scrutinized.
+  d.querySelector('.nav button[data-view="gen"]').click();
+  d.querySelector('#seg-mode button[data-val="manual"]').click();
+  ok("manual mode shows the builder", !d.querySelector("#mode-manual").classList.contains("hidden"));
+  ok("manual mode hides the generator", d.querySelector("#mode-auto").classList.contains("hidden"));
+  d.querySelector('.mk-add[data-block="A"]').click();
+  d.querySelector('.mk-add[data-block="B"]').click();
+  d.querySelector('.mk-add[data-block="B"]').click();
+  ok("builder renders one row per added exercise", d.querySelectorAll("#mk-A .mk-row").length === 1 && d.querySelectorAll("#mk-B .mk-row").length === 2);
+  const pairBtn = d.querySelector("#mk-B .mk-pair");
+  ok("second row offers a superset link", !!pairBtn);
+  pairBtn.click();
+  d.querySelector("#btn-componer").click();
+  ok("composing renders the manual routine", d.querySelectorAll("#routine-out .element").length === 2);
+  ok("paired rows render as a superset", d.querySelectorAll("#routine-out .element.ss").length === 1);
+  ok("scrutiny card renders with a score", !!d.querySelector("#audit-out .audit-card") && /\/100/.test(d.querySelector("#audit-out .audit-score").textContent));
+  ok("scrutiny flags the duplicated exercise", [...d.querySelectorAll("#audit-out .audit-item")].some(n => /veces/.test(n.textContent)));
+  d.querySelector("#btn-guardar").click();
+  d.querySelector('.nav button[data-view="hist"]').click();
+  ok("manual session lands in history as 'Creada por mi'", /Creada por mi/.test(d.querySelector("#hist-list .hist-title").textContent));
+  // Scrutinize later: expanding a saved session offers an audit button.
+  d.querySelector("#hist-list .hist-meta").click();
+  const laterAudit = d.querySelector("#hist-list .audit-btn");
+  ok("saved session detail offers Escrutinio", !!laterAudit);
+  laterAudit.click();
+  ok("Escrutinio renders the audit in the detail", !!d.querySelector("#hist-list .audit-card"));
+  d.querySelector('.nav button[data-view="gen"]').click();
+  d.querySelector('#seg-mode button[data-val="auto"]').click(); // back to generator for the rest
+
   // Pin panel: opening it renders tag filters, and a filter narrows the list.
   d.querySelector("#btn-pin-toggle").click();
   ok("pin panel shows tag filters", d.querySelectorAll("#pin-filters .filter-chip").length > 0);
@@ -140,25 +169,25 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 40 exercises", d.querySelectorAll("#pool-list .card").length === 40);
+  ok("pool shows 41 exercises", d.querySelectorAll("#pool-list .card").length === 41);
   ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
   // Pool search narrows the list by name; clearing restores it.
   const search = d.querySelector("#pool-search");
   search.value = "swing"; search.dispatchEvent(new window.Event("input"));
   const swingHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search narrows by name", swingHits > 0 && swingHits < 40);
+  ok("pool search narrows by name", swingHits > 0 && swingHits < 41);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
-  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 40);
+  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 41);
   // A tag filter narrows the pool too.
   const pf = d.querySelector("#pool-filters .filter-chip");
   ok("pool exposes tag filters", !!pf);
   pf.click();
-  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 40);
+  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 41);
   pf.click(); // reset
 
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 15 sections", d.querySelectorAll("#view-guia .acc").length === 15);
+  ok("guide has 16 sections", d.querySelectorAll("#view-guia .acc").length === 16);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
   ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
   ok("guide documents daily readiness", /llegas hoy/i.test(d.querySelector("#view-guia").textContent));
