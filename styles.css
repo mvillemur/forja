@@ -306,6 +306,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-ctl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .mk-step { display: flex; align-items: center; gap: 4px; }
 .mk-val { font-family: var(--mono); font-size: 12.5px; color: var(--forge-hi); font-weight: 700; min-width: 46px; text-align: center; }
+.mk-kg-sug { color: var(--ink-faint); }
+.mk-pick { margin-top: 10px; padding: 10px; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--radius-sm); }
+.mk-pick-search { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font-size: 14px; font-family: var(--sans); margin-bottom: 10px; }
+.mk-pick-chips { max-height: 220px; overflow-y: auto; }
+.mk-pick-chips .chip { font-size: 12px; padding: 6px 11px; }
 .mk-pair { font-size: 11px; padding: 4px 10px; }
 .mk-pair[aria-pressed="true"] { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }

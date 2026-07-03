@@ -133,15 +133,35 @@ setTimeout(() => {
   d.querySelector('#seg-mode button[data-val="manual"]').click();
   ok("manual mode shows the builder", !d.querySelector("#mode-manual").classList.contains("hidden"));
   ok("manual mode hides the generator", d.querySelector("#mode-auto").classList.contains("hidden"));
+  // "+ Anadir" opens a searchable picker; the query narrows the chips and
+  // tapping one adds the row.
   d.querySelector('.mk-add[data-block="A"]').click();
-  d.querySelector('.mk-add[data-block="B"]').click();
-  d.querySelector('.mk-add[data-block="B"]').click();
+  ok("add opens a searchable picker", !!d.querySelector("#mk-A .mk-pick"));
+  const mkSearch = d.querySelector("#mk-A .mk-pick-search");
+  const allChips = d.querySelectorAll("#mk-A .mk-pick-chips .chip").length;
+  mkSearch.value = "swing"; mkSearch.dispatchEvent(new window.Event("input"));
+  const hitChips = d.querySelectorAll("#mk-A .mk-pick-chips .chip");
+  ok("picker search narrows the exercises", hitChips.length > 0 && hitChips.length < allChips);
+  hitChips[0].click();
+  ok("picking adds the row and closes the picker",
+    d.querySelectorAll("#mk-A .mk-row").length === 1 && !d.querySelector("#mk-A .mk-pick") &&
+    /swing/i.test(d.querySelector("#mk-A .mk-select").value));
+  const addB = () => { d.querySelector('.mk-add[data-block="B"]').click(); d.querySelector("#mk-B .mk-pick-chips .chip").click(); };
+  addB(); addB();
   ok("builder renders one row per added exercise", d.querySelectorAll("#mk-A .mk-row").length === 1 && d.querySelectorAll("#mk-B .mk-row").length === 2);
+  // Weight: KB rows expose a kg stepper (suggested until nudged); nudging it
+  // fixes the weight, which the composed routine then displays.
+  const kgVal = [...d.querySelectorAll("#mk-A .mk-val")].find(n => / kg$/.test(n.textContent));
+  ok("builder rows expose a kg stepper", !!kgVal && kgVal.classList.contains("mk-kg-sug"));
+  kgVal.parentNode.querySelector(".kg-adj:last-child").click();   // +2 kg
+  ok("nudging kg fixes the weight", !kgVal.classList.contains("mk-kg-sug"));
+  const chosenKg = parseInt(kgVal.textContent, 10);
   const pairBtn = d.querySelector("#mk-B .mk-pair");
   ok("second row offers a superset link", !!pairBtn);
   pairBtn.click();
   d.querySelector("#btn-componer").click();
   ok("composing renders the manual routine", d.querySelectorAll("#routine-out .element").length === 2);
+  ok("composed routine uses the chosen weight", [...d.querySelectorAll("#routine-out .ex-kg")].some(n => n.textContent === chosenKg + " kg"));
   ok("paired rows render as a superset", d.querySelectorAll("#routine-out .element.ss").length === 1);
   ok("scrutiny card renders with a score", !!d.querySelector("#audit-out .audit-card") && /\/100/.test(d.querySelector("#audit-out .audit-score").textContent));
   ok("scrutiny flags the duplicated exercise", [...d.querySelectorAll("#audit-out .audit-item")].some(n => /veces/.test(n.textContent)));
