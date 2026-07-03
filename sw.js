@@ -1,6 +1,9 @@
 /* FORJA — Service Worker. Pre-caches the "app shell" for offline use.
-   Strategy: cache-first with network fallback; if the network fails, serves the shell. */
-const CACHE = "forja-v1";
+   Strategy: network-first with cache fallback. Cache-first (the old strategy)
+   froze users on the first version they ever installed — new deploys never
+   showed up. Network-first serves the freshest app whenever online and only
+   falls back to the cached shell offline. */
+const CACHE = "forja-v2";
 const ASSETS = [
   "./", "./index.html", "./styles.css",
   "./src/engine.js", "./src/app.js", "./src/pwa.js",
@@ -22,12 +25,12 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((hit) =>
-      hit || fetch(e.request).then((resp) => {
-        const copy = resp.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-        return resp;
-      }).catch(() => caches.match("./index.html"))
+    fetch(e.request).then((resp) => {
+      const copy = resp.clone();
+      caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+      return resp;
+    }).catch(() =>
+      caches.match(e.request).then((hit) => hit || caches.match("./index.html"))
     )
   );
 });
