@@ -570,18 +570,30 @@
   // persists in cfg.manual; "Evaluar mi rutina" composes it through the engine
   // and renders the scrutiny (auditRoutine) next to the routine itself.
   const MK_DEFAULTS = { A: { sets: 4, reps: 6 }, B: { sets: 3, reps: 10 }, C: { sets: 3, reps: 15 } };
+  // UI-only state of the exercise picker: which block it is open for + query.
+  const mkPicker = { block: null, text: "" };
+
+  // Effective kg shown for a builder row: the row's own choice, else the kg
+  // memory for that exercise, else the engine's cold-start suggestion.
+  function mkEffKg(it, e) {
+    if (it.kg != null) return it.kg;
+    if (state.kg[it.name] != null) return state.kg[it.name];
+    const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e);
+    return s == null ? state.cfg.weightMin : s;
+  }
 
   function renderBuilder() {
     const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
-    const names = new Set(pool.map(e => e.name));
+    const byName = {}; pool.forEach(e => { byName[e.name] = e; });
     ["A", "B", "C"].forEach(k => {
       const host = $("#mk-" + k); if (!host) return;
       host.innerHTML = "";
       // Drop rows whose exercise left the pool (equipment change / removal).
-      const kept = state.cfg.manual[k].filter(it => names.has(it.name));
+      const kept = state.cfg.manual[k].filter(it => byName[it.name]);
       if (kept.length !== state.cfg.manual[k].length) { state.cfg.manual[k] = kept; saveConfig(); }
       const items = state.cfg.manual[k];
       items.forEach((it, i) => {
+        const ex = byName[it.name];
         // Un-pair rows whose previous row is itself paired (an element only
         // holds two exercises).
         if (it.pair && (i === 0 || items[i - 1].pair)) it.pair = false;
@@ -594,21 +606,34 @@
           op.value = e.name; op.textContent = e.name; op.selected = e.name === it.name;
           sel.appendChild(op);
         });
-        sel.onchange = () => { it.name = sel.value; saveConfig(); };
+        sel.onchange = () => { it.name = sel.value; it.kg = null; saveConfig(); renderBuilder(); };
         row.appendChild(sel);
         const ctl = el("div", "mk-ctl");
-        const stepper = (label, get, set, min, max) => {
+        const stepper = (label, get, set, min, max, step, cls) => {
           const wrap = el("div", "mk-step");
           const dec = el("button", "kg-adj", "−");
-          const val = el("span", "mk-val", get() + label);
+          const val = el("span", "mk-val" + (cls ? " " + cls : ""), get() + label);
           const inc = el("button", "kg-adj", "+");
-          const upd = d => { set(Math.max(min, Math.min(max, get() + d))); val.textContent = get() + label; saveConfig(); };
-          dec.onclick = () => upd(-1); inc.onclick = () => upd(1);
+          const upd = d => {
+            set(Math.max(min, Math.min(max, get() + d)));
+            val.textContent = get() + label; val.classList.remove("mk-kg-sug");
+            saveConfig();
+          };
+          dec.onclick = () => upd(-(step || 1)); inc.onclick = () => upd(step || 1);
           wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
           return wrap;
         };
         ctl.appendChild(stepper("x", () => it.sets, v => { it.sets = v; }, 1, 8));
         ctl.appendChild(stepper(" reps", () => it.reps, v => { it.reps = v; }, 1, 30));
+        // Weight: only kettlebell movements carry a kg. Dimmed while it is
+        // still the suggestion; the first nudge makes it the row's own choice.
+        if (ex.equipment.includes("KB")) {
+          ctl.appendChild(stepper(" kg",
+            () => mkEffKg(it, ex),
+            v => { it.kg = v; },
+            state.cfg.weightMin, state.cfg.weightMax, 2,
+            it.kg == null ? "mk-kg-sug" : ""));
+        }
         if (i > 0 && !items[i - 1].pair) {
           const pairBtn = el("button", "chip mk-pair", "⇄ superserie");
           pairBtn.setAttribute("aria-pressed", String(!!it.pair));
@@ -623,8 +648,45 @@
         row.appendChild(ctl);
         host.appendChild(row);
       });
-      if (!items.length) host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+      if (!items.length && mkPicker.block !== k)
+        host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+      // Searchable picker, opened by "+ Anadir a <block>".
+      if (mkPicker.block === k) host.appendChild(renderMkPicker(k, pool));
     });
+  }
+
+  // Picker panel: search input + tappable chips of matching exercises.
+  // Typing only refreshes the chip list (not the whole builder) so the input
+  // keeps focus while the trainee narrows the search.
+  function renderMkPicker(k, pool) {
+    const panel = el("div", "mk-pick");
+    const input = document.createElement("input");
+    input.type = "text"; input.placeholder = "Buscar ejercicio…";
+    input.autocomplete = "off"; input.className = "mk-pick-search";
+    input.value = mkPicker.text;
+    panel.appendChild(input);
+    const wrap = el("div", "chips mk-pick-chips");
+    const fill = () => {
+      wrap.innerHTML = "";
+      const q = deaccent(mkPicker.text);
+      const hits = pool.filter(e => !q || deaccent(e.name).includes(q));
+      if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
+      hits.forEach(e => {
+        const c = el("button", "chip", e.name);
+        c.onclick = () => {
+          const d = MK_DEFAULTS[k];
+          state.cfg.manual[k].push({ name: e.name, sets: d.sets, reps: d.reps, pair: false, kg: null });
+          mkPicker.block = null; mkPicker.text = "";
+          saveConfig(); renderBuilder();
+        };
+        wrap.appendChild(c);
+      });
+    };
+    input.oninput = () => { mkPicker.text = input.value; fill(); };
+    fill();
+    panel.appendChild(wrap);
+    try { setTimeout(() => input.focus(), 0); } catch (e) {}
+    return panel;
   }
 
   function composeManual() {
@@ -635,6 +697,13 @@
       if (e) entries.push({ exercise: e, block: k, sets: it.sets, reps: it.reps, pair: it.pair });
     }));
     if (!entries.length) { toast("Anade al menos un ejercicio a la rutina"); return; }
+    // Weights chosen in the builder become the dialed kg for those exercises,
+    // so the rendered routine, the timer and the progression all use them.
+    let kgTouched = false;
+    ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => {
+      if (it.kg != null && pool[it.name]) { state.kg[it.name] = it.kg; kgTouched = true; }
+    }));
+    if (kgTouched) saveKg();
     const r = F.composeRoutine(entries);
     state.routine = r;
     state.routineSource = "manual";
@@ -1408,11 +1477,11 @@
     document.querySelectorAll(".mk-add").forEach(b => {
       b.onclick = () => {
         const k = b.dataset.block;
-        const pool = filteredPool().slice().sort((x, y) => x.name.localeCompare(y.name));
-        if (!pool.length) { toast("No hay ejercicios disponibles"); return; }
-        const d = MK_DEFAULTS[k];
-        state.cfg.manual[k].push({ name: pool[0].name, sets: d.sets, reps: d.reps, pair: false });
-        saveConfig(); renderBuilder();
+        if (!filteredPool().length) { toast("No hay ejercicios disponibles"); return; }
+        // Toggle the searchable picker for this block (one open at a time).
+        mkPicker.block = mkPicker.block === k ? null : k;
+        mkPicker.text = "";
+        renderBuilder();
       };
     });
     $("#btn-componer").onclick = composeManual;
