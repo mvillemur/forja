@@ -174,6 +174,8 @@ setTimeout(() => {
   ok("paired rows render as a superset", d.querySelectorAll("#routine-out .element.ss").length === 1);
   ok("scrutiny card renders with a score", !!d.querySelector("#audit-out .audit-card") && /\/100/.test(d.querySelector("#audit-out .audit-score").textContent));
   ok("scrutiny flags the duplicated exercise", [...d.querySelectorAll("#audit-out .audit-item")].some(n => /veces/.test(n.textContent)));
+  ok("scrutiny offers suggestions after the findings", !!d.querySelector("#audit-out .audit-sug-label") &&
+    d.querySelectorAll("#audit-out .audit-item.aud-sug").length > 0);
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("manual session lands in history as 'Creada por mi'", /Creada por mi/.test(d.querySelector("#hist-list .hist-title").textContent));

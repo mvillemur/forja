@@ -707,7 +707,7 @@
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r), $("#audit-out"));
+    renderAudit(F.auditRoutine(r, { pool: filteredPool() }), $("#audit-out"));
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -736,6 +736,19 @@
         const row = el("div", "audit-item aud-" + f.level);
         row.appendChild(el("span", "audit-ico", AUDIT_ICON[f.level] || "·"));
         row.appendChild(el("span", "audit-msg", (f.block ? "[" + f.block + "] " : "") + f.msg));
+        ul.appendChild(row);
+      });
+      card.appendChild(ul);
+    }
+    // Prescriptive follow-up: concrete fixes from the engine (only present
+    // when there is something to fix and the pool offers an alternative).
+    if (a.suggestions && a.suggestions.length) {
+      card.appendChild(el("div", "label audit-sug-label", "Sugerencias"));
+      const ul = el("div", "audit-list");
+      a.suggestions.forEach(s => {
+        const row = el("div", "audit-item aud-sug");
+        row.appendChild(el("span", "audit-ico", "→"));
+        row.appendChild(el("span", "audit-msg", s));
         ul.appendChild(row);
       });
       card.appendChild(ul);
@@ -1106,6 +1119,7 @@
           auditBtn.onclick = () => {
             const tpl = F.TEMPLATES[h.objective];
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
+            caps.pool = filteredPool();
             renderAudit(F.auditRoutine(h.routine, caps), auditHost);
             auditBtn.classList.add("hidden");
           };

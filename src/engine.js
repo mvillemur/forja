@@ -930,6 +930,8 @@
   // finding; verdict is a plain-language label. Caps default to a mid-range
   // budget (between the strictest and loosest objective templates) and can be
   // overridden via opts {maxCns, maxGrip} to audit against a specific goal.
+  // Pass opts.pool (the available exercises) to also get `suggestions`:
+  // concrete fixes (swap/add/split) for what the findings flag.
   const AUDIT_PENALTY = { error: 25, warn: 10, tip: 3 };
   function auditVerdict(score) {
     return score >= 90 ? "Solida" : score >= 70 ? "Con matices"
@@ -947,7 +949,8 @@
 
     if (!all.length) {
       add("error", "Rutina vacia: anade al menos un ejercicio.");
-      return { score: 0, verdict: auditVerdict(0), findings, stats: { exercises: 0, highCns: 0, grip: 0, minutes: 0 } };
+      return { score: 0, verdict: auditVerdict(0), findings, suggestions: [],
+               stats: { exercises: 0, highCns: 0, grip: 0, minutes: 0 } };
     }
 
     // 1) Supersets: the same block-A/B rules the generator enforces.
@@ -1001,10 +1004,82 @@
     let score = 100;
     findings.forEach(f => { score -= AUDIT_PENALTY[f.level] || 0; });
     score = Math.max(0, score);
+    const suggestions = (opts.pool && opts.pool.length)
+      ? auditSuggestions(blocks, all, opts.pool, { maxCns, highCns, maxGrip, grip, seen, cat })
+      : [];
     return {
-      score, verdict: auditVerdict(score), findings,
+      score, verdict: auditVerdict(score), findings, suggestions,
       stats: { exercises: all.length, highCns, grip: Math.round(grip * 10) / 10, minutes: routineDurationMin(routine) },
     };
+  }
+
+  // Suggestions: the prescriptive half of the scrutiny. Findings say what is
+  // wrong; suggestions say what to DO about it, with concrete exercises drawn
+  // from the trainee's available pool (fundamental tier first, never one that
+  // is already in the routine). Only produced when auditRoutine receives
+  // opts.pool; capped so the card stays readable.
+  const MAX_SUGGESTIONS = 4;
+  function auditSuggestions(blocks, all, pool, ctx) {
+    const sugg = [];
+    const used = new Set(all.map(([p]) => p.exercise.name));
+    const candidates = pred => pool
+      .filter(e => !used.has(e.name) && pred(e))
+      .sort((a, b) => (TIER_BONUS[b.tier] || 0) - (TIER_BONUS[a.tier] || 0) || a.name.localeCompare(b.name));
+    // "Trains the same thing": exact pattern or same push/pull/hip/knee category.
+    const sameWork = (e, x) => e.pattern === x.pattern ||
+      (PAT_CATEGORY[e.pattern] !== "NEUTRAL" && PAT_CATEGORY[e.pattern] === PAT_CATEGORY[x.pattern]);
+
+    // Broken supersets: offer a partner that actually combines, else split.
+    blocks.forEach(br => br.elements.forEach(elm => {
+      if (elm.prescriptions.length !== 2) return;
+      const [a, b] = elm.prescriptions;
+      if (validateCombination(a, b).valid) return;
+      const partner = candidates(e => validateCombination(a,
+        { exercise: e, block: br.block, sets: b.sets, reps: b.reps }).quality === QUALITY.OPTIMAL)[0];
+      sugg.push(partner
+        ? "Superserie rota: empareja " + a.exercise.name + " con " + partner.name + " (combinacion optima) o separa ambos en huecos propios."
+        : "Superserie rota: separa " + a.exercise.name + " y " + b.exercise.name + " en huecos propios.");
+    }));
+
+    // Over the CNS budget: swap an excess high-CNS lift for a calmer one that
+    // trains the same pattern.
+    if (ctx.highCns > ctx.maxCns) {
+      const extra = all.filter(([p]) => p.exercise.cns === CNS.HIGH).slice(ctx.maxCns);
+      for (const [p] of extra) {
+        const alt = candidates(e => e.cns !== CNS.HIGH && sameWork(e, p.exercise))[0];
+        if (alt) {
+          sugg.push("Para volver al presupuesto de SNC, cambia " + p.exercise.name + " por " +
+            alt.name + ": mismo trabajo con menos demanda nerviosa.");
+          break;
+        }
+      }
+    }
+
+    // Grip overload: replace the heaviest grip consumer with a grip-free option.
+    if (ctx.grip > ctx.maxGrip + 1e-9) {
+      const heaviest = all.slice().sort((x, y) => gripWeight(y[0].exercise) - gripWeight(x[0].exercise))[0][0].exercise;
+      const alt = candidates(e => !e.grip && sameWork(e, heaviest))[0];
+      if (alt) sugg.push("Para aliviar el agarre, cambia " + heaviest.name + " por " + alt.name + ", que no lo consume.");
+    }
+
+    // Repeated exercise: propose a variant that spreads the stimulus.
+    Object.keys(ctx.seen).filter(n => ctx.seen[n] > 1).forEach(n => {
+      const ex = all.map(([p]) => p.exercise).find(e => e.name === n);
+      const alt = ex && candidates(e => sameWork(e, ex))[0];
+      if (alt) sugg.push("En vez de repetir " + n + ", prueba " + alt.name + " en uno de los huecos.");
+    });
+
+    // Pattern imbalance: name the missing category with up to two options.
+    [["PUSH", "PULL", "empuje", "tiron"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
+      const nx = ctx.cat[x] || 0, ny = ctx.cat[y] || 0;
+      if (Math.abs(nx - ny) < 2) return;
+      const short = nx < ny ? x : y, label = nx < ny ? lx : ly;
+      const picks = candidates(e => PAT_CATEGORY[e.pattern] === short).slice(0, 2);
+      if (picks.length)
+        sugg.push("Anade " + label + " para equilibrar: " + picks.map(e => e.name).join(" o ") + ".");
+    });
+
+    return sugg.slice(0, MAX_SUGGESTIONS);
   }
 
   // --- High-level API --------------------------------------------------

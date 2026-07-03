@@ -358,5 +358,29 @@ const dupAudit = F.auditRoutine(dupImbal);
 ok("audit: repeated exercise is flagged", dupAudit.findings.some(f => /2 veces/.test(f.msg)));
 ok("audit: push/pull imbalance is flagged", dupAudit.findings.some(f => /empuje\/tiron/.test(f.msg)));
 
+// Audit suggestions: prescriptive fixes drawn from the available pool.
+ok("suggestions: absent without a pool", F.auditRoutine(risky).suggestions.length === 0);
+ok("suggestions: clean routine has none", F.auditRoutine(manual, { pool: F.BASE_CATALOG }).suggestions.length === 0);
+const riskySugg = F.auditRoutine(risky, { pool: F.BASE_CATALOG }).suggestions;
+ok("suggestions: broken superset gets a concrete fix", riskySugg.some(s => /Superserie rota/.test(s)));
+const dupSugg = F.auditRoutine(dupImbal, { pool: F.BASE_CATALOG }).suggestions;
+ok("suggestions: repeated exercise offers a variant", dupSugg.some(s => /En vez de repetir Goblet Shoulder Press, prueba /.test(s)));
+ok("suggestions: imbalance names the missing pattern with options", dupSugg.some(s => /Anade tiron para equilibrar: .+ o .+\./.test(s)));
+const cnsSugg = F.auditRoutine(manual, { maxCns: 0, pool: F.BASE_CATALOG }).suggestions;
+ok("suggestions: CNS over budget offers a calmer same-pattern swap",
+  cnsSugg.some(s => /presupuesto de SNC, cambia Kettlebell Swings/.test(s)));
+// Never suggest an exercise the routine already contains, and stay readable.
+const inRoutine = new Set(["Kettlebell Swings (Dos manos)", "Goblet Shoulder Press", "Two Hand Row"]);
+ok("suggestions: never propose an exercise already in the routine",
+  !cnsSugg.some(s => [...inRoutine].some(n => s.includes("por " + n))));
+ok("suggestions: capped at 4", F.auditRoutine(F.composeRoutine([
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: snatch, block: "B", sets: 3, reps: 10 },
+  { exercise: snatch, block: "B", sets: 3, reps: 10 },
+  { exercise: pressEx, block: "B", sets: 3, reps: 10 },
+  { exercise: pressEx, block: "C", sets: 3, reps: 15 },
+]), { maxCns: 1, maxGrip: 1, pool: F.BASE_CATALOG }).suggestions.length <= 4);
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");
