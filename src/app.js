@@ -57,6 +57,8 @@
 
   const STRIPE = { HIP:"#e8742c", KNEE:"#e6b450", PULL_H:"#6fa8c7", PULL_V:"#5b93b8",
     PUSH_H:"#b98cc9", PUSH_V:"#a978bf", CORE:"#7fae6a", HYBRID:"#d9533b" };
+  const OBJ_LABEL = { STRENGTH:"Fuerza", METABOLIC:"Metabolico", STRENGTH_ENDURANCE:"Resistencia",
+    POWER:"Potencia", EMOM:"EMOM", AMRAP:"AMRAP", MANUAL:"Creada por mi" };
 
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
@@ -704,10 +706,17 @@
     }));
     if (kgTouched) saveKg();
     const r = F.composeRoutine(entries);
+    // Detect which objective the composition resembles; when clear, the
+    // scrutiny audits against THAT objective's fatigue budgets and the
+    // profile travels with the routine (History label + later audits).
+    r.inferred = F.inferObjective(r);
+    const tpl = r.inferred.objective ? F.TEMPLATES[r.inferred.objective] : null;
+    const opts = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
+    opts.pool = filteredPool();
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r, { pool: filteredPool() }), $("#audit-out"));
+    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), r.inferred);
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -716,7 +725,9 @@
 
   // ---- Render: scrutiny (audit) of a routine
   const AUDIT_ICON = { error: "✕", warn: "!", tip: "·" };
-  function renderAudit(a, host) {
+  // `inferred` (optional): result of F.inferObjective for hand-built routines;
+  // shows the detected training profile the audit budgets came from.
+  function renderAudit(a, host, inferred) {
     host.innerHTML = "";
     const card = el("div", "card audit-card");
     const head = el("div", "audit-head");
@@ -728,6 +739,12 @@
     card.appendChild(head);
     card.appendChild(el("div", "audit-stats",
       `~${a.stats.minutes} min · ${a.stats.exercises} ejercicios · SNC alta ${a.stats.highCns} · agarre ${a.stats.grip}`));
+    if (inferred !== undefined) {
+      card.appendChild(el("div", "audit-infer", inferred && inferred.objective
+        ? "Perfil detectado: <b>" + (OBJ_LABEL[inferred.objective] || inferred.objective) + "</b> (" +
+          Math.round(inferred.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
+        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos."));
+    }
     if (!a.findings.length) {
       card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
     } else {
@@ -1103,24 +1120,31 @@
       const d = new Date(h.date);
       const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
         d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-      const OBJ_LABEL = { STRENGTH: "Fuerza", METABOLIC: "Metabolico", STRENGTH_ENDURANCE: "Resistencia",
-        POWER: "Potencia", EMOM: "EMOM", AMRAP: "AMRAP", MANUAL: "Creada por mi" };
-      meta.appendChild(el("div", "hist-title", OBJ_LABEL[h.objective] || h.objective));
+      let title = OBJ_LABEL[h.objective] || h.objective;
+      // Manual sessions also carry the training profile the engine detected.
+      const hInf = h.objective === "MANUAL" && h.routine && h.routine.inferred;
+      if (hInf && hInf.objective) title += " · " + (OBJ_LABEL[hInf.objective] || hInf.objective);
+      meta.appendChild(el("div", "hist-title", title));
       meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
       meta.style.cursor = "pointer";
       const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
       meta.onclick = () => {
         if (detail.classList.contains("hidden")) {
           renderRoutine(h.routine, detail, h.range);
-          // Scrutinize later: audit any saved session on demand, against the
-          // budgets of its own objective (manual sessions use the defaults).
+          // Scrutinize later: audit any saved session on demand. Generated
+          // sessions use their own objective's budgets; manual ones the
+          // budgets of their detected profile (inferred on the fly for
+          // sessions saved before inference existed).
           const auditBtn = el("button", "btn btn-ghost audit-btn", "Escrutinio");
           const auditHost = el("div");
           auditBtn.onclick = () => {
-            const tpl = F.TEMPLATES[h.objective];
+            const inferred = h.objective === "MANUAL"
+              ? (h.routine.inferred || F.inferObjective(h.routine)) : undefined;
+            const capKey = F.TEMPLATES[h.objective] ? h.objective : (inferred && inferred.objective);
+            const tpl = capKey ? F.TEMPLATES[capKey] : null;
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
             caps.pool = filteredPool();
-            renderAudit(F.auditRoutine(h.routine, caps), auditHost);
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost, inferred);
             auditBtn.classList.add("hidden");
           };
           detail.appendChild(auditBtn); detail.appendChild(auditHost);

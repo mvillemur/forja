@@ -382,5 +382,32 @@ ok("suggestions: capped at 4", F.auditRoutine(F.composeRoutine([
   { exercise: pressEx, block: "C", sets: 3, reps: 15 },
 ]), { maxCns: 1, maxGrip: 1, pool: F.BASE_CATALOG }).suggestions.length <= 4);
 
+// Objective inference: what type of session did the trainee build?
+const strengthLike = F.composeRoutine([
+  { exercise: squatEx, block: "A", sets: 5, reps: 5 },
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: pressEx, block: "B", sets: 3, reps: 10 },
+  { exercise: rowEx, block: "B", sets: 3, reps: 10, pair: true },
+]);
+const infS = F.inferObjective(strengthLike);
+ok("infer: 5x5 principals + 3x10 accessories read as STRENGTH", infS.objective === "STRENGTH" && infS.score >= 0.8);
+const powerLike = F.composeRoutine([
+  { exercise: swing, block: "A", sets: 5, reps: 3 },
+  { exercise: snatch, block: "A", sets: 5, reps: 3 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Ballistic Rows"), block: "B", sets: 4, reps: 6 },
+]);
+ok("infer: explosive low-rep session reads as POWER", F.inferObjective(powerLike).objective === "POWER");
+const metaLike = F.composeRoutine([
+  { exercise: swing, block: "A", sets: 4, reps: 6 },
+  { exercise: rowEx, block: "B", sets: 3, reps: 12 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Burpees"), block: "C", sets: 3, reps: 20 },
+]);
+ok("infer: ballistic + high-rep finisher reads as METABOLIC", F.inferObjective(metaLike).objective === "METABOLIC");
+ok("infer: empty routine claims no profile", F.inferObjective({ blocks: [] }).objective === null);
+const isoOnly = F.composeRoutine([
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Suitcase Carry"), block: "B", sets: 3, reps: 8 },
+]);
+ok("infer: ISO-only session claims no profile (carries fit any objective)", F.inferObjective(isoOnly).objective === null);
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

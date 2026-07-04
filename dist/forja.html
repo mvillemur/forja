@@ -338,6 +338,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .audit-score.aud-mid { background: rgba(230,180,80,0.16); color: var(--gold); }
 .audit-score.aud-bad { background: rgba(217,83,59,0.16); color: var(--danger); }
 .audit-stats { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 8px 0 4px; }
+.audit-infer { font-size: 12px; color: var(--steel); margin: 2px 0 4px; line-height: 1.45; }
+.audit-infer b { color: var(--steel); }
 .audit-clean { font-size: 13px; color: var(--ok); margin-top: 8px; }
 .audit-list { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
 .audit-item { display: flex; gap: 9px; font-size: 12.5px; line-height: 1.45; color: var(--ink-dim); }
@@ -824,6 +826,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p>En <b>Generar</b>, cambia a <b>Creada por mi</b> para componer la sesion a mano: <b>+ Anadir</b> abre un buscador de ejercicios por bloque (A/B/C). Busca por <b>nombre o por tag</b>: patron ("cadera", "tiron"), dinamica ("balistico", "metabolico"), tier ("fundamental"), "agarre", "pliometrico", carga ("pesada")… y combina terminos ("tiron balistico"). Cada fila lleva sus series, repeticiones y <b>kg</b> (parte de la sugerencia del motor, en gris, y al tocarla queda fijada como tu pesa). Marca <b>⇄</b> en un ejercicio para hacerlo en superserie con el anterior.</p>
         <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuacion (0–100), un veredicto y la lista de objeciones encontradas. Debajo, cuando hay algo que corregir, aparecen <b>sugerencias</b> (→): arreglos concretos con ejercicios de tu pool — con que emparejar una superserie rota, por que cambiar un ejercicio que pasa el presupuesto de SNC o de agarre, que variante usar en vez de repetir, y que anadir para equilibrar los patrones.</p>
+        <p class="gloss"><b>Perfil detectado.</b> El escrutinio ademas <b>identifica que tipo de sesion</b> construiste comparando dinamicas, rangos de repeticiones y bloques con las plantillas del motor (Fuerza, Metabolico, Resistencia, Potencia; EMOM/AMRAP son protocolos de ejecucion y quedan fuera). Si hay un perfil claro, la audita con los <b>presupuestos de fatiga de ese objetivo</b> (no con los genericos) y la sesion se guarda etiquetada con el ("Creada por mi · Fuerza"); si no, la trata como mixta.</p>
         <p class="gloss"><b>Que revisa:</b> superseries invalidas o mejorables (mismo patron, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tiron y cadera/rodilla, y el orden (lo exigente al principio, lo metabolico al final).</p>
         <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (valido pero mejorable).</p>
         <p>La rutina creada se guarda en el <b>Historial</b> como cualquier otra y puedes entrenarla con el temporizador. Al abrir el detalle de cualquier sesion guardada veras el boton <b>Escrutinio</b> para auditarla mas tarde, tambien las generadas.</p>
@@ -1813,6 +1816,44 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { template: "Rutina manual", warmup: buildWarmup(blocks), blocks };
   }
 
+  // Objective inference: guess which training objective a hand-built routine
+  // most resembles, by scoring its prescriptions against the session
+  // templates. EMOM/AMRAP are excluded — they are execution protocols, not
+  // compositions, so they cannot be told apart from the exercises alone.
+  // Each non-ISO prescription (holds/carries fit any objective) is scored
+  // against its block's schema: dynamics fit 0.6 + rep-range fit 0.4 (exact)
+  // or 0.2 (adjacent range); a block the template does not have scores 0.
+  // Below 0.5 average fit no profile is claimed (a deliberately mixed session).
+  const INFER_TEMPLATES = ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER"];
+  const RANGE_ORDER = { SP: 0, HP: 1, ME: 2 };
+  function inferObjective(routine) {
+    const ps = [];
+    ((routine && routine.blocks) || []).forEach(br => br.elements.forEach(elm =>
+      elm.prescriptions.forEach(p => {
+        if (p.exercise.dynamics !== DIN.ISO) ps.push([p, br.block]);
+      })));
+    if (!ps.length) return { objective: null, name: null, score: 0, scores: {} };
+    const scores = {};
+    INFER_TEMPLATES.forEach(key => {
+      const tpl = TEMPLATES[key];
+      let total = 0;
+      ps.forEach(([p, blockId]) => {
+        const sch = tpl.blocks.find(b => b.block === blockId);
+        if (!sch) return;   // template has no such block: misfit for this lift
+        let s = 0;
+        if (sch.dynamics.has(p.exercise.dynamics)) s += 0.6;
+        const dr = Math.abs(RANGE_ORDER[classifyVolume(p.reps)] - RANGE_ORDER[classifyVolume(sch.reps)]);
+        s += dr === 0 ? 0.4 : dr === 1 ? 0.2 : 0;
+        total += s;
+      });
+      scores[key] = Math.round((total / ps.length) * 100) / 100;
+    });
+    let best = INFER_TEMPLATES[0];
+    INFER_TEMPLATES.forEach(k => { if (scores[k] > scores[best]) best = k; });
+    if (scores[best] < 0.5) return { objective: null, name: null, score: scores[best], scores };
+    return { objective: best, name: TEMPLATES[best].name, score: scores[best], scores };
+  }
+
   // Scrutiny: score a routine against the engine's own rules. Unlike the
   // generator (which enforces budgets while selecting), the audit takes a
   // finished routine and reports what it finds: findings [{level, msg, block}]
@@ -2107,7 +2148,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    composeRoutine, auditRoutine,
+    composeRoutine, auditRoutine, inferObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
@@ -2177,6 +2218,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   const STRIPE = { HIP:"#e8742c", KNEE:"#e6b450", PULL_H:"#6fa8c7", PULL_V:"#5b93b8",
     PUSH_H:"#b98cc9", PUSH_V:"#a978bf", CORE:"#7fae6a", HYBRID:"#d9533b" };
+  const OBJ_LABEL = { STRENGTH:"Fuerza", METABOLIC:"Metabolico", STRENGTH_ENDURANCE:"Resistencia",
+    POWER:"Potencia", EMOM:"EMOM", AMRAP:"AMRAP", MANUAL:"Creada por mi" };
 
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
@@ -2824,10 +2867,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }));
     if (kgTouched) saveKg();
     const r = F.composeRoutine(entries);
+    // Detect which objective the composition resembles; when clear, the
+    // scrutiny audits against THAT objective's fatigue budgets and the
+    // profile travels with the routine (History label + later audits).
+    r.inferred = F.inferObjective(r);
+    const tpl = r.inferred.objective ? F.TEMPLATES[r.inferred.objective] : null;
+    const opts = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
+    opts.pool = filteredPool();
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r, { pool: filteredPool() }), $("#audit-out"));
+    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), r.inferred);
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -2836,7 +2886,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   // ---- Render: scrutiny (audit) of a routine
   const AUDIT_ICON = { error: "✕", warn: "!", tip: "·" };
-  function renderAudit(a, host) {
+  // `inferred` (optional): result of F.inferObjective for hand-built routines;
+  // shows the detected training profile the audit budgets came from.
+  function renderAudit(a, host, inferred) {
     host.innerHTML = "";
     const card = el("div", "card audit-card");
     const head = el("div", "audit-head");
@@ -2848,6 +2900,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     card.appendChild(head);
     card.appendChild(el("div", "audit-stats",
       `~${a.stats.minutes} min · ${a.stats.exercises} ejercicios · SNC alta ${a.stats.highCns} · agarre ${a.stats.grip}`));
+    if (inferred !== undefined) {
+      card.appendChild(el("div", "audit-infer", inferred && inferred.objective
+        ? "Perfil detectado: <b>" + (OBJ_LABEL[inferred.objective] || inferred.objective) + "</b> (" +
+          Math.round(inferred.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
+        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos."));
+    }
     if (!a.findings.length) {
       card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
     } else {
@@ -3223,24 +3281,31 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const d = new Date(h.date);
       const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
         d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-      const OBJ_LABEL = { STRENGTH: "Fuerza", METABOLIC: "Metabolico", STRENGTH_ENDURANCE: "Resistencia",
-        POWER: "Potencia", EMOM: "EMOM", AMRAP: "AMRAP", MANUAL: "Creada por mi" };
-      meta.appendChild(el("div", "hist-title", OBJ_LABEL[h.objective] || h.objective));
+      let title = OBJ_LABEL[h.objective] || h.objective;
+      // Manual sessions also carry the training profile the engine detected.
+      const hInf = h.objective === "MANUAL" && h.routine && h.routine.inferred;
+      if (hInf && hInf.objective) title += " · " + (OBJ_LABEL[hInf.objective] || hInf.objective);
+      meta.appendChild(el("div", "hist-title", title));
       meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
       meta.style.cursor = "pointer";
       const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
       meta.onclick = () => {
         if (detail.classList.contains("hidden")) {
           renderRoutine(h.routine, detail, h.range);
-          // Scrutinize later: audit any saved session on demand, against the
-          // budgets of its own objective (manual sessions use the defaults).
+          // Scrutinize later: audit any saved session on demand. Generated
+          // sessions use their own objective's budgets; manual ones the
+          // budgets of their detected profile (inferred on the fly for
+          // sessions saved before inference existed).
           const auditBtn = el("button", "btn btn-ghost audit-btn", "Escrutinio");
           const auditHost = el("div");
           auditBtn.onclick = () => {
-            const tpl = F.TEMPLATES[h.objective];
+            const inferred = h.objective === "MANUAL"
+              ? (h.routine.inferred || F.inferObjective(h.routine)) : undefined;
+            const capKey = F.TEMPLATES[h.objective] ? h.objective : (inferred && inferred.objective);
+            const tpl = capKey ? F.TEMPLATES[capKey] : null;
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
             caps.pool = filteredPool();
-            renderAudit(F.auditRoutine(h.routine, caps), auditHost);
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost, inferred);
             auditBtn.classList.add("hidden");
           };
           detail.appendChild(auditBtn); detail.appendChild(auditHost);

@@ -922,6 +922,44 @@
     return { template: "Rutina manual", warmup: buildWarmup(blocks), blocks };
   }
 
+  // Objective inference: guess which training objective a hand-built routine
+  // most resembles, by scoring its prescriptions against the session
+  // templates. EMOM/AMRAP are excluded — they are execution protocols, not
+  // compositions, so they cannot be told apart from the exercises alone.
+  // Each non-ISO prescription (holds/carries fit any objective) is scored
+  // against its block's schema: dynamics fit 0.6 + rep-range fit 0.4 (exact)
+  // or 0.2 (adjacent range); a block the template does not have scores 0.
+  // Below 0.5 average fit no profile is claimed (a deliberately mixed session).
+  const INFER_TEMPLATES = ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER"];
+  const RANGE_ORDER = { SP: 0, HP: 1, ME: 2 };
+  function inferObjective(routine) {
+    const ps = [];
+    ((routine && routine.blocks) || []).forEach(br => br.elements.forEach(elm =>
+      elm.prescriptions.forEach(p => {
+        if (p.exercise.dynamics !== DIN.ISO) ps.push([p, br.block]);
+      })));
+    if (!ps.length) return { objective: null, name: null, score: 0, scores: {} };
+    const scores = {};
+    INFER_TEMPLATES.forEach(key => {
+      const tpl = TEMPLATES[key];
+      let total = 0;
+      ps.forEach(([p, blockId]) => {
+        const sch = tpl.blocks.find(b => b.block === blockId);
+        if (!sch) return;   // template has no such block: misfit for this lift
+        let s = 0;
+        if (sch.dynamics.has(p.exercise.dynamics)) s += 0.6;
+        const dr = Math.abs(RANGE_ORDER[classifyVolume(p.reps)] - RANGE_ORDER[classifyVolume(sch.reps)]);
+        s += dr === 0 ? 0.4 : dr === 1 ? 0.2 : 0;
+        total += s;
+      });
+      scores[key] = Math.round((total / ps.length) * 100) / 100;
+    });
+    let best = INFER_TEMPLATES[0];
+    INFER_TEMPLATES.forEach(k => { if (scores[k] > scores[best]) best = k; });
+    if (scores[best] < 0.5) return { objective: null, name: null, score: scores[best], scores };
+    return { objective: best, name: TEMPLATES[best].name, score: scores[best], scores };
+  }
+
   // Scrutiny: score a routine against the engine's own rules. Unlike the
   // generator (which enforces budgets while selecting), the audit takes a
   // finished routine and reports what it finds: findings [{level, msg, block}]
@@ -1216,7 +1254,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    composeRoutine, auditRoutine,
+    composeRoutine, auditRoutine, inferObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };

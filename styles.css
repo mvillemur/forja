@@ -325,6 +325,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .audit-score.aud-mid { background: rgba(230,180,80,0.16); color: var(--gold); }
 .audit-score.aud-bad { background: rgba(217,83,59,0.16); color: var(--danger); }
 .audit-stats { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 8px 0 4px; }
+.audit-infer { font-size: 12px; color: var(--steel); margin: 2px 0 4px; line-height: 1.45; }
+.audit-infer b { color: var(--steel); }
 .audit-clean { font-size: 13px; color: var(--ok); margin-top: 8px; }
 .audit-list { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
 .audit-item { display: flex; gap: 9px; font-size: 12.5px; line-height: 1.45; color: var(--ink-dim); }
