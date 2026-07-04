@@ -351,6 +351,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .audit-item.aud-error .audit-msg { color: var(--ink); }
 .audit-sug-label { margin: 12px 0 0; }
 .audit-item.aud-sug .audit-ico { color: var(--forge); }
+.audit-item.aud-good .audit-ico { color: var(--ok); }
+.audit-item.aud-adj .audit-ico { color: var(--gold); }
 .audit-btn { margin-top: 10px; padding: 10px; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -841,6 +843,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuacion (0–100), un veredicto y la lista de objeciones encontradas. Debajo, cuando hay algo que corregir, aparecen <b>sugerencias</b> (→): arreglos concretos con ejercicios de tu pool — con que emparejar una superserie rota, por que cambiar un ejercicio que pasa el presupuesto de SNC o de agarre, que variante usar en vez de repetir, y que anadir para equilibrar los patrones.</p>
         <p class="gloss"><b>Objetivo de la rutina.</b> Puedes <b>declararlo</b> (Fuerza, Metabolico, Resistencia, Potencia) o dejarlo en <b>Auto</b>. Declarado: el buscador <b>recomienda (★)</b> y ordena primero los ejercicios que encajan con ese objetivo en cada bloque, las filas nuevas traen las <b>series x reps de su plantilla</b>, el escrutinio audita con <b>sus presupuestos de fatiga</b> y ademas <b>avisa si tu composicion se parece mas a otro objetivo</b> del que declaraste. El objetivo solo aconseja: colocar ejercicios por ti sigue siendo trabajo del generador.</p>
         <p class="gloss"><b>Perfil detectado (Auto).</b> Sin objetivo declarado, el escrutinio <b>identifica que tipo de sesion</b> construiste comparando dinamicas, rangos de repeticiones y bloques con las plantillas del motor (EMOM/AMRAP son protocolos de ejecucion y quedan fuera). Si hay un perfil claro, la audita con los presupuestos de ese objetivo y la sesion se guarda etiquetada ("Creada por mi · Fuerza"); si no, la trata como mixta.</p>
+        <p class="gloss"><b>Para &lt;objetivo&gt; (evaluacion contra tu meta).</b> Con un objetivo (declarado o detectado), el escrutinio anade una seccion que dice <b>que ya sirve</b> a esa meta (✓: bloques con la dinamica y el rango de repeticiones correctos) y <b>que ajustes globales</b> la acercarian (↗): bajar repeticiones y subir peso para Fuerza, cambiar trabajo controlado por balistico para Potencia, anadir el bloque que falta, quitar el que sobra, o evitar carga ligera en el principal de fuerza.</p>
         <p class="gloss"><b>Completar con el generador.</b> Si solo tienes clara una parte, este boton <b>fija tus ejercicios</b> (con su bloque) y deja que el <b>generador</b> rellene el resto segun el objetivo. Es el puente entre ambos modos: tu decides el nucleo, el motor completa.</p>
         <p class="gloss"><b>Que revisa:</b> superseries invalidas o mejorables (mismo patron, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tiron y cadera/rodilla, y el orden (lo exigente al principio, lo metabolico al final).</p>
         <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (valido pero mejorable).</p>
@@ -1869,6 +1872,74 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { objective: best, name: TEMPLATES[best].name, score: scores[best], scores };
   }
 
+  // Objective assessment: WHY the routine works (or not) FOR a given
+  // objective, with global adjustments to steer it there. Complements the
+  // audit: findings judge the routine on its own terms; this judges it
+  // against the declared/detected goal by comparing each block's reps,
+  // dynamics and loads with that objective's template. Returns
+  // { objective, name, strengths[], adjustments[] } — strengths say what
+  // already serves the goal, adjustments are prescriptive ("fewer reps,
+  // more weight", "swap grinds for ballistics", "drop the finisher").
+  const DYN_HINT = {
+    STRENGTH: "trabajo controlado de fuerza/hipertrofia",
+    BALLISTIC: "trabajo balistico (swings, cleans, snatch)",
+    METABOLIC: "trabajo metabolico (alta demanda, poco descanso)",
+  };
+  function assessObjective(routine, key) {
+    const tpl = TEMPLATES[key];
+    if (!tpl) return null;
+    const strengths = [], adjustments = [];
+    const byBlock = {};
+    ((routine && routine.blocks) || []).forEach(br => {
+      byBlock[br.block] = br.elements.flatMap(elm => elm.prescriptions)
+        .filter(p => p.exercise.dynamics !== DIN.ISO);   // holds/carries fit any goal
+    });
+    const names = ps => ps.slice(0, 3).map(p => p.exercise.name).join(", ") + (ps.length > 3 ? "…" : "");
+
+    tpl.blocks.forEach(sch => {
+      const ps = byBlock[sch.block] || [];
+      if (!ps.length) {
+        adjustments.push("Falta el bloque " + sch.block + ": para " + tpl.name + " ahi va " +
+          [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + " a ~" + sch.reps + " reps.");
+        return;
+      }
+      const expRange = classifyVolume(sch.reps);
+      const repsOff = ps.filter(p => classifyVolume(p.reps) !== expRange);
+      const dynOff = ps.filter(p => !sch.dynamics.has(p.exercise.dynamics));
+      if (!repsOff.length && !dynOff.length)
+        strengths.push("Bloque " + sch.block + " ya sirve a " + tpl.name +
+          ": dinamica correcta en el rango de ~" + sch.reps + " reps.");
+      if (repsOff.length) {
+        const high = repsOff.filter(p => RANGE_ORDER[classifyVolume(p.reps)] > RANGE_ORDER[expRange]).length;
+        const dir = high >= repsOff.length - high
+          ? "baja a ~" + sch.reps + " reps y SUBE el peso (menos repeticiones, mas carga)"
+          : "sube a ~" + sch.reps + " reps (baja algo el peso si hace falta)";
+        adjustments.push("Bloque " + sch.block + ": " + names(repsOff) +
+          " esta fuera del rango de " + tpl.name + " — " + dir + ".");
+      }
+      if (dynOff.length)
+        adjustments.push("Bloque " + sch.block + ": " + names(dynOff) + " no es el tipo de trabajo que " +
+          tpl.name + " busca ahi — cambialo por " + [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + ".");
+      // Strength-specific: a featherweight lift as main work defeats the goal.
+      if (key === "STRENGTH" && sch.block === BLOCK.A) {
+        const light = ps.filter(p => (p.exercise.load || 2) === LOAD_TIER.LIGHT);
+        if (light.length)
+          adjustments.push("Bloque A: " + names(light) +
+            " es de carga ligera; la fuerza pide compuestos que admitan peso de verdad.");
+      }
+    });
+    // Work parked in blocks the objective does not use.
+    const tplBlocks = tpl.blocks.map(b => b.block);
+    Object.keys(byBlock).forEach(b => {
+      if (byBlock[b].length && tplBlocks.indexOf(b) < 0)
+        adjustments.push(tpl.name + " no suele usar el bloque " + b +
+          ": quita ese trabajo o muevelo a " + tplBlocks.join("/") + ".");
+    });
+    if (!strengths.length && !adjustments.length)
+      strengths.push("Estructura coherente con " + tpl.name + ".");
+    return { objective: key, name: tpl.name, strengths, adjustments };
+  }
+
   // Scrutiny: score a routine against the engine's own rules. Unlike the
   // generator (which enforces budgets while selecting), the audit takes a
   // finished routine and reports what it finds: findings [{level, msg, block}]
@@ -2173,7 +2244,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    composeRoutine, auditRoutine, inferObjective,
+    composeRoutine, auditRoutine, inferObjective, assessObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
@@ -2933,7 +3004,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), { declared, inferred: r.inferred });
+    renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
+      { declared, inferred: r.inferred, assessment: capKey ? F.assessObjective(r, capKey) : null });
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -2986,6 +3058,26 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       a.suggestions.forEach(s => {
         const row = el("div", "audit-item aud-sug");
         row.appendChild(el("span", "audit-ico", "→"));
+        row.appendChild(el("span", "audit-msg", s));
+        ul.appendChild(row);
+      });
+      card.appendChild(ul);
+    }
+    // Objective assessment: why the routine serves (or not) its goal, with
+    // global adjustments to steer it there (reps/weight/dynamics/blocks).
+    if (profile && profile.assessment) {
+      const as = profile.assessment;
+      card.appendChild(el("div", "label audit-sug-label", "Para " + (OBJ_LABEL[as.objective] || as.name)));
+      const ul = el("div", "audit-list");
+      as.strengths.forEach(s => {
+        const row = el("div", "audit-item aud-good");
+        row.appendChild(el("span", "audit-ico", "✓"));
+        row.appendChild(el("span", "audit-msg", s));
+        ul.appendChild(row);
+      });
+      as.adjustments.forEach(s => {
+        const row = el("div", "audit-item aud-adj");
+        row.appendChild(el("span", "audit-ico", "↗"));
         row.appendChild(el("span", "audit-msg", s));
         ul.appendChild(row);
       });
@@ -3371,7 +3463,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
             caps.pool = filteredPool();
             if (declared) caps.declared = declared;
-            renderAudit(F.auditRoutine(h.routine, caps), auditHost, isManual ? { declared, inferred } : undefined);
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost, isManual
+              ? { declared, inferred, assessment: capKey ? F.assessObjective(h.routine, capKey) : null }
+              : undefined);
             auditBtn.classList.add("hidden");
           };
           detail.appendChild(auditBtn); detail.appendChild(auditHost);

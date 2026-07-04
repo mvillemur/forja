@@ -414,5 +414,15 @@ ok("audit: declared vs detected mismatch is a warning", misdeclared.findings.som
 const wellDeclared = F.auditRoutine(strengthLike, { declared: "STRENGTH" });
 ok("audit: matching declaration adds no mismatch finding", !wellDeclared.findings.some(f => /se parece mas/.test(f.msg)));
 
+// Objective assessment: why it serves the goal + global adjustments toward it.
+const asOk = F.assessObjective(strengthLike, "STRENGTH");
+ok("assess: matching blocks are credited as strengths", asOk.strengths.some(s => /Bloque A ya sirve/.test(s)));
+ok("assess: a missing template block is an adjustment", asOk.adjustments.some(s => /Falta el bloque C/.test(s)));
+const asReps = F.assessObjective(metaLike, "STRENGTH");
+ok("assess: high reps for strength -> fewer reps, more weight", asReps.adjustments.some(s => /SUBE el peso/.test(s)));
+const asBlocks = F.assessObjective(metaLike, "POWER");
+ok("assess: extra block flagged for objectives that skip it", asBlocks.adjustments.some(s => /no suele usar el bloque C/.test(s)));
+ok("assess: unknown objective returns null", F.assessObjective(strengthLike, "NOPE") === null);
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

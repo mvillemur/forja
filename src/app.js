@@ -747,7 +747,8 @@
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), { declared, inferred: r.inferred });
+    renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
+      { declared, inferred: r.inferred, assessment: capKey ? F.assessObjective(r, capKey) : null });
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -800,6 +801,26 @@
       a.suggestions.forEach(s => {
         const row = el("div", "audit-item aud-sug");
         row.appendChild(el("span", "audit-ico", "→"));
+        row.appendChild(el("span", "audit-msg", s));
+        ul.appendChild(row);
+      });
+      card.appendChild(ul);
+    }
+    // Objective assessment: why the routine serves (or not) its goal, with
+    // global adjustments to steer it there (reps/weight/dynamics/blocks).
+    if (profile && profile.assessment) {
+      const as = profile.assessment;
+      card.appendChild(el("div", "label audit-sug-label", "Para " + (OBJ_LABEL[as.objective] || as.name)));
+      const ul = el("div", "audit-list");
+      as.strengths.forEach(s => {
+        const row = el("div", "audit-item aud-good");
+        row.appendChild(el("span", "audit-ico", "✓"));
+        row.appendChild(el("span", "audit-msg", s));
+        ul.appendChild(row);
+      });
+      as.adjustments.forEach(s => {
+        const row = el("div", "audit-item aud-adj");
+        row.appendChild(el("span", "audit-ico", "↗"));
         row.appendChild(el("span", "audit-msg", s));
         ul.appendChild(row);
       });
@@ -1185,7 +1206,9 @@
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
             caps.pool = filteredPool();
             if (declared) caps.declared = declared;
-            renderAudit(F.auditRoutine(h.routine, caps), auditHost, isManual ? { declared, inferred } : undefined);
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost, isManual
+              ? { declared, inferred, assessment: capKey ? F.assessObjective(h.routine, capKey) : null }
+              : undefined);
             auditBtn.classList.add("hidden");
           };
           detail.appendChild(auditBtn); detail.appendChild(auditHost);

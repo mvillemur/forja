@@ -338,6 +338,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .audit-item.aud-error .audit-msg { color: var(--ink); }
 .audit-sug-label { margin: 12px 0 0; }
 .audit-item.aud-sug .audit-ico { color: var(--forge); }
+.audit-item.aud-good .audit-ico { color: var(--ok); }
+.audit-item.aud-adj .audit-ico { color: var(--gold); }
 .audit-btn { margin-top: 10px; padding: 10px; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

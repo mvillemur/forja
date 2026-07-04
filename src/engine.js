@@ -960,6 +960,74 @@
     return { objective: best, name: TEMPLATES[best].name, score: scores[best], scores };
   }
 
+  // Objective assessment: WHY the routine works (or not) FOR a given
+  // objective, with global adjustments to steer it there. Complements the
+  // audit: findings judge the routine on its own terms; this judges it
+  // against the declared/detected goal by comparing each block's reps,
+  // dynamics and loads with that objective's template. Returns
+  // { objective, name, strengths[], adjustments[] } — strengths say what
+  // already serves the goal, adjustments are prescriptive ("fewer reps,
+  // more weight", "swap grinds for ballistics", "drop the finisher").
+  const DYN_HINT = {
+    STRENGTH: "trabajo controlado de fuerza/hipertrofia",
+    BALLISTIC: "trabajo balistico (swings, cleans, snatch)",
+    METABOLIC: "trabajo metabolico (alta demanda, poco descanso)",
+  };
+  function assessObjective(routine, key) {
+    const tpl = TEMPLATES[key];
+    if (!tpl) return null;
+    const strengths = [], adjustments = [];
+    const byBlock = {};
+    ((routine && routine.blocks) || []).forEach(br => {
+      byBlock[br.block] = br.elements.flatMap(elm => elm.prescriptions)
+        .filter(p => p.exercise.dynamics !== DIN.ISO);   // holds/carries fit any goal
+    });
+    const names = ps => ps.slice(0, 3).map(p => p.exercise.name).join(", ") + (ps.length > 3 ? "…" : "");
+
+    tpl.blocks.forEach(sch => {
+      const ps = byBlock[sch.block] || [];
+      if (!ps.length) {
+        adjustments.push("Falta el bloque " + sch.block + ": para " + tpl.name + " ahi va " +
+          [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + " a ~" + sch.reps + " reps.");
+        return;
+      }
+      const expRange = classifyVolume(sch.reps);
+      const repsOff = ps.filter(p => classifyVolume(p.reps) !== expRange);
+      const dynOff = ps.filter(p => !sch.dynamics.has(p.exercise.dynamics));
+      if (!repsOff.length && !dynOff.length)
+        strengths.push("Bloque " + sch.block + " ya sirve a " + tpl.name +
+          ": dinamica correcta en el rango de ~" + sch.reps + " reps.");
+      if (repsOff.length) {
+        const high = repsOff.filter(p => RANGE_ORDER[classifyVolume(p.reps)] > RANGE_ORDER[expRange]).length;
+        const dir = high >= repsOff.length - high
+          ? "baja a ~" + sch.reps + " reps y SUBE el peso (menos repeticiones, mas carga)"
+          : "sube a ~" + sch.reps + " reps (baja algo el peso si hace falta)";
+        adjustments.push("Bloque " + sch.block + ": " + names(repsOff) +
+          " esta fuera del rango de " + tpl.name + " — " + dir + ".");
+      }
+      if (dynOff.length)
+        adjustments.push("Bloque " + sch.block + ": " + names(dynOff) + " no es el tipo de trabajo que " +
+          tpl.name + " busca ahi — cambialo por " + [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + ".");
+      // Strength-specific: a featherweight lift as main work defeats the goal.
+      if (key === "STRENGTH" && sch.block === BLOCK.A) {
+        const light = ps.filter(p => (p.exercise.load || 2) === LOAD_TIER.LIGHT);
+        if (light.length)
+          adjustments.push("Bloque A: " + names(light) +
+            " es de carga ligera; la fuerza pide compuestos que admitan peso de verdad.");
+      }
+    });
+    // Work parked in blocks the objective does not use.
+    const tplBlocks = tpl.blocks.map(b => b.block);
+    Object.keys(byBlock).forEach(b => {
+      if (byBlock[b].length && tplBlocks.indexOf(b) < 0)
+        adjustments.push(tpl.name + " no suele usar el bloque " + b +
+          ": quita ese trabajo o muevelo a " + tplBlocks.join("/") + ".");
+    });
+    if (!strengths.length && !adjustments.length)
+      strengths.push("Estructura coherente con " + tpl.name + ".");
+    return { objective: key, name: tpl.name, strengths, adjustments };
+  }
+
   // Scrutiny: score a routine against the engine's own rules. Unlike the
   // generator (which enforces budgets while selecting), the audit takes a
   // finished routine and reports what it finds: findings [{level, msg, block}]
@@ -1264,7 +1332,7 @@
     BASE_CATALOG, TEMPLATES,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    composeRoutine, auditRoutine, inferObjective,
+    composeRoutine, auditRoutine, inferObjective, assessObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };

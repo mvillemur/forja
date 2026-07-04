@@ -189,6 +189,8 @@ setTimeout(() => {
   ok("paired rows render as a superset", d.querySelectorAll("#routine-out .element.ss").length === 1);
   ok("scrutiny card renders with a score", !!d.querySelector("#audit-out .audit-card") && /\/100/.test(d.querySelector("#audit-out .audit-score").textContent));
   ok("scrutiny identifies the routine type", /Perfil detectado|Perfil mixto/.test(d.querySelector("#audit-out .audit-infer").textContent));
+  ok("scrutiny assesses the routine against its objective", /Para (Fuerza|Metabolico|Resistencia|Potencia)/.test(d.querySelector("#audit-out .audit-card").textContent));
+  ok("assessment lists strengths or global adjustments", d.querySelectorAll("#audit-out .audit-item.aud-good, #audit-out .audit-item.aud-adj").length > 0);
   ok("scrutiny flags the duplicated exercise", [...d.querySelectorAll("#audit-out .audit-item")].some(n => /veces/.test(n.textContent)));
   ok("scrutiny offers suggestions after the findings", !!d.querySelector("#audit-out .audit-sug-label") &&
     d.querySelectorAll("#audit-out .audit-item.aud-sug").length > 0);
