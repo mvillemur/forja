@@ -63,7 +63,7 @@
     ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
   const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
-  // --- Base catalog (38) -------------------------------------------------
+  // --- Base catalog (39) -------------------------------------------------
   // Naming convention: Spanish structure with international kettlebell terms
   // kept untranslated (Swing, Clean, Press, Snatch, Get-Up, Windmill...).
   // Singular for loaded lifts; usual plural for bodyweight rep drills
@@ -116,6 +116,7 @@
     exercise("Push Press", PAT.PUSH_V, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.HEAVY),
     exercise("High Pull", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Floor Press", PAT.PUSH_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.HEAVY),
+    exercise("Wrist Curl", PAT.PULL_H, DIN.STRENGTH, SIM.BILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.LIGHT),
   ];
 
   // Old catalog name -> curated name. Two old names mapping to the same new
@@ -169,7 +170,7 @@
     "Thruster", "Snatch", "Turkish Get-Up",
   ]);
   const _OPTIONAL_EXERCISES = new Set([
-    "Remo Vertical", "Halo", "Around the World", "Figure-8", "Press Rotacional",
+    "Remo Vertical", "Halo", "Around the World", "Figure-8", "Press Rotacional", "Wrist Curl",
   ]);
   // Plyometric / impact movements (stretch-shortening cycle): need full
   // recovery and are kept fresh. A subtype tag on top of DIN.BALLISTIC.
@@ -186,7 +187,7 @@
     "Curl + Press", "Dominadas (agarre neutro)", "Remo (una mano)", "Remo (dos manos)",
     "Remo (alterno)", "Remo Balistico", "Remo Vertical",
     "Flexiones (agarre cerrado)", "Press Bottoms-Up", "Press Militar (una mano)",
-    "Press Goblet", "Press Rotacional", "Floor Press",
+    "Press Goblet", "Press Rotacional", "Floor Press", "Wrist Curl",
   ]);
   BASE_CATALOG.forEach(e => {
     e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL

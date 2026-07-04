@@ -11,7 +11,7 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 38 exercises", F.BASE_CATALOG.length === 38);
+ok("base catalog has 39 exercises", F.BASE_CATALOG.length === 39);
 ok("no duplicate names in catalog", new Set(F.BASE_CATALOG.map(e => e.name)).size === F.BASE_CATALOG.length);
 ok("every ISO exercise has a hold duration", F.BASE_CATALOG.filter(e => e.dynamics === "ISO").every(e => e.holdSec > 0));
 
