@@ -401,6 +401,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <button class="chip" data-val="SHOULDERS" aria-pressed="false">Hombros</button>
         <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
         <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
+        <button class="chip" data-val="ARMS" aria-pressed="false">Brazos</button>
       </div>
     </div>
 
@@ -647,6 +648,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <div class="field"><div class="label">Pliometrico (salto / impacto)</div>
           <label class="field-toggle"><input type="checkbox" id="f-plyo"> <span>Si</span></label>
         </div>
+        <div class="field"><div class="label">Enfasis en brazos</div>
+          <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Si</span></label>
+        </div>
       </div>
       <div class="field">
         <div class="label">Equipamiento necesario</div>
@@ -816,7 +820,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
+        <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
+        <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patron de movimiento sino un tag muscular: prioriza los ejercicios donde biceps (curls, remos, dominadas) o triceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balisticos de cadera (clean, push press, high pull) quedan fuera: ahi el brazo solo transmite.</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
         <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un unico kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
@@ -830,7 +835,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <details class="acc">
       <summary>Anadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo y si tiene enfasis en brazos (para que entre en el foco Brazos).</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>
@@ -985,7 +990,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // Old names are mapped in RENAMED for user-data migration (app.js).
   function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
     return { name, pattern, dynamics, symmetry, cns, equipment,
-             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false };
+             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false, arms: false };
   }
   const BASE_CATALOG = [
     exercise("Peso Muerto Rumano", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.HEAVY),
@@ -1088,10 +1093,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
+  // Arm emphasis: exercises where elbow flexion (biceps: curls, rows,
+  // chin-ups) or extension (triceps: presses, close-grip push-ups) does a
+  // meaningful share of the work. A muscle tag on top of the movement
+  // pattern — patterns alone cannot isolate arms, so the ARMS focus and the
+  // "brazos" search run on this flag. Hip-driven ballistics (push press,
+  // cleans, high pull) stay out: there the arms mostly transmit force.
+  const _ARMS_EXERCISES = new Set([
+    "Curl + Press", "Dominadas (agarre neutro)", "Remo (una mano)", "Remo (dos manos)",
+    "Remo (alterno)", "Remo Balistico", "Remo Vertical",
+    "Flexiones (agarre cerrado)", "Press Bottoms-Up", "Press Militar (una mano)",
+    "Press Goblet", "Press Rotacional", "Floor Press",
+  ]);
   BASE_CATALOG.forEach(e => {
     e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
     e.plyo = _PLYO_EXERCISES.has(e.name);
+    e.arms = _ARMS_EXERCISES.has(e.name);
   });
 
   // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
@@ -1431,7 +1449,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (sch.dynamics.has(e.dynamics)) s += 4;
     if (sch.block === BLOCK.A && e.pattern !== PAT.CORE) s += 2;
     s += 2 * bal.bonus(e);
-    if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
+    // Muscle focus dominates selection: by movement pattern, or by the arms
+    // tag when the ARMS focus is active (arms are not a pattern).
+    if (bal.focus && (bal.focus.has(e.pattern) || (bal.focus.has("ARMS") && e.arms))) s += 6;
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
@@ -2175,6 +2195,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     SHOULDERS: "Hombros",
     CHEST:     "Pecho",
     CORE:      "Core / abdomen",
+    ARMS:      "Brazos",
   };
 
   // Rescale a (already scaled) template toward a time target. For circuit
@@ -2230,8 +2251,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const poolRef = pool || BASE_CATALOG;
 
     // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
-    const focusKeys = Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"];
-    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k.toUpperCase()] || []);
+    const focusKeys = (Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"])
+      .map(k => String(k).toUpperCase());
+    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k] || []);
+    // ARMS is a muscle-tag focus, not a pattern list: it rides in the focus
+    // set as a token that priority() checks against each exercise's arms flag.
+    if (focusKeys.indexOf("ARMS") >= 0) allPats.push("ARMS");
     const focus = allPats.length ? new Set(allPats) : null;
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
@@ -2283,6 +2308,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       fields.cns, fields.equipment, fields.grip, fields.load || LOAD_TIER.MEDIUM);
     e.tier = fields.tier || TIER.ACCESSORY;
     e.plyo = !!fields.plyo;
+    e.arms = !!fields.arms;
     return e;
   }
 
@@ -3612,6 +3638,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       "snc " + e.cns,
       e.grip ? "agarre" : "",
       e.plyo ? "pliometrico salto" : "",
+      e.arms ? "brazos arms" : "",
       e.equipment.join(" "),
     ].join(" "));
   }
@@ -3687,6 +3714,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       tags.appendChild(el("span", "tag snc-" + e.cns, "SNC " + e.cns));
       if (e.grip) tags.appendChild(el("span", "tag", "agarre"));
       if (e.plyo) tags.appendChild(el("span", "tag tag-plyo", "pliometrico"));
+      if (e.arms) tags.appendChild(el("span", "tag", "brazos"));
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
       if (state.overrides[e.name]) tags.appendChild(el("span", "tag", "editado"));
@@ -3715,7 +3743,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (!equipment.length) equipment.push(F.EQ.FLOOR);
     return { pattern: $("#f-pattern").value, dynamics: $("#f-dynamics").value,
       symmetry: $("#f-symmetry").value, cns: $("#f-cns").value, equipment,
-      grip: $("#f-grip").checked, plyo: $("#f-plyo").checked, load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
+      grip: $("#f-grip").checked, plyo: $("#f-plyo").checked, arms: $("#f-arms").checked,
+      load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
   }
   function fillForm(e) {
     $("#f-name").value = e.name;
@@ -3724,6 +3753,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#f-load").value = String(e.load); $("#f-tier").value = e.tier;
     $("#f-grip").checked = !!e.grip;
     $("#f-plyo").checked = !!e.plyo;
+    $("#f-arms").checked = !!e.arms;
     $("#f-eq-kb").checked = e.equipment.includes("KB");
     $("#f-eq-barbell").checked = e.equipment.includes("BARBELL");
     $("#f-eq-floor").checked = e.equipment.includes("FLOOR");
@@ -3736,7 +3766,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#f-pattern").selectedIndex = 0; $("#f-dynamics").selectedIndex = 0;
     $("#f-symmetry").selectedIndex = 0; $("#f-cns").selectedIndex = 0;
     $("#f-load").value = "2"; $("#f-tier").value = "ACCESSORY";
-    $("#f-grip").checked = false; $("#f-plyo").checked = false;
+    $("#f-grip").checked = false; $("#f-plyo").checked = false; $("#f-arms").checked = false;
     $("#f-eq-kb").checked = true; $("#f-eq-barbell").checked = false; $("#f-eq-floor").checked = false;
   }
   function openForEdit(e) {

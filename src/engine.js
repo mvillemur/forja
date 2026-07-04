@@ -73,7 +73,7 @@
   // Old names are mapped in RENAMED for user-data migration (app.js).
   function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
     return { name, pattern, dynamics, symmetry, cns, equipment,
-             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false };
+             grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false, arms: false };
   }
   const BASE_CATALOG = [
     exercise("Peso Muerto Rumano", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.HEAVY),
@@ -176,10 +176,23 @@
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
+  // Arm emphasis: exercises where elbow flexion (biceps: curls, rows,
+  // chin-ups) or extension (triceps: presses, close-grip push-ups) does a
+  // meaningful share of the work. A muscle tag on top of the movement
+  // pattern — patterns alone cannot isolate arms, so the ARMS focus and the
+  // "brazos" search run on this flag. Hip-driven ballistics (push press,
+  // cleans, high pull) stay out: there the arms mostly transmit force.
+  const _ARMS_EXERCISES = new Set([
+    "Curl + Press", "Dominadas (agarre neutro)", "Remo (una mano)", "Remo (dos manos)",
+    "Remo (alterno)", "Remo Balistico", "Remo Vertical",
+    "Flexiones (agarre cerrado)", "Press Bottoms-Up", "Press Militar (una mano)",
+    "Press Goblet", "Press Rotacional", "Floor Press",
+  ]);
   BASE_CATALOG.forEach(e => {
     e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
     e.plyo = _PLYO_EXERCISES.has(e.name);
+    e.arms = _ARMS_EXERCISES.has(e.name);
   });
 
   // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
@@ -519,7 +532,9 @@
     if (sch.dynamics.has(e.dynamics)) s += 4;
     if (sch.block === BLOCK.A && e.pattern !== PAT.CORE) s += 2;
     s += 2 * bal.bonus(e);
-    if (bal.focus && bal.focus.has(e.pattern)) s += 6;   // muscle focus: dominates selection
+    // Muscle focus dominates selection: by movement pattern, or by the arms
+    // tag when the ARMS focus is active (arms are not a pattern).
+    if (bal.focus && (bal.focus.has(e.pattern) || (bal.focus.has("ARMS") && e.arms))) s += 6;
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
@@ -1263,6 +1278,7 @@
     SHOULDERS: "Hombros",
     CHEST:     "Pecho",
     CORE:      "Core / abdomen",
+    ARMS:      "Brazos",
   };
 
   // Rescale a (already scaled) template toward a time target. For circuit
@@ -1318,8 +1334,12 @@
     const poolRef = pool || BASE_CATALOG;
 
     // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
-    const focusKeys = Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"];
-    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k.toUpperCase()] || []);
+    const focusKeys = (Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"])
+      .map(k => String(k).toUpperCase());
+    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k] || []);
+    // ARMS is a muscle-tag focus, not a pattern list: it rides in the focus
+    // set as a token that priority() checks against each exercise's arms flag.
+    if (focusKeys.indexOf("ARMS") >= 0) allPats.push("ARMS");
     const focus = allPats.length ? new Set(allPats) : null;
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
@@ -1371,6 +1391,7 @@
       fields.cns, fields.equipment, fields.grip, fields.load || LOAD_TIER.MEDIUM);
     e.tier = fields.tier || TIER.ACCESSORY;
     e.plyo = !!fields.plyo;
+    e.arms = !!fields.arms;
     return e;
   }
 

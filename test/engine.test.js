@@ -443,5 +443,20 @@ const asBlocks = F.assessObjective(metaLike, "POWER");
 ok("assess: extra block flagged for objectives that skip it", asBlocks.adjustments.some(s => /no suele usar el bloque C/.test(s)));
 ok("assess: unknown objective returns null", F.assessObjective(strengthLike, "NOPE") === null);
 
+// Arms focus: a muscle-emphasis tag, not a movement pattern.
+ok("arms tag set on curls, rows and presses",
+  F.BASE_CATALOG.find(e => e.name === "Curl + Press").arms === true &&
+  F.BASE_CATALOG.find(e => e.name === "Remo (dos manos)").arms === true &&
+  F.BASE_CATALOG.find(e => e.name === "Flexiones (agarre cerrado)").arms === true);
+ok("arms tag off for hip-driven ballistics",
+  F.BASE_CATALOG.find(e => e.name === "Swing (dos manos)").arms === false &&
+  F.BASE_CATALOG.find(e => e.name === "High Pull").arms === false);
+const armsRoutine = F.generate(null, { objective: "STRENGTH", equipment: ["KB", "BARBELL"], minutes: 40, focus: "ARMS", seed: 7 });
+const armsPicked = armsRoutine.blocks.reduce((a, b) =>
+  a + b.elements.reduce((x, elm) => x + elm.prescriptions.filter(p => p.exercise.arms).length, 0), 0);
+ok("ARMS focus loads the session with arm-emphasis work", armsPicked >= 3);
+ok("newExercise carries the arms flag", F.newExercise({ name: "Y", pattern: "PULL_H", dynamics: "STRENGTH",
+  symmetry: "BILATERAL", cns: "LOW", equipment: ["KB"], arms: true }).arms === true);
+
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

@@ -25,6 +25,16 @@ setTimeout(() => {
   ok("generates elements", d.querySelectorAll("#routine-out .element").length > 0);
   ok("shows suggested kg", d.querySelectorAll("#routine-out .ex-kg").length > 0);
 
+  // Arms focus: a muscle-emphasis tag (not a pattern) that boosts
+  // elbow-flexion/extension work in selection.
+  const armsChip = d.querySelector('#focus-chips .chip[data-val="ARMS"]');
+  ok("arms focus chip renders", !!armsChip);
+  armsChip.click();
+  d.querySelector("#btn-generar").click();
+  ok("arms focus fills the session with arm-emphasis work",
+    [...d.querySelectorAll("#routine-out .ex-name")].filter(n => /Curl|Remo|Dominadas|Press|Flexiones/.test(n.textContent)).length >= 2);
+  armsChip.click();   // reset focus for the rest of the flow
+
   // Daily readiness: a "low energy" check surfaces a hint and still generates a
   // session; soreness toggles too. (The duration/load effect is covered
   // deterministically in the engine tests, which the random UI seed can't be.)
@@ -235,6 +245,9 @@ setTimeout(() => {
   search.value = "cadera"; search.dispatchEvent(new window.Event("input"));
   const catHits = d.querySelectorAll("#pool-list .card").length;
   ok("pool search matches by category too", catHits > 0 && catHits < 38);
+  search.value = "brazos"; search.dispatchEvent(new window.Event("input"));
+  const armHits = d.querySelectorAll("#pool-list .card").length;
+  ok("pool search matches the arms tag", armHits > 0 && armHits < 38);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
   ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 38);
   // A tag filter narrows the pool too.

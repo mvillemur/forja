@@ -54,6 +54,7 @@
         <button class="chip" data-val="SHOULDERS" aria-pressed="false">Hombros</button>
         <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
         <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
+        <button class="chip" data-val="ARMS" aria-pressed="false">Brazos</button>
       </div>
     </div>
 
@@ -300,6 +301,9 @@
         <div class="field"><div class="label">Pliometrico (salto / impacto)</div>
           <label class="field-toggle"><input type="checkbox" id="f-plyo"> <span>Si</span></label>
         </div>
+        <div class="field"><div class="label">Enfasis en brazos</div>
+          <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Si</span></label>
+        </div>
       </div>
       <div class="field">
         <div class="label">Equipamiento necesario</div>
@@ -469,7 +473,8 @@
     <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
+        <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
+        <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patron de movimiento sino un tag muscular: prioriza los ejercicios donde biceps (curls, remos, dominadas) o triceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balisticos de cadera (clean, push press, high pull) quedan fuera: ahi el brazo solo transmite.</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
         <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un unico kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
@@ -483,7 +488,7 @@
     <details class="acc">
       <summary>Anadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento y si es de agarre intensivo.</p>
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo y si tiene enfasis en brazos (para que entre en el foco Brazos).</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>
