@@ -1039,6 +1039,16 @@
         add("tip", p.exercise.name + " a " + p.sets + " series: mas de 6 rara vez suma; reparte en otro ejercicio.", br.block);
     })));
 
+    // 6) Declared vs detected: when the trainee states an objective
+    // (opts.declared), a composition that clearly resembles a DIFFERENT
+    // profile is itself a finding — intention and structure should agree.
+    if (opts.declared && TEMPLATES[opts.declared]) {
+      const inf = inferObjective(routine);
+      if (inf.objective && inf.objective !== opts.declared && inf.score >= 0.7)
+        add("warn", "Declaraste " + TEMPLATES[opts.declared].name + " pero la composicion se parece mas a " +
+          inf.name + " (" + Math.round(inf.score * 100) + "%): ajusta reps/dinamicas o cambia el objetivo.");
+    }
+
     let score = 100;
     findings.forEach(f => { score -= AUDIT_PENALTY[f.level] || 0; });
     score = Math.max(0, score);

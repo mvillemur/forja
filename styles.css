@@ -311,6 +311,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-pick-search { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font-size: 14px; font-family: var(--sans); margin-bottom: 10px; }
 .mk-pick-chips { max-height: 220px; overflow-y: auto; }
 .mk-pick-chips .chip { font-size: 12px; padding: 6px 11px; }
+.mk-pick-chips .chip.mk-rec { color: var(--gold); border-color: rgba(230,180,80,0.55); }
 .mk-pair { font-size: 11px; padding: 4px 10px; }
 .mk-pair[aria-pressed="true"] { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }

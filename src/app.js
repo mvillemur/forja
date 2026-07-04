@@ -67,7 +67,8 @@
            profile:{ bodyweight:null, sex:"", level:"INTER" },
            readiness:{ energy:3, sleep:"ok", sore:[] },
            mode:"auto",                        // "auto" (generator) | "manual" (builder)
-           manual:{ A:[], B:[], C:[] } },      // builder draft: {name, sets, reps, pair} per block
+           manual:{ A:[], B:[], C:[] },        // builder draft: {name, sets, reps, pair, kg} per block
+           manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
     overrides: {},    // name -> edited fields of base exercises
@@ -125,6 +126,7 @@
     if (state.cfg.mode !== "manual") state.cfg.mode = "auto";
     if (!state.cfg.manual || typeof state.cfg.manual !== "object") state.cfg.manual = {};
     ["A", "B", "C"].forEach(k => { if (!Array.isArray(state.cfg.manual[k])) state.cfg.manual[k] = []; });
+    if (state.cfg.manualObjective !== "AUTO" && !F.TEMPLATES[state.cfg.manualObjective]) state.cfg.manualObjective = "AUTO";
     let loaded = false;
     try {
       const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
@@ -541,6 +543,7 @@
     if (!state.cfg.vary) return null;
     const rec = {}; const weights = [4, 2, 1];   // last 3 sessions, decaying
     state.hist.slice(0, 3).forEach((h, idx) => {
+      if (!h.routine) return;   // CSV-imported logs carry no routine object
       const w = weights[idx] || 0;
       h.routine.blocks.forEach(b => b.elements.forEach(el => el.prescriptions.forEach(p => {
         rec[p.exercise.name] = (rec[p.exercise.name] || 0) + w;
@@ -574,6 +577,19 @@
   const MK_DEFAULTS = { A: { sets: 4, reps: 6 }, B: { sets: 3, reps: 10 }, C: { sets: 3, reps: 15 } };
   // UI-only state of the exercise picker: which block it is open for + query.
   const mkPicker = { block: null, text: "" };
+
+  // Template schema for a block under the DECLARED objective (null in Auto).
+  // The declared objective only ADVISES the builder — it ranks and marks
+  // recommended exercises and prefills sets/reps; placing exercises remains
+  // the generator's job (Generada mode).
+  function mkObjSchema(k) {
+    const tpl = F.TEMPLATES[state.cfg.manualObjective];
+    return tpl ? (tpl.blocks.find(b => b.block === k) || null) : null;
+  }
+  function mkDefaults(k) {
+    const sch = mkObjSchema(k);
+    return sch ? { sets: sch.sets, reps: sch.reps } : MK_DEFAULTS[k];
+  }
 
   // Effective kg shown for a builder row: the row's own choice, else the kg
   // memory for that exercise, else the engine's cold-start suggestion.
@@ -652,6 +668,8 @@
       });
       if (!items.length && mkPicker.block !== k)
         host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+      if (F.TEMPLATES[state.cfg.manualObjective] && !mkObjSchema(k))
+        host.appendChild(el("div", "pin-empty", "El objetivo declarado no suele usar este bloque."));
       // Searchable picker, opened by "+ Anadir a <block>".
       if (mkPicker.block === k) host.appendChild(renderMkPicker(k, pool));
     });
@@ -672,10 +690,17 @@
       wrap.innerHTML = "";
       const hits = pool.filter(e => matchesQuery(e, mkPicker.text));
       if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
+      // Declared objective: exercises fitting this block's template schema
+      // are recommended (★) and ranked first; the rest stay available.
+      const sch = mkObjSchema(k);
+      const rec = e => !!(sch && sch.dynamics.has(e.dynamics));
+      if (sch) hits.sort((a, b) => (rec(b) ? 1 : 0) - (rec(a) ? 1 : 0));
       hits.forEach(e => {
-        const c = el("button", "chip", e.name);
+        const isRec = rec(e);
+        const c = el("button", "chip" + (isRec ? " mk-rec" : ""), (isRec ? "★ " : "") + e.name);
+        if (isRec) c.title = "Encaja con el objetivo declarado";
         c.onclick = () => {
-          const d = MK_DEFAULTS[k];
+          const d = mkDefaults(k);
           state.cfg.manual[k].push({ name: e.name, sets: d.sets, reps: d.reps, pair: false, kg: null });
           mkPicker.block = null; mkPicker.text = "";
           saveConfig(); renderBuilder();
@@ -706,17 +731,23 @@
     }));
     if (kgTouched) saveKg();
     const r = F.composeRoutine(entries);
-    // Detect which objective the composition resembles; when clear, the
-    // scrutiny audits against THAT objective's fatigue budgets and the
-    // profile travels with the routine (History label + later audits).
+    // Objective: the DECLARED one wins; otherwise detect what the composition
+    // resembles. Either way the scrutiny audits against that objective's
+    // fatigue budgets and the profile travels with the routine (History
+    // label + later audits). With a declared objective, inference doubles as
+    // a coherence check inside the audit (opts.declared).
+    const declared = F.TEMPLATES[state.cfg.manualObjective] ? state.cfg.manualObjective : null;
     r.inferred = F.inferObjective(r);
-    const tpl = r.inferred.objective ? F.TEMPLATES[r.inferred.objective] : null;
+    r.declared = declared;
+    const capKey = declared || r.inferred.objective;
+    const tpl = capKey ? F.TEMPLATES[capKey] : null;
     const opts = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
     opts.pool = filteredPool();
+    if (declared) opts.declared = declared;
     state.routine = r;
     state.routineSource = "manual";
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
-    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), r.inferred);
+    renderAudit(F.auditRoutine(r, opts), $("#audit-out"), { declared, inferred: r.inferred });
     $("#btn-regenerar").classList.add("hidden");   // nothing to regenerate by hand
     $("#save-row").classList.remove("hidden");
     saveConfig();
@@ -725,9 +756,9 @@
 
   // ---- Render: scrutiny (audit) of a routine
   const AUDIT_ICON = { error: "✕", warn: "!", tip: "·" };
-  // `inferred` (optional): result of F.inferObjective for hand-built routines;
-  // shows the detected training profile the audit budgets came from.
-  function renderAudit(a, host, inferred) {
+  // `profile` (optional, hand-built routines): { declared, inferred } — the
+  // objective the audit budgets came from, stated by the trainee or detected.
+  function renderAudit(a, host, profile) {
     host.innerHTML = "";
     const card = el("div", "card audit-card");
     const head = el("div", "audit-head");
@@ -739,11 +770,15 @@
     card.appendChild(head);
     card.appendChild(el("div", "audit-stats",
       `~${a.stats.minutes} min · ${a.stats.exercises} ejercicios · SNC alta ${a.stats.highCns} · agarre ${a.stats.grip}`));
-    if (inferred !== undefined) {
-      card.appendChild(el("div", "audit-infer", inferred && inferred.objective
-        ? "Perfil detectado: <b>" + (OBJ_LABEL[inferred.objective] || inferred.objective) + "</b> (" +
-          Math.round(inferred.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
-        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos."));
+    if (profile !== undefined) {
+      const inf = profile && profile.inferred;
+      const txt = profile && profile.declared
+        ? "Objetivo declarado: <b>" + (OBJ_LABEL[profile.declared] || profile.declared) + "</b> · auditada con sus presupuestos"
+        : inf && inf.objective
+        ? "Perfil detectado: <b>" + (OBJ_LABEL[inf.objective] || inf.objective) + "</b> (" +
+          Math.round(inf.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
+        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos.";
+      card.appendChild(el("div", "audit-infer", txt));
     }
     if (!a.findings.length) {
       card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
@@ -1121,9 +1156,11 @@
       const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
         d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       let title = OBJ_LABEL[h.objective] || h.objective;
-      // Manual sessions also carry the training profile the engine detected.
-      const hInf = h.objective === "MANUAL" && h.routine && h.routine.inferred;
-      if (hInf && hInf.objective) title += " · " + (OBJ_LABEL[hInf.objective] || hInf.objective);
+      // Manual sessions carry their profile: declared by the trainee, else
+      // the one the engine detected.
+      const hKey = h.objective === "MANUAL" && h.routine
+        ? (h.routine.declared || (h.routine.inferred && h.routine.inferred.objective)) : null;
+      if (hKey) title += " · " + (OBJ_LABEL[hKey] || hKey);
       meta.appendChild(el("div", "hist-title", title));
       meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
       meta.style.cursor = "pointer";
@@ -1138,13 +1175,17 @@
           const auditBtn = el("button", "btn btn-ghost audit-btn", "Escrutinio");
           const auditHost = el("div");
           auditBtn.onclick = () => {
-            const inferred = h.objective === "MANUAL"
-              ? (h.routine.inferred || F.inferObjective(h.routine)) : undefined;
-            const capKey = F.TEMPLATES[h.objective] ? h.objective : (inferred && inferred.objective);
+            const isManual = h.objective === "MANUAL";
+            const declared = isManual && h.routine.declared && F.TEMPLATES[h.routine.declared]
+              ? h.routine.declared : null;
+            const inferred = isManual ? (h.routine.inferred || F.inferObjective(h.routine)) : undefined;
+            const capKey = F.TEMPLATES[h.objective] ? h.objective
+              : (declared || (inferred && inferred.objective));
             const tpl = capKey ? F.TEMPLATES[capKey] : null;
             const caps = tpl ? { maxCns: tpl.maxCns, maxGrip: tpl.maxGrip } : {};
             caps.pool = filteredPool();
-            renderAudit(F.auditRoutine(h.routine, caps), auditHost, inferred);
+            if (declared) caps.declared = declared;
+            renderAudit(F.auditRoutine(h.routine, caps), auditHost, isManual ? { declared, inferred } : undefined);
             auditBtn.classList.add("hidden");
           };
           detail.appendChild(auditBtn); detail.appendChild(auditHost);
@@ -1545,6 +1586,26 @@
       };
     });
     $("#btn-componer").onclick = composeManual;
+    setSeg("#seg-mk-obj", state.cfg.manualObjective);
+    wireSeg("#seg-mk-obj", v => { state.cfg.manualObjective = v; saveConfig(); renderBuilder(); });
+    // Bridge to the generator: the draft's exercises become pins (keeping
+    // their block) and the generator fills the rest under the declared
+    // objective. Composition stays the trainee's; completion is the engine's.
+    $("#btn-mk-complete").onclick = () => {
+      const rows = [];
+      ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => rows.push({ name: it.name, block: k })));
+      if (!rows.length) { toast("Anade ejercicios primero"); return; }
+      state.cfg.pinned = rows;
+      if (F.TEMPLATES[state.cfg.manualObjective]) {
+        state.cfg.objective = state.cfg.manualObjective;
+        setSeg("#seg-objective", state.cfg.objective);
+        updateReadinessHint();
+      }
+      state.cfg.mode = "auto"; setSeg("#seg-mode", "auto"); applyMode();
+      updatePinnedCount(); saveConfig();
+      generateRoutine();
+      toast("Tus ejercicios quedan fijados; el generador completo el resto");
+    };
 
     wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
     // focus chips — multi-select, shortcuts expand to multiple keys

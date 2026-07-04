@@ -133,6 +133,21 @@ setTimeout(() => {
   d.querySelector('#seg-mode button[data-val="manual"]').click();
   ok("manual mode shows the builder", !d.querySelector("#mode-manual").classList.contains("hidden"));
   ok("manual mode hides the generator", d.querySelector("#mode-auto").classList.contains("hidden"));
+  // Declared objective: recommended (★) exercises rank first in the picker
+  // and new rows take the objective's sets x reps for the block.
+  d.querySelector('#seg-mk-obj button[data-val="POWER"]').click();
+  d.querySelector('.mk-add[data-block="A"]').click();
+  const recChips = d.querySelectorAll("#mk-A .mk-pick-chips .chip.mk-rec");
+  const firstChip = d.querySelector("#mk-A .mk-pick-chips .chip");
+  ok("declared objective recommends fitting exercises first",
+    recChips.length > 0 && firstChip.classList.contains("mk-rec") && /★/.test(firstChip.textContent));
+  firstChip.click();
+  ok("declared objective prefills the template's sets x reps",
+    /5x/.test(d.querySelector("#mk-A .mk-val").textContent) &&
+    /3 reps/.test(d.querySelectorAll("#mk-A .mk-val")[1].textContent));
+  d.querySelector("#mk-A .mk-rm").click();   // clean the row
+  d.querySelector('#seg-mk-obj button[data-val="AUTO"]').click();   // back to Auto
+
   // "+ Anadir" opens a searchable picker; the query narrows the chips and
   // tapping one adds the row.
   d.querySelector('.mk-add[data-block="A"]').click();
@@ -186,8 +201,14 @@ setTimeout(() => {
   ok("saved session detail offers Escrutinio", !!laterAudit);
   laterAudit.click();
   ok("Escrutinio renders the audit in the detail", !!d.querySelector("#hist-list .audit-card"));
+  // Bridge: "Completar con el generador" pins the draft rows (with their
+  // block) and hands off to the generator, which fills the rest.
   d.querySelector('.nav button[data-view="gen"]').click();
-  d.querySelector('#seg-mode button[data-val="auto"]').click(); // back to generator for the rest
+  d.querySelector('#seg-mode button[data-val="manual"]').click();
+  d.querySelector("#btn-mk-complete").click();
+  ok("bridge switches back to the generator", !d.querySelector("#mode-auto").classList.contains("hidden"));
+  ok("bridge pins the draft exercises", d.querySelector("#pin-count").textContent === "(3)");
+  ok("bridge generates a completed routine", d.querySelectorAll("#routine-out .element").length > 0);
 
   // Pin panel: opening it renders tag filters, and a filter narrows the list.
   d.querySelector("#btn-pin-toggle").click();

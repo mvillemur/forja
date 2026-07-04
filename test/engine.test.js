@@ -408,6 +408,11 @@ const isoOnly = F.composeRoutine([
   { exercise: F.BASE_CATALOG.find(e => e.name === "Suitcase Carry"), block: "B", sets: 3, reps: 8 },
 ]);
 ok("infer: ISO-only session claims no profile (carries fit any objective)", F.inferObjective(isoOnly).objective === null);
+// Declared objective: the audit flags a composition that resembles another profile.
+const misdeclared = F.auditRoutine(metaLike, { declared: "STRENGTH" });
+ok("audit: declared vs detected mismatch is a warning", misdeclared.findings.some(f => f.level === "warn" && /se parece mas/.test(f.msg)));
+const wellDeclared = F.auditRoutine(strengthLike, { declared: "STRENGTH" });
+ok("audit: matching declaration adds no mismatch finding", !wellDeclared.findings.some(f => /se parece mas/.test(f.msg)));
 
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");
