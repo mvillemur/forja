@@ -11,18 +11,24 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 42 exercises", F.BASE_CATALOG.length === 42);
+ok("base catalog has 38 exercises", F.BASE_CATALOG.length === 38);
 ok("no duplicate names in catalog", new Set(F.BASE_CATALOG.map(e => e.name)).size === F.BASE_CATALOG.length);
 ok("every ISO exercise has a hold duration", F.BASE_CATALOG.filter(e => e.dynamics === "ISO").every(e => e.holdSec > 0));
 
+// Naming curation: RENAMED maps every old name to a live catalog entry, and
+// no retired name is still in the catalog.
+const catalogNames = new Set(F.BASE_CATALOG.map(e => e.name));
+ok("every renamed target exists in the catalog", Object.values(F.RENAMED).every(n => catalogNames.has(n)));
+ok("no retired name remains in the catalog", Object.keys(F.RENAMED).every(n => !catalogNames.has(n)));
+ok("merged duplicates are gone (4 merges)",
+  new Set(Object.values(F.RENAMED)).size === Object.keys(F.RENAMED).length - 4);
+
 // Curation: metadata fixes on the base catalog.
-const hipHalos = F.BASE_CATALOG.find(e => e.name === "Hip Halos");
-ok("hip halos are bilateral (continuous two-hand pass, no per-side hold)", hipHalos.symmetry === "BILATERAL");
-ok("heavy RDL counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano / Fijo").grip === true);
-ok("single-leg deadlift (one-hand hold) counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Single-Leg Deadlift").grip === true);
+ok("heavy RDL counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano").grip === true);
+ok("single-leg deadlift (one-hand hold) counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Peso Muerto (una pierna)").grip === true);
 ok("windmill (bell rests on forearm) does not consume grip", F.BASE_CATALOG.find(e => e.name === "Windmill").grip === false);
-ok("pushup variants require floor space", ["Close Grip Pushup", "KB Push-Ups"].every(n => F.BASE_CATALOG.find(e => e.name === n).equipment.includes("FLOOR")));
-const floorPress = F.BASE_CATALOG.find(e => e.name === "Floor Press (una mano)");
+ok("pushups require floor space", F.BASE_CATALOG.find(e => e.name === "Flexiones (agarre cerrado)").equipment.includes("FLOOR"));
+const floorPress = F.BASE_CATALOG.find(e => e.name === "Floor Press");
 ok("floor press: heavy unilateral horizontal push (KB + floor)", floorPress && floorPress.pattern === "PUSH_H" &&
   floorPress.symmetry === "UNILATERAL" && floorPress.load === 3 && floorPress.equipment.includes("FLOOR"));
 
@@ -31,8 +37,8 @@ ok("POWER objective generates a routine", (() => {
   const rp = F.generate(null, { objective: "POWER", equipment: ["KB", "FLOOR"], minutes: 30, seed: 2 });
   return rp.blocks.some(b => b.elements.length > 0);
 })());
-const jump = F.BASE_CATALOG.find(e => e.name === "KB Jump Squats");
-const swingP = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)");
+const jump = F.BASE_CATALOG.find(e => e.name === "Sentadilla con Salto");
+const swingP = F.BASE_CATALOG.find(e => e.name === "Swing (dos manos)");
 ok("plyo flag set on jump movements", jump.plyo === true && F.BASE_CATALOG.find(e => e.name === "Tuck Jumps").plyo === true);
 ok("non-plyo ballistic is not flagged plyo", swingP.plyo === false);
 // Full recovery: a plyo set at low reps rests at least as long as a strength set.
@@ -40,11 +46,11 @@ const plyoEl = { prescriptions: [{ exercise: jump, sets: 1, reps: 3 }], isSupers
 const ballEl = { prescriptions: [{ exercise: swingP, sets: 1, reps: 3 }], isSuperset: false };
 ok("plyo forces full recovery (>= same-rep ballistic)", F.elementTimeSec(plyoEl) >= F.elementTimeSec(ballEl));
 ok("newExercise carries plyo flag", F.newExercise({ name: "X", pattern: "KNEE", dynamics: "BALLISTIC", symmetry: "BILATERAL", cns: "HIGH", equipment: ["FLOOR"], plyo: true }).plyo === true);
-ok("9 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 9);
+ok("8 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 8);
 
 // RuleEngine: two high-CNS in block A -> invalid
-const swing = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)");
-const snatch = F.BASE_CATALOG.find(e => e.name === "One-Arm Snatch");
+const swing = F.BASE_CATALOG.find(e => e.name === "Swing (dos manos)");
+const snatch = F.BASE_CATALOG.find(e => e.name === "Snatch");
 ok("two high-CNS = invalid", !F.validateCombination(
   { exercise: swing, block: "A", sets: 5, reps: 5 },
   { exercise: snatch, block: "A", sets: 5, reps: 5 }).valid);
@@ -58,8 +64,8 @@ ok("heavy kg (12-32) = 30", F.suggestKg(3, 12, 32) === 30);
 ok("light kg (12-32) = 16", F.suggestKg(1, 12, 32) === 16);
 
 // Cold-start seeding: profile nudges the suggestion but defaults to old behavior.
-const press2 = F.BASE_CATALOG.find(e => e.name === "Goblet Shoulder Press"); // PUSH_V, load 1
-const swingHeavy = F.BASE_CATALOG.find(e => e.name === "Kettlebell Swings (Dos manos)"); // HIP, load 3
+const press2 = F.BASE_CATALOG.find(e => e.name === "Press Goblet"); // PUSH_V, load 1
+const swingHeavy = F.BASE_CATALOG.find(e => e.name === "Swing (dos manos)"); // HIP, load 3
 ok("seed: no profile == legacy suggestion", F.suggestKg(2, 12, 32) === F.suggestKg(2, 12, 32, null));
 ok("seed: beginner gets lighter than advanced",
   F.suggestKg(3, 12, 40, { level: "BEG" }, swingHeavy) < F.suggestKg(3, 12, 40, { level: "ADV" }, swingHeavy));
@@ -116,7 +122,7 @@ ok("cnsWeight: HIGH > MEDIUM > LOW", F.cnsWeight("HIGH") > F.cnsWeight("MEDIUM")
 const ps = [
   { exercise: swingHeavy },                                                  // load 3 -> heavy
   { exercise: press2 },                                                      // load 1 -> light
-  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo a una mano") },      // load 2 -> medium
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo (una mano)") },      // load 2 -> medium
 ];
 const uni = F.unifiedKg(ps, { min: 12, max: 32 });
 ok("unifiedKg: within range", uni >= 12 && uni <= 32);
@@ -212,9 +218,9 @@ ok("focus PULL biases (>=3 pulls)", pulls >= 3);
 
 // Exercise pinned to explicit block
 const rf = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 45, seed: 5,
-  pinned: [{ name: "Kettlebell Swings (Dos manos)", block: "C" }] });
+  pinned: [{ name: "Swing (dos manos)", block: "C" }] });
 const inC = rf.blocks.find(b => b.block === "C").elements
-  .some(e => e.prescriptions.some(p => p.exercise.name === "Kettlebell Swings (Dos manos)"));
+  .some(e => e.prescriptions.some(p => p.exercise.name === "Swing (dos manos)"));
 ok("pinned forced to block C", inC);
 
 // Hard balance with tolerance 0 leaves no gaps (fills with backtracking)
@@ -239,15 +245,15 @@ function avgDur(obj, mins) {
 // Gap 1: unilateral set work ~2x a comparable bilateral set (+ inter-side rest).
 // Build matching single-set superset-free elements and compare elementTimeSec work.
 const tgu = F.BASE_CATALOG.find(e => e.name === "Turkish Get-Up");        // ISO unilateral
-const oneArmRow = F.BASE_CATALOG.find(e => e.name === "Remo a una mano"); // STRENGTH unilateral
-const twoHandRow = F.BASE_CATALOG.find(e => e.name === "Two Hand Row");   // STRENGTH bilateral
+const oneArmRow = F.BASE_CATALOG.find(e => e.name === "Remo (una mano)"); // STRENGTH unilateral
+const twoHandRow = F.BASE_CATALOG.find(e => e.name === "Remo (dos manos)");   // STRENGTH bilateral
 const uniEl = { prescriptions: [{ exercise: oneArmRow, sets: 1, reps: 5 }], isSuperset: false };
 const biEl = { prescriptions: [{ exercise: twoHandRow, sets: 1, reps: 5 }], isSuperset: false };
 // Unilateral element must take strictly longer than the bilateral equivalent.
 ok("gap1: unilateral set costs more time than bilateral", F.elementTimeSec(uniEl) > F.elementTimeSec(biEl));
 
 // Gap 2: ISO holds are per-exercise, not a flat 35 s. TGU/carries > Halos.
-const halos = F.BASE_CATALOG.find(e => e.name === "Halos");
+const halos = F.BASE_CATALOG.find(e => e.name === "Halo");
 ok("gap2: halos default ~35s hold", halos.holdSec === 35);
 ok("gap2: turkish get-up longer hold than halos", tgu.holdSec > halos.holdSec);
 ok("gap2: suitcase carry longer hold than halos",
@@ -260,17 +266,17 @@ ok("gap2: suitcase carry longer hold than halos",
 // catalog flags exist and the time/budget model treats them as grip.
 ok("gap3: TGU is a grip exercise", tgu.grip === true && tgu.dynamics !== F.DIN.BALLISTIC);
 ok("gap3: bottoms-up press is grip, non-ballistic",
-  (e => e.grip === true && e.dynamics !== F.DIN.BALLISTIC)(F.BASE_CATALOG.find(x => x.name === "Bottoms-Up Press")));
+  (e => e.grip === true && e.dynamics !== F.DIN.BALLISTIC)(F.BASE_CATALOG.find(x => x.name === "Press Bottoms-Up")));
 
 // Gap 4: HIP + KNEE block-A pair is ACCEPTABLE, not OPTIMAL; true push/pull stays OPTIMAL.
-const rdl = F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano / Fijo"); // HIP
+const rdl = F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano"); // HIP
 const goblet = F.BASE_CATALOG.find(e => e.name === "Sentadilla Goblet");      // KNEE
 const legPair = F.validateCombination(
   { exercise: rdl, block: "A", sets: 4, reps: 5 },
   { exercise: goblet, block: "A", sets: 4, reps: 5 });
 ok("gap4: HIP+KNEE in block A is ACCEPTABLE (not OPTIMAL)", legPair.valid && legPair.quality === F.QUALITY.ACCEPTABLE);
-const press = F.BASE_CATALOG.find(e => e.name === "Goblet Shoulder Press");  // PUSH_V
-const row5 = F.BASE_CATALOG.find(e => e.name === "Two Hand Row");            // PULL_H
+const press = F.BASE_CATALOG.find(e => e.name === "Press Goblet");  // PUSH_V
+const row5 = F.BASE_CATALOG.find(e => e.name === "Remo (dos manos)");            // PULL_H
 const ppPair = F.validateCombination(
   { exercise: press, block: "A", sets: 4, reps: 5 },
   { exercise: row5, block: "A", sets: 4, reps: 5 });
@@ -329,13 +335,13 @@ ok("timeline: 3 sets solo -> 3 work + 2 rest", tlSolo.filter(s => s.kind === "wo
 ok("timeline: work phases carry positive seconds", tlSolo.filter(s => s.kind === "work").every(s => s.sec > 0));
 ok("timeline: first phase is work", tlSolo[0].kind === "work");
 // Superset: each set has two work phases (one per exercise).
-const pressEx = F.BASE_CATALOG.find(e => e.name === "Goblet Shoulder Press");
+const pressEx = F.BASE_CATALOG.find(e => e.name === "Press Goblet");
 const tlSS = F.elementTimeline({ isSuperset: true, prescriptions: [
   { exercise: pressEx, block: "A", sets: 2, reps: 8 }, { exercise: swing, block: "A", sets: 2, reps: 8 }] });
 ok("timeline: superset 2 sets -> 4 work + 1 rest", tlSS.filter(s => s.kind === "work").length === 4 && tlSS.filter(s => s.kind === "rest").length === 1);
 
 // Manual routines: compose (user-built) + audit (scrutiny)
-const rowEx = F.BASE_CATALOG.find(e => e.name === "Two Hand Row");
+const rowEx = F.BASE_CATALOG.find(e => e.name === "Remo (dos manos)");
 const squatEx = F.BASE_CATALOG.find(e => e.name === "Sentadilla Goblet");
 const manual = F.composeRoutine([
   { exercise: swing, block: "A", sets: 5, reps: 5 },
@@ -377,13 +383,13 @@ ok("suggestions: clean routine has none", F.auditRoutine(manual, { pool: F.BASE_
 const riskySugg = F.auditRoutine(risky, { pool: F.BASE_CATALOG }).suggestions;
 ok("suggestions: broken superset gets a concrete fix", riskySugg.some(s => /Superserie rota/.test(s)));
 const dupSugg = F.auditRoutine(dupImbal, { pool: F.BASE_CATALOG }).suggestions;
-ok("suggestions: repeated exercise offers a variant", dupSugg.some(s => /En vez de repetir Goblet Shoulder Press, prueba /.test(s)));
+ok("suggestions: repeated exercise offers a variant", dupSugg.some(s => /En vez de repetir Press Goblet, prueba /.test(s)));
 ok("suggestions: imbalance names the missing pattern with options", dupSugg.some(s => /Anade tiron para equilibrar: .+ o .+\./.test(s)));
 const cnsSugg = F.auditRoutine(manual, { maxCns: 0, pool: F.BASE_CATALOG }).suggestions;
 ok("suggestions: CNS over budget offers a calmer same-pattern swap",
-  cnsSugg.some(s => /presupuesto de SNC, cambia Kettlebell Swings/.test(s)));
+  cnsSugg.some(s => /presupuesto de SNC, cambia Swing/.test(s)));
 // Never suggest an exercise the routine already contains, and stay readable.
-const inRoutine = new Set(["Kettlebell Swings (Dos manos)", "Goblet Shoulder Press", "Two Hand Row"]);
+const inRoutine = new Set(["Swing (dos manos)", "Press Goblet", "Remo (dos manos)"]);
 ok("suggestions: never propose an exercise already in the routine",
   !cnsSugg.some(s => [...inRoutine].some(n => s.includes("por " + n))));
 ok("suggestions: capped at 4", F.auditRoutine(F.composeRoutine([
@@ -407,7 +413,7 @@ ok("infer: 5x5 principals + 3x10 accessories read as STRENGTH", infS.objective =
 const powerLike = F.composeRoutine([
   { exercise: swing, block: "A", sets: 5, reps: 3 },
   { exercise: snatch, block: "A", sets: 5, reps: 3 },
-  { exercise: F.BASE_CATALOG.find(e => e.name === "Ballistic Rows"), block: "B", sets: 4, reps: 6 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo Balistico"), block: "B", sets: 4, reps: 6 },
 ]);
 ok("infer: explosive low-rep session reads as POWER", F.inferObjective(powerLike).objective === "POWER");
 const metaLike = F.composeRoutine([

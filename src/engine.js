@@ -63,71 +63,118 @@
     ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
   const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
-  // --- Base catalog (42) -------------------------------------------------
+  // --- Base catalog (38) -------------------------------------------------
+  // Naming convention: Spanish structure with international kettlebell terms
+  // kept untranslated (Swing, Clean, Press, Snatch, Get-Up, Windmill...).
+  // Singular for loaded lifts; usual plural for bodyweight rep drills
+  // (Flexiones, Dominadas, Burpees, Tuck Jumps). Parenthetical modifiers
+  // ("una mano", "dos manos", "alterno") appear only to disambiguate within
+  // a family — inherently one-arm lifts (Snatch, Windmill...) carry none.
+  // Old names are mapped in RENAMED for user-data migration (app.js).
   function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
     return { name, pattern, dynamics, symmetry, cns, equipment,
              grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false };
   }
   const BASE_CATALOG = [
-    exercise("Peso Muerto Rumano / Fijo", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.HEAVY),
-    exercise("Kettlebell Swings (Dos manos)", PAT.HIP, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.HEAVY),
-    exercise("Alternating Swings", PAT.HIP, DIN.BALLISTIC, SIM.ALTERNATING, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Swing Cleans", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Dead Cleans", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Peso Muerto Rumano", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.HEAVY),
+    exercise("Swing (dos manos)", PAT.HIP, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.HEAVY),
+    exercise("Swing (alterno)", PAT.HIP, DIN.BALLISTIC, SIM.ALTERNATING, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Clean (una mano)", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Sentadilla Goblet", PAT.KNEE, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
-    exercise("Goblet Clean Squat", PAT.HYBRID, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Pit Squats", PAT.KNEE, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
-    exercise("Alt Lunges", PAT.KNEE, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
-    exercise("Remo a una mano", PAT.PULL_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Two Hand Row", PAT.PULL_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Bent Rows (Alternating)", PAT.PULL_H, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Upright Row", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Dominadas Neutras", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.HIGH, [EQ.BARBELL], true, LOAD_TIER.MEDIUM),
-    exercise("Clean & Press Combinado", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Goblet Shoulder Press", PAT.PUSH_V, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Rotational Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Dead Clean Push Press", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Close Grip Pushup", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.FLOOR], false, LOAD_TIER.MEDIUM),
-    exercise("Halos", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Kneeling Around The Worlds", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Half-Racked Marches", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Goblet Overhead March", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Clean + Sentadilla Goblet", PAT.HYBRID, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Pit Squat", PAT.KNEE, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
+    exercise("Zancada (alterna)", PAT.KNEE, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Remo (una mano)", PAT.PULL_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Remo (dos manos)", PAT.PULL_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Remo (alterno)", PAT.PULL_H, DIN.STRENGTH, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Remo Vertical", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Dominadas (agarre neutro)", PAT.PULL_V, DIN.STRENGTH, SIM.BILATERAL, CNS.HIGH, [EQ.BARBELL], true, LOAD_TIER.MEDIUM),
+    exercise("Clean + Press", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Press Goblet", PAT.PUSH_V, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Press Rotacional", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Flexiones (agarre cerrado)", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.FLOOR], false, LOAD_TIER.MEDIUM),
+    exercise("Halo", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Around the World", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Marcha en Rack (una mano)", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Marcha Overhead", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("Burpees", PAT.HYBRID, DIN.METABOLIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
     // --- Extension: classics with a single kettlebell ---
     exercise("Turkish Get-Up", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("One-Arm Snatch", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Snatch", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Windmill", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("Bottoms-Up Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
-    exercise("Single-Leg Deadlift", PAT.HIP, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Press Bottoms-Up", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
+    exercise("Peso Muerto (una pierna)", PAT.HIP, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Suitcase Carry", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Thruster", PAT.HYBRID, DIN.METABOLIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.MEDIUM),
     exercise("Figure-8", PAT.CORE, DIN.METABOLIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
     // --- Extension: more single-kettlebell movements ---
     exercise("Curl + Press", PAT.HYBRID, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
-    exercise("Ballistic Rows", PAT.PULL_H, DIN.BALLISTIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Hip Halos", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("KB Jump Squats", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("KB Push-Ups", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.LIGHT),
+    exercise("Remo Balistico", PAT.PULL_H, DIN.BALLISTIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Sentadilla con Salto", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("Tuck Jumps", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
-    exercise("Strict Overhead Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Press Militar (una mano)", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
     exercise("Push Press", PAT.PUSH_V, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.HEAVY),
-    exercise("One-Arm High Pull", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Floor Press (una mano)", PAT.PUSH_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.HEAVY),
+    exercise("High Pull", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Floor Press", PAT.PUSH_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.HEAVY),
   ];
+
+  // Old catalog name -> curated name. Two old names mapping to the same new
+  // name means the exercises were merged (identical engine metadata; the
+  // difference was start-position/technique detail, not a programming slot):
+  //   Swing Cleans + Dead Cleans           -> Clean (una mano)
+  //   Clean & Press + Dead Clean Push Press -> Clean + Press
+  //   Close Grip Pushup + KB Push-Ups       -> Flexiones (agarre cerrado)
+  //   Kneeling Around The Worlds + Hip Halos -> Around the World
+  // app.js uses this to migrate every name-keyed user store (overrides,
+  // removals, kg memory, rep targets, pins, manual drafts, history).
+  const RENAMED = {
+    "Peso Muerto Rumano / Fijo": "Peso Muerto Rumano",
+    "Kettlebell Swings (Dos manos)": "Swing (dos manos)",
+    "Alternating Swings": "Swing (alterno)",
+    "Swing Cleans": "Clean (una mano)",
+    "Dead Cleans": "Clean (una mano)",
+    "Goblet Clean Squat": "Clean + Sentadilla Goblet",
+    "Pit Squats": "Pit Squat",
+    "Alt Lunges": "Zancada (alterna)",
+    "Remo a una mano": "Remo (una mano)",
+    "Two Hand Row": "Remo (dos manos)",
+    "Bent Rows (Alternating)": "Remo (alterno)",
+    "Upright Row": "Remo Vertical",
+    "Dominadas Neutras": "Dominadas (agarre neutro)",
+    "Clean & Press Combinado": "Clean + Press",
+    "Dead Clean Push Press": "Clean + Press",
+    "Goblet Shoulder Press": "Press Goblet",
+    "Rotational Press": "Press Rotacional",
+    "Close Grip Pushup": "Flexiones (agarre cerrado)",
+    "KB Push-Ups": "Flexiones (agarre cerrado)",
+    "Halos": "Halo",
+    "Kneeling Around The Worlds": "Around the World",
+    "Hip Halos": "Around the World",
+    "Half-Racked Marches": "Marcha en Rack (una mano)",
+    "Goblet Overhead March": "Marcha Overhead",
+    "One-Arm Snatch": "Snatch",
+    "Bottoms-Up Press": "Press Bottoms-Up",
+    "Single-Leg Deadlift": "Peso Muerto (una pierna)",
+    "Ballistic Rows": "Remo Balistico",
+    "KB Jump Squats": "Sentadilla con Salto",
+    "Strict Overhead Press": "Press Militar (una mano)",
+    "One-Arm High Pull": "High Pull",
+    "Floor Press (una mano)": "Floor Press",
+  };
 
   // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.
   const _CORE_EXERCISES = new Set([
-    "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Sentadilla Goblet",
-    "Goblet Clean Squat", "Clean & Press Combinado", "Dead Clean Push Press",
-    "Thruster", "One-Arm Snatch", "Turkish Get-Up",
+    "Peso Muerto Rumano", "Swing (dos manos)", "Sentadilla Goblet",
+    "Clean + Sentadilla Goblet", "Clean + Press",
+    "Thruster", "Snatch", "Turkish Get-Up",
   ]);
   const _OPTIONAL_EXERCISES = new Set([
-    "Upright Row", "Halos", "Kneeling Around The Worlds", "Figure-8", "Rotational Press",
+    "Remo Vertical", "Halo", "Around the World", "Figure-8", "Press Rotacional",
   ]);
   // Plyometric / impact movements (stretch-shortening cycle): need full
   // recovery and are kept fresh. A subtype tag on top of DIN.BALLISTIC.
   const _PLYO_EXERCISES = new Set([
-    "KB Jump Squats", "Tuck Jumps", "Burpees",
+    "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
   BASE_CATALOG.forEach(e => {
     e.tier = _CORE_EXERCISES.has(e.name) ? TIER.FUNDAMENTAL
@@ -142,7 +189,7 @@
     // grind lifts (per side)
     "Turkish Get-Up": 60, "Windmill": 45,
     // timed carries / marches (per side where unilateral)
-    "Suitcase Carry": 50, "Half-Racked Marches": 45,
+    "Suitcase Carry": 50, "Marcha en Rack (una mano)": 45,
     // short stabilization holds keep ~35 s (default)
   };
   BASE_CATALOG.forEach(e => {
@@ -1330,7 +1377,7 @@
   const API = {
     PAT, DIN, SIM, CNS, EQ, LOAD_TIER, BLOCK, REP_RANGE, QUALITY, QUALITY_NAME, TIER, TIER_LABEL,
     PAT_LABEL, DIN_LABEL, LOAD_LABEL, FOCUS_LABEL,
-    BASE_CATALOG, TEMPLATES,
+    BASE_CATALOG, TEMPLATES, RENAMED,
     classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     composeRoutine, auditRoutine, inferObjective, assessObjective,

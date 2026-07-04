@@ -158,7 +158,7 @@ setTimeout(() => {
   mkSearch.value = "balistico"; mkSearch.dispatchEvent(new window.Event("input"));
   const tagChips = [...d.querySelectorAll("#mk-A .mk-pick-chips .chip")];
   ok("picker search matches by tag/category", tagChips.length > 0 && tagChips.length < allChips &&
-    tagChips.some(c => /Swings/.test(c.textContent)));
+    tagChips.some(c => /Swing/.test(c.textContent)));
   mkSearch.value = "tiron balistico"; mkSearch.dispatchEvent(new window.Event("input"));
   const comboChips = [...d.querySelectorAll("#mk-A .mk-pick-chips .chip")];
   ok("picker search ANDs multiple terms", comboChips.length > 0 && comboChips.length < tagChips.length &&
@@ -224,24 +224,24 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 42 exercises", d.querySelectorAll("#pool-list .card").length === 42);
+  ok("pool shows 38 exercises", d.querySelectorAll("#pool-list .card").length === 38);
   ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
   // Pool search narrows the list by name; clearing restores it.
   const search = d.querySelector("#pool-search");
   search.value = "swing"; search.dispatchEvent(new window.Event("input"));
   const swingHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search narrows by name", swingHits > 0 && swingHits < 42);
+  ok("pool search narrows by name", swingHits > 0 && swingHits < 38);
   search.value = "cadera"; search.dispatchEvent(new window.Event("input"));
   const catHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search matches by category too", catHits > 0 && catHits < 42);
+  ok("pool search matches by category too", catHits > 0 && catHits < 38);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
-  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 42);
+  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 38);
   // A tag filter narrows the pool too.
   const pf = d.querySelector("#pool-filters .filter-chip");
   ok("pool exposes tag filters", !!pf);
   pf.click();
-  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 42);
+  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 38);
   pf.click(); // reset
 
   d.querySelector('.nav button[data-view="guia"]').click();
@@ -250,7 +250,36 @@ setTimeout(() => {
   ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
   ok("guide documents daily readiness", /llegas hoy/i.test(d.querySelector("#view-guia").textContent));
 
-  if (code) console.error("\n--- UI TEST FAILURES ---");
-  else console.log("UI tests OK");
-  process.exit(code);
+  // ---- Catalog rename migration: a fresh app load with OLD-name user data
+  // in storage must remap every name-keyed store to the curated names.
+  const dom2 = new JSDOM(html, {
+    runScripts: "dangerously", pretendToBeVisual: true, url: "https://forja.local/",
+    beforeParse(w) {
+      w.localStorage.setItem("forja:kg", JSON.stringify({ "Kettlebell Swings (Dos manos)": 24, "Swing Cleans": 16, "Dead Cleans": 20 }));
+      w.localStorage.setItem("forja:prog", JSON.stringify({ "Two Hand Row": 9 }));
+      w.localStorage.setItem("forja:removed", JSON.stringify(["Upright Row", "Swing Cleans"]));
+      w.localStorage.setItem("forja:cfg", JSON.stringify({ pinned: [{ name: "Two Hand Row", block: "A" }] }));
+    },
+  });
+  dom2.window.addEventListener("error", (e) => {
+    console.error("RUNTIME ERROR (migration run):", (e.error && e.error.stack) || e.message);
+    process.exit(1);
+  });
+  setTimeout(() => {
+    const ls = dom2.window.localStorage;
+    const kg = JSON.parse(ls.getItem("forja:kg"));
+    ok("migration: kg keys follow renames", kg["Swing (dos manos)"] === 24 && kg["Kettlebell Swings (Dos manos)"] == null);
+    ok("migration: merged kg keeps the heavier working weight", kg["Clean (una mano)"] === 20);
+    const prog = JSON.parse(ls.getItem("forja:prog"));
+    ok("migration: rep targets follow renames", prog["Remo (dos manos)"] === 9);
+    const removed = JSON.parse(ls.getItem("forja:removed"));
+    ok("migration: removals follow renames", removed.includes("Remo Vertical"));
+    ok("migration: a half-removed merge stays available", !removed.includes("Clean (una mano)"));
+    const cfg = JSON.parse(ls.getItem("forja:cfg"));
+    ok("migration: pins follow renames", cfg.pinned.some(f => f.name === "Remo (dos manos)"));
+
+    if (code) console.error("\n--- UI TEST FAILURES ---");
+    else console.log("UI tests OK");
+    process.exit(code);
+  }, 250);
 }, 250);

@@ -156,11 +156,68 @@
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
     try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
     try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
+    // Migration: pinned as strings -> objects {name, block}
+    state.cfg.pinned = (state.cfg.pinned || []).map(f => typeof f === "string" ? { name: f, block: "AUTO" } : f);
+    migrateRenamedExercises();
     computePool();
     // Seed the id sequence above any id already in history.
     state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
-    // Migration: pinned as strings -> objects {name, block}
-    state.cfg.pinned = (state.cfg.pinned || []).map(f => typeof f === "string" ? { name: f, block: "AUTO" } : f);
+  }
+
+  // ---- Catalog rename migration
+  // The base catalog was renamed to a consistent convention (F.RENAMED maps
+  // old -> new; two olds on one new = merged exercises). Names are the
+  // primary key for every per-exercise store, so each one follows the map:
+  // overrides, removals, kg memory, rep targets, pins, manual drafts and the
+  // exercise names embedded in history (keeps e1RM/vary/detail views whole).
+  function migrateRenamedExercises() {
+    const REN = F.RENAMED || {};
+    const mapName = n => REN[n] || n;
+    let touched = false;
+    const t = n => { if (REN[n]) touched = true; return mapName(n); };
+
+    // Removals: a merged exercise stays hidden only if the user had removed
+    // EVERY old variant that folded into it (removing just one meant "I still
+    // want the other", so the merged slot survives).
+    const group = {};   // new name -> [old names]
+    Object.keys(REN).forEach(o => (group[REN[o]] || (group[REN[o]] = [])).push(o));
+    const oldRemoved = new Set(state.removed);
+    state.removed = [...new Set(state.removed.map(t))]
+      .filter(n => !group[n] || oldRemoved.has(n) || group[n].every(o => oldRemoved.has(o)));
+
+    // Keyed objects: first value wins on merge collisions, except kg where
+    // the heavier dialed weight is the trainee's real working weight.
+    const remapKeys = (obj, pick) => {
+      const out = {};
+      Object.keys(obj).forEach(k => {
+        const nk = t(k);
+        out[nk] = (nk in out) ? pick(out[nk], obj[k]) : obj[k];
+      });
+      return out;
+    };
+    state.overrides = remapKeys(state.overrides, a => a);
+    state.kg = remapKeys(state.kg, (a, b) => (typeof a === "number" && typeof b === "number") ? Math.max(a, b) : a);
+    state.prog = remapKeys(state.prog, (a, b) => (typeof a === "number" && typeof b === "number") ? Math.max(a, b) : a);
+
+    // Pins and manual builder drafts.
+    const seenPin = new Set();
+    state.cfg.pinned = state.cfg.pinned
+      .map(f => Object.assign({}, f, { name: t(f.name) }))
+      .filter(f => !seenPin.has(f.name) && seenPin.add(f.name));
+    ["A", "B", "C"].forEach(k => (state.cfg.manual[k] || []).forEach(it => { it.name = t(it.name); }));
+
+    // History: manual logs ({exercises:[{name}]}) and embedded routines.
+    state.hist.forEach(h => {
+      if (Array.isArray(h.exercises)) h.exercises.forEach(ex => { ex.name = t(ex.name); });
+      if (h.routine && Array.isArray(h.routine.blocks)) h.routine.blocks.forEach(br =>
+        (br.elements || []).forEach(el => (el.prescriptions || []).forEach(p => {
+          if (p.exercise) p.exercise.name = t(p.exercise.name);
+        })));
+    });
+
+    if (touched) {
+      savePoolState(); saveConfig(); saveKg(); saveProg(); saveHistory();
+    }
   }
   const saveHistory = () => Store.set(K.HIST, JSON.stringify(state.hist));
   const savePoolState = () => {
