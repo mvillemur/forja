@@ -20,7 +20,8 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
 - **Pin exercises** to specific blocks; the rest is auto-completed.
 - **Vary**: avoids repeating recent sessions (rotates exercises).
 - **Adjustable kettlebell**: set your range and each exercise suggests its kg.
-- **Editable pool**: add, edit and remove exercises (32 built-in).
+- **Editable pool**: add, edit and remove exercises (42 built-in, curated —
+  see `docs/catalog-curation.md`).
 - **Session history** with detail view and completion mark.
 - **Progress chart**: per-session volume trend plus session/completion counts.
 - **Daily readiness (mood autoregulation)**: a quick pre-session check —

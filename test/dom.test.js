@@ -224,24 +224,24 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 41 exercises", d.querySelectorAll("#pool-list .card").length === 41);
+  ok("pool shows 42 exercises", d.querySelectorAll("#pool-list .card").length === 42);
   ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
   // Pool search narrows the list by name; clearing restores it.
   const search = d.querySelector("#pool-search");
   search.value = "swing"; search.dispatchEvent(new window.Event("input"));
   const swingHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search narrows by name", swingHits > 0 && swingHits < 41);
+  ok("pool search narrows by name", swingHits > 0 && swingHits < 42);
   search.value = "cadera"; search.dispatchEvent(new window.Event("input"));
   const catHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search matches by category too", catHits > 0 && catHits < 41);
+  ok("pool search matches by category too", catHits > 0 && catHits < 42);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
-  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 41);
+  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 42);
   // A tag filter narrows the pool too.
   const pf = d.querySelector("#pool-filters .filter-chip");
   ok("pool exposes tag filters", !!pf);
   pf.click();
-  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 41);
+  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 42);
   pf.click(); // reset
 
   d.querySelector('.nav button[data-view="guia"]').click();

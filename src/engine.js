@@ -63,13 +63,13 @@
     ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
   const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
-  // --- Base catalog (32) -------------------------------------------------
+  // --- Base catalog (42) -------------------------------------------------
   function exercise(name, pattern, dynamics, symmetry, cns, equipment, grip, load) {
     return { name, pattern, dynamics, symmetry, cns, equipment,
              grip: !!grip, load: load || LOAD_TIER.MEDIUM, tier: TIER.ACCESSORY, plyo: false };
   }
   const BASE_CATALOG = [
-    exercise("Peso Muerto Rumano / Fijo", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.HEAVY),
+    exercise("Peso Muerto Rumano / Fijo", PAT.HIP, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.HEAVY),
     exercise("Kettlebell Swings (Dos manos)", PAT.HIP, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.HEAVY),
     exercise("Alternating Swings", PAT.HIP, DIN.BALLISTIC, SIM.ALTERNATING, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Swing Cleans", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
@@ -96,22 +96,23 @@
     // --- Extension: classics with a single kettlebell ---
     exercise("Turkish Get-Up", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("One-Arm Snatch", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Windmill", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
+    exercise("Windmill", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("Bottoms-Up Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
-    exercise("Single-Leg Deadlift", PAT.HIP, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
+    exercise("Single-Leg Deadlift", PAT.HIP, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Suitcase Carry", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Thruster", PAT.HYBRID, DIN.METABOLIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.MEDIUM),
     exercise("Figure-8", PAT.CORE, DIN.METABOLIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.LIGHT),
     // --- Extension: more single-kettlebell movements ---
     exercise("Curl + Press", PAT.HYBRID, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
     exercise("Ballistic Rows", PAT.PULL_H, DIN.BALLISTIC, SIM.ALTERNATING, CNS.MEDIUM, [EQ.KB], true, LOAD_TIER.MEDIUM),
-    exercise("Hip Halos", PAT.CORE, DIN.ISO, SIM.UNILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("Hip Halos", PAT.CORE, DIN.ISO, SIM.BILATERAL, CNS.LOW, [EQ.KB], false, LOAD_TIER.LIGHT),
     exercise("KB Jump Squats", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.LIGHT),
-    exercise("KB Push-Ups", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.LIGHT),
+    exercise("KB Push-Ups", PAT.PUSH_H, DIN.STRENGTH, SIM.BILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.LIGHT),
     exercise("Tuck Jumps", PAT.KNEE, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.FLOOR], false, LOAD_TIER.LIGHT),
     exercise("Strict Overhead Press", PAT.PUSH_V, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB], false, LOAD_TIER.MEDIUM),
     exercise("Push Press", PAT.PUSH_V, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], false, LOAD_TIER.HEAVY),
     exercise("One-Arm High Pull", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
+    exercise("Floor Press (una mano)", PAT.PUSH_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.HEAVY),
   ];
 
   // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.

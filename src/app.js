@@ -61,7 +61,7 @@
     POWER:"Potencia", EMOM:"EMOM", AMRAP:"AMRAP", MANUAL:"Creada por mi" };
 
   const state = {
-    cfg: { objective:"STRENGTH", focus:[], equipment:["KB"], weightMin:12, weightMax:32,
+    cfg: { objective:"STRENGTH", focus:[], equipment:["KB", "FLOOR"], weightMin:12, weightMax:32,
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" },
@@ -112,6 +112,11 @@
   async function loadAll() {
     try { const h = await Store.get(K.HIST); if (h) state.hist = JSON.parse(h); } catch (e) {}
     try { const c = await Store.get(K.CFG); if (c) Object.assign(state.cfg, JSON.parse(c)); } catch (e) {}
+    // The "Suelo" chip is locked ON in the UI: floor space is always available.
+    // Older stored configs only listed ["KB"(, "BARBELL")], which silently
+    // excluded floor exercises (Burpees, pushups, Tuck Jumps) from generation.
+    if (!Array.isArray(state.cfg.equipment)) state.cfg.equipment = ["KB", "FLOOR"];
+    if (!state.cfg.equipment.includes("FLOOR")) state.cfg.equipment.push("FLOOR");
     // Migrate old single-string focus ("FULL"/"LEGS"/...) to array model.
     if (!Array.isArray(state.cfg.focus)) {
       state.cfg.focus = (state.cfg.focus && state.cfg.focus !== "FULL") ? [state.cfg.focus] : [];
@@ -1713,7 +1718,7 @@
     $("#chip-barbell").onclick = () => {
       const on = $("#chip-barbell").getAttribute("aria-pressed") !== "true";
       $("#chip-barbell").setAttribute("aria-pressed", String(on));
-      state.cfg.equipment = on ? ["KB", "BARBELL"] : ["KB"];
+      state.cfg.equipment = on ? ["KB", "FLOOR", "BARBELL"] : ["KB", "FLOOR"];
       prunePinned(); updatePinnedCount();
       if (!$("#pin-panel").classList.contains("hidden")) renderPinned();
       if (state.cfg.mode === "manual") renderBuilder();   // barbell rows may (dis)appear

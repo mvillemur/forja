@@ -11,7 +11,20 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 41 exercises", F.BASE_CATALOG.length === 41);
+ok("base catalog has 42 exercises", F.BASE_CATALOG.length === 42);
+ok("no duplicate names in catalog", new Set(F.BASE_CATALOG.map(e => e.name)).size === F.BASE_CATALOG.length);
+ok("every ISO exercise has a hold duration", F.BASE_CATALOG.filter(e => e.dynamics === "ISO").every(e => e.holdSec > 0));
+
+// Curation: metadata fixes on the base catalog.
+const hipHalos = F.BASE_CATALOG.find(e => e.name === "Hip Halos");
+ok("hip halos are bilateral (continuous two-hand pass, no per-side hold)", hipHalos.symmetry === "BILATERAL");
+ok("heavy RDL counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano / Fijo").grip === true);
+ok("single-leg deadlift (one-hand hold) counts toward the grip budget", F.BASE_CATALOG.find(e => e.name === "Single-Leg Deadlift").grip === true);
+ok("windmill (bell rests on forearm) does not consume grip", F.BASE_CATALOG.find(e => e.name === "Windmill").grip === false);
+ok("pushup variants require floor space", ["Close Grip Pushup", "KB Push-Ups"].every(n => F.BASE_CATALOG.find(e => e.name === n).equipment.includes("FLOOR")));
+const floorPress = F.BASE_CATALOG.find(e => e.name === "Floor Press (una mano)");
+ok("floor press: heavy unilateral horizontal push (KB + floor)", floorPress && floorPress.pattern === "PUSH_H" &&
+  floorPress.symmetry === "UNILATERAL" && floorPress.load === 3 && floorPress.equipment.includes("FLOOR"));
 
 // Power / plyometrics
 ok("POWER objective generates a routine", (() => {
