@@ -471,7 +471,8 @@
               }
             } else {
               // Show the user's last kg if known, else the suggestion.
-              doseEl.appendChild(el("div", "ex-kg", (savedKg != null ? savedKg : baseKg) + " kg"));
+              // Per-session kg (saved-routine edit) wins over the memory.
+              doseEl.appendChild(el("div", "ex-kg", (p.kg != null ? p.kg : savedKg != null ? savedKg : baseKg) + " kg"));
             }
           }
           ex.appendChild(doseEl);
@@ -531,7 +532,10 @@
   let timer = null;
   function timerDose(p) {
     if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + symSuffix(p.exercise);
-    return `${targetReps(p)} reps` + symSuffix(p.exercise);
+    // Hand-edited saved sessions: the trainee's numbers rule over the live
+    // progression target.
+    const reps = p.edited ? p.reps : targetReps(p);
+    return `${reps} reps` + symSuffix(p.exercise);
   }
   const WARMUP_MOBILITY_SEC = 180, WARMUP_RAMP_REST = 45;
   function buildTimerSteps(routine) {
@@ -1360,6 +1364,60 @@
     host.appendChild(card);
   }
 
+  // ---- Edit a saved routine: per-prescription sets / reps / kg ----------
+  // Edits persist on the SESSION (h.routine), not on the global kg memory:
+  // the trainee is correcting what that day should look like, not their
+  // current working weight. The per-session kg (p.kg) wins over the memory
+  // in the read-only render, and edited reps win over the progression
+  // target in the guided timer. Work happens on a deep clone so Cancelar
+  // discards cleanly.
+  function renderRoutineEditor(h, host) {
+    host.innerHTML = "";
+    const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
+    const draft = JSON.parse(JSON.stringify(h.routine));
+    host.appendChild(el("div", "label", "Editar rutina · series, reps y kg"));
+    draft.blocks.forEach(br => {
+      host.appendChild(el("div", "label red-block", "Bloque " + br.block));
+      br.elements.forEach(elm => elm.prescriptions.forEach(p => {
+        const row = el("div", "red-row");
+        row.appendChild(el("div", "red-name", p.exercise.name));
+        const ctl = el("div", "mk-ctl");
+        const stepper = (cls, label, get, set, min, max, step) => {
+          const wrap = el("div", "mk-step " + cls);
+          const dec = el("button", "kg-adj", "−");
+          const val = el("span", "mk-val", get() + label);
+          const inc = el("button", "kg-adj", "+");
+          const upd = d2 => { set(Math.max(min, Math.min(max, get() + d2))); val.textContent = get() + label; };
+          dec.onclick = () => upd(-step); inc.onclick = () => upd(step);
+          wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
+          return wrap;
+        };
+        ctl.appendChild(stepper("red-sets", "x", () => p.sets, v => { p.sets = v; p.edited = true; }, 1, 8, 1));
+        if (p.exercise.dynamics !== F.DIN.ISO)
+          ctl.appendChild(stepper("red-reps", " reps", () => p.reps, v => { p.reps = v; p.edited = true; }, 1, 30, 1));
+        if (p.exercise.equipment.includes("KB")) {
+          const effKg = () => p.kg != null ? p.kg
+            : state.kg[p.exercise.name] != null ? state.kg[p.exercise.name]
+            : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || range.min);
+          ctl.appendChild(stepper("red-kg", " kg", effKg, v => { p.kg = v; }, range.min, range.max, 2));
+        }
+        row.appendChild(ctl);
+        host.appendChild(row);
+      }));
+    });
+    const btns = el("div", "btn-row"); btns.style.marginTop = "12px";
+    const cancel = el("button", "btn btn-ghost", "Cancelar");
+    cancel.onclick = () => renderHistory();
+    const save = el("button", "btn btn-forge", "Guardar cambios");
+    save.onclick = () => {
+      h.routine = draft;
+      h.duration = F.routineDurationMin(draft);
+      saveHistory(); renderHistory(); toast("Rutina actualizada");
+    };
+    btns.appendChild(cancel); btns.appendChild(save);
+    host.appendChild(btns);
+  }
+
   // ---- Render: history
   function renderHistory() {
     renderStats();
@@ -1420,12 +1478,14 @@
       const actions = el("div", "hist-actions");
       const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
       trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
+      const editRt = el("button", "icon-btn", "✎"); editRt.title = "Editar rutina";
+      editRt.onclick = () => { renderRoutineEditor(h, detail); detail.classList.remove("hidden"); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
       okBtn.title = "Marcar completada";
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
       del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
-      actions.appendChild(trainBtn); actions.appendChild(okBtn); actions.appendChild(del);
+      actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
       card.appendChild(row); card.appendChild(detail);
       list.appendChild(card);

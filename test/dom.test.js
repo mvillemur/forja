@@ -82,6 +82,23 @@ setTimeout(() => {
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("history records the session", d.querySelectorAll("#hist-list .card").length === 1);
 
+  // Edit the saved routine: sets/reps/kg persist on the session itself.
+  const rEdit = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.title === "Editar rutina");
+  ok("saved routine has an edit button", !!rEdit);
+  rEdit.click();
+  ok("routine editor lists the prescriptions", d.querySelectorAll("#hist-list .red-row").length > 0);
+  const edKg = d.querySelector("#hist-list .red-kg");
+  ok("routine editor offers a kg stepper", !!edKg);
+  edKg.querySelector(".kg-adj:last-child").click();   // +2 kg
+  const kgTxt = edKg.querySelector(".mk-val").textContent;
+  const edReps = d.querySelector("#hist-list .red-reps");
+  if (edReps) edReps.querySelector(".kg-adj:last-child").click();
+  [...d.querySelectorAll("#hist-list .btn")].find(b => /Guardar cambios/.test(b.textContent)).click();
+  d.querySelector("#hist-list .hist-meta").click();   // reopen detail, view mode
+  ok("edited kg persists on the saved session",
+    [...d.querySelectorAll("#hist-list .ex-kg")].some(n => n.textContent === kgTxt));
+  d.querySelector("#hist-list .hist-meta").click();   // collapse for the rest
+
   // Workout timer: training a saved session opens the overlay with phases.
   const trainBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "▶");
   ok("saved session has a train button", !!trainBtn);
@@ -142,7 +159,8 @@ setTimeout(() => {
   ok("manual card shows per-set reps", /20 · 20 · 20 · 20/.test(d.querySelector("#hist-list").textContent));
 
   // Edit a manual register: change a note and reps, save, verify persisted.
-  const editBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "✎");
+  const editBtn = [...d.querySelectorAll("#hist-list .icon-btn")]
+    .find(b => b.textContent === "✎" && b.title !== "Editar rutina");   // manual-log editor, not the routine editor
   ok("manual card has an edit button", !!editBtn);
   editBtn.click();
   const noteInp = [...d.querySelectorAll("#hist-list .manual-input")].find(i => i.value === "Foco agarre.");
