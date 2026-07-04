@@ -95,6 +95,25 @@ setTimeout(() => {
   d.querySelector("#t-close").click();
   ok("timer closes", d.querySelector("#timer-overlay").classList.contains("hidden"));
 
+  // Timer performance capture: the flow starts with the warm-up, rest phases
+  // offer the set-log strip, and driving the session to the end auto-marks it
+  // completed with the performed sets attached.
+  trainBtn.click();
+  ok("timer starts with the warm-up", /PREPARACION|CALENTAMIENTO/.test(d.querySelector("#t-kind").textContent));
+  let sawLogStrip = false, guard = 0;
+  while (!d.querySelector("#timer-overlay").classList.contains("hidden") && guard++ < 400) {
+    if (!d.querySelector("#t-log").classList.contains("hidden")) sawLogStrip = true;
+    d.querySelector("#t-skip").click();
+  }
+  ok("timer reaches the end without stalling", d.querySelector("#timer-overlay").classList.contains("hidden"));
+  ok("rest phases offer the set-log strip", sawLogStrip);
+  const doneBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "✓");
+  ok("finishing the timer auto-completes the session", doneBtn && doneBtn.classList.contains("on"));
+  const storedHist = JSON.parse(window.localStorage.getItem("forja:hist"));
+  ok("performed sets persist on the session (kg + reps per set)",
+    Array.isArray(storedHist[0].performed) && storedHist[0].performed.length > 0 &&
+    storedHist[0].performed.every(x => typeof x.name === "string" && Array.isArray(x.sets) && x.sets.length > 0));
+
   // CSV import: a tab-separated table with header maps each date to a session.
   const csv = [
     "Fecha\tBloque / Orden\tEjercicio\tCarga (kg)\tSerie 1\tSerie 2\tSerie 3\tSerie 4\tReps Totales\tNotas Tecnicas",

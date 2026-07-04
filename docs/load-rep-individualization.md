@@ -178,6 +178,11 @@ adjustable-range. The above closes the loop for *generated* sessions.
 1. **Capture** — add the person-profile form and per-session logged
    load/reps(+optional RPE) in the timer/history. No behavior change yet; just
    start accumulating the inputs. (Low risk, unblocks everything else.)
+   **(Implemented.)** The guided timer logs every completed work set
+   (`h.performed`: kg + reps per set, adjustable during the rest), collects a
+   one-tap RPE per exercise (applied through `nextTarget` at session end), and
+   auto-completes/saves the session on finish. `sessionVolume` and
+   `computeE1rm` prefer the performed log over the plan-based estimate.
 2. **Double progression** — once a movement has logged history, prescribe
    bottom-of-range and bump load 2 kg when the top is cleared across all sets.
    Pure `engine.js` rule; easy to unit-test. (Biggest value per effort.)

@@ -273,6 +273,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .timer-count { font-family: var(--mono); font-size: 78px; font-weight: 800; color: var(--forge-hi); margin: 18px 0 4px; font-variant-numeric: tabular-nums; }
 .timer-overlay.rest .timer-count { color: var(--steel); }
 .timer-next { font-size: 13px; color: var(--ink-faint); min-height: 18px; }
+/* Set-log strip: shown during rests to confirm/adjust the set just done. */
+.timer-log { width: 100%; max-width: 320px; margin: 8px auto 2px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface-2); }
+.t-log-title { font-size: 12px; color: var(--ink-dim); margin-bottom: 8px; }
+.t-log-title span { color: var(--ink); font-weight: 600; }
+.t-log-reps { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.t-log-reps span { font-family: var(--mono); font-size: 18px; font-weight: 700; min-width: 84px; }
+.t-log-fb { display: flex; gap: 8px; justify-content: center; }
+.t-log-fb .prog-btn.on { outline: 2px solid var(--forge); }
 .timer-controls { display: flex; gap: 10px; width: 100%; margin-top: 32px; }
 .timer-controls .btn { flex: 1; }
 .timer-controls #t-prev, .timer-controls #t-skip { flex: 0 0 60px; font-size: 20px; }

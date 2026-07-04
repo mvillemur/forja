@@ -1,5 +1,13 @@
 # Training-model gaps — next iteration
 
+> **Status: all six gaps below are implemented in `src/engine.js`** (per-side
+> time model, per-exercise ISO holds, weighted grip budget, HIP↔KNEE at
+> ACCEPTABLE, warm-up block, rep-range-aware superset rest). A later trainer
+> review added: rep-aware cold-start loads, an RIR margin on e1RM-derived
+> loads, protocol-true EMOM/AMRAP timelines, grip-pair quality caps, Block C
+> pairing rules, skill gating for beginners, and performance capture in the
+> guided timer. The text is kept as the original rationale.
+
 A review of the **theory and technical model** in `src/engine.js` from a
 medical / physical-training (strength & conditioning) point of view. The engine
 is sound in its core ideas — antagonist supersets, a per-session CNS + grip

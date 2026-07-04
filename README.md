@@ -34,8 +34,22 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
   History; once an exercise has enough data, the kg suggestion is derived from
   your e1RM at the block's rep target instead of the generic load tier. Grinds
   only — ballistics and carries progress by reps/density/time.
-- **Guided workout timer**: full-screen work/rest countdown that walks any
-  generated or saved routine set by set.
+- **Guided workout timer that logs performance**: full-screen work/rest
+  countdown that starts with the warm-up, walks the routine set by set and
+  **records what you actually do** — adjust the reps of the set you just did
+  during the rest, tap Facil/OK/Duro once per exercise, and on finish the
+  session is auto-completed and saved with the real sets. Logged performance
+  feeds the volume chart, the e1RM series and the double progression.
+- **Protocol-true EMOM/AMRAP**: circuit templates run round-major (ex 1 → 2 →
+  3, repeat), EMOM slots last exactly one minute (work + remainder as rest),
+  AMRAP flows on 15 s transitions, and requested minutes scale rounds.
+- **Rep-aware load suggestions**: the cold-start kg is shaded down at higher
+  rep targets (no "heavy tier" kg at 15 reps), and e1RM-derived loads keep
+  2 reps in reserve instead of prescribing your exact rep-max.
+- **Skill gating**: technical lifts (snatch, get-up, windmill, cleans…) are
+  tagged; beginners are steered toward simpler movements and high-skill ISO
+  lifts stay out of fatigued finishers. Grip-on-grip supersets are never
+  rated optimal.
 - **Per-exercise kg memory**: the weight you dial in is remembered and offered
   next time (the engine suggestion is the fallback).
 - **Reorderable pins**: order and per-block assignment of pinned exercises.

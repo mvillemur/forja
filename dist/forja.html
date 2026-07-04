@@ -286,6 +286,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .timer-count { font-family: var(--mono); font-size: 78px; font-weight: 800; color: var(--forge-hi); margin: 18px 0 4px; font-variant-numeric: tabular-nums; }
 .timer-overlay.rest .timer-count { color: var(--steel); }
 .timer-next { font-size: 13px; color: var(--ink-faint); min-height: 18px; }
+/* Set-log strip: shown during rests to confirm/adjust the set just done. */
+.timer-log { width: 100%; max-width: 320px; margin: 8px auto 2px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface-2); }
+.t-log-title { font-size: 12px; color: var(--ink-dim); margin-bottom: 8px; }
+.t-log-title span { color: var(--ink); font-weight: 600; }
+.t-log-reps { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.t-log-reps span { font-family: var(--mono); font-size: 18px; font-weight: 700; min-width: 84px; }
+.t-log-fb { display: flex; gap: 8px; justify-content: center; }
+.t-log-fb .prog-btn.on { outline: 2px solid var(--forge); }
 .timer-controls { display: flex; gap: 10px; width: 100%; margin-top: 32px; }
 .timer-controls .btn { flex: 1; }
 .timer-controls #t-prev, .timer-controls #t-skip { flex: 0 0 60px; font-size: 20px; }
@@ -651,6 +659,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <div class="field"><div class="label">Enfasis en brazos</div>
           <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Si</span></label>
         </div>
+        <div class="field"><div class="label">Tecnica exigente (tipo snatch/TGU)</div>
+          <label class="field-toggle"><input type="checkbox" id="f-skill"> <span>Si</span></label>
+        </div>
       </div>
       <div class="field">
         <div class="label">Equipamiento necesario</div>
@@ -689,7 +700,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p><b>1.</b> En <b>Generar</b>, ajusta objetivo, foco, equipamiento, tu pesa, la duracion y las opciones.</p>
         <p><b>2.</b> Pulsa <b>Generar rutina</b>. Si no te convence, <b>Regenerar</b> da otra variante.</p>
         <p><b>3.</b> <b>Guardar sesion</b> la envia al <b>Historial</b>.</p>
-        <p><b>4.</b> En Historial, toca una sesion para ver el detalle y marca <b>✓</b> cuando la completes.</p>
+        <p><b>4.</b> <b>Entrenar (▶)</b> abre el temporizador guiado: arranca con el calentamiento, te lleva serie a serie y <b>registra lo que haces de verdad</b> — en cada descanso puedes ajustar las repeticiones de la serie hecha y valorar el ejercicio (Facil / OK / Duro). Al terminar, la sesion se marca <b>✓ completada</b> sola y lo registrado alimenta tu volumen, tu e1RM y la progresion.</p>
+        <p><b>5.</b> En Historial, toca una sesion para ver el detalle; el ✓ tambien se puede marcar a mano.</p>
       </div>
     </details>
 
@@ -719,7 +731,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p><b>Superserie:</b> dos ejercicios que haces alternados (uno, luego el otro, descansas, repites). Suelen ser opuestos (empuje/tiron, cadera/rodilla) para que mientras trabajas uno, el otro se recupere. Ahorra tiempo.</p>
         <p><b>Set directo:</b> un solo ejercicio con su descanso completo entre series.</p>
-        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal.</p>
+        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal (por ejemplo, dos ejercicios de agarre seguidos: el antebrazo nunca descansa, asi que ese par nunca es Optimo).</p>
       </div>
     </details>
 
@@ -747,7 +759,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <summary>Pesa y kg sugeridos</summary>
       <div class="acc-body">
         <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
-        <p>La sugerencia se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
+        <p>La sugerencia tambien mira el <b>objetivo de repeticiones</b>: el mismo ejercicio a 15 reps se sugiere claramente mas ligero que a 5 (no existe "carga pesada" a muchas repeticiones).</p>
+        <p>Y se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
       </div>
     </details>
 
@@ -755,6 +768,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <summary>Perfil</summary>
       <div class="acc-body">
         <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
+        <p>El nivel tambien pesa en la <b>seleccion</b>: para un principiante, los ejercicios de <b>tecnica exigente</b> (snatch, get-up, windmill, cleans…) pierden prioridad frente a movimientos mas simples — el problema de un snatch para quien empieza es la tecnica, no 2 kg mas o menos.</p>
         <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
       </div>
     </details>
@@ -799,21 +813,25 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p>El <b>motor</b> de FORJA no toca la pantalla: recibe tus datos y devuelve la rutina, paso a paso. (1) Elige la plantilla del objetivo y la escala por tiempo o estructura. (2) Filtra el pool por equipamiento. (3) Arma cada bloque emparejando ejercicios con las reglas de superserie, el presupuesto de fatiga y el balance. (4) Calcula duracion, kg sugeridos y objetivos de repeticiones.</p>
 
-        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. La duracion total es la suma de todos los elementos.</p>
+        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. Entre ejercicio y ejercicio se cuenta ademas un <b>cambio de 30 s</b> (colocarte, ajustar la pesa). La duracion total es la suma de todo.</p>
+
+        <p><b>EMOM y AMRAP van a su ritmo, no al descanso por rango.</b> En EMOM cada franja es <b>un minuto</b>: haces las reps y descansas <b>lo que sobra del minuto</b>; el temporizador recorre el circuito en rondas (ejercicio 1 → 2 → 3, y vuelta), no todas las series de un ejercicio seguidas. En AMRAP/circuito se pasa de un ejercicio al siguiente con una <b>transicion corta (15 s)</b>, sin descansos largos. Los minutos que pidas escalan las <b>rondas</b> del circuito.</p>
 
         <p><b>Presupuesto de fatiga (SNC y agarre).</b> Cada objetivo fija un maximo de ejercicios de <b>SNC alta</b> por sesion (p. ej. Fuerza 2, Metabolico 4) y no se supera. El <b>agarre</b> es un acumulador ponderado: un balistico de agarre pesa 1,0 y otros de agarre (carries pesados, remos, get-up, bottoms-up) 0,5; el maximo cuenta "equivalentes balisticos".</p>
 
-        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: dos ejercicios de agarre (el antebrazo no descansa), cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+
+        <p><b>El finalizador (C) tambien se gradua.</b> Ya no vale todo: los lifts de tecnica exigente e isometricos (get-up, windmill) bajo fatiga alta, el doble agarre y dos de SNC alta juntos quedan como Aceptable con su aviso; el par antagonista tranquilo sigue siendo Optimo. Ademas la seleccion evita colocar get-up/windmill en el finalizador.</p>
 
         <p><b>Seleccion con "misma pesa".</b> Si activas "misma pesa por circuito", al elegir los ejercicios de cada bloque el motor penaliza (−2 por escalon de distancia) los que se alejan de la carga ya elegida en ese bloque, y al emparejar superseries prefiere la pareja de carga mas parecida (sin sacrificar la calidad antagonista). Asi los ejercicios de un bloque comparten carga y la unica pesa propuesta (la mediana) le queda bien a todos.</p>
 
-        <p><b>kg sugerido (3 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (3) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
+        <p><b>kg sugerido (4 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × factor del <b>rango de repeticiones</b>: fuerza (≤5) ×1 · hipertrofia (6–11) ×0,9 · metabolico (12+) ×0,7 — el mismo ejercicio a muchas reps se sugiere mas ligero. (3) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (4) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
 
         <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
 
         <p><b>Estado del dia (autorregulacion).</b> Tu energia (1–5), el descanso y las zonas doloridas se traducen en factores que alimentan las mismas palancas que la periodizacion: volumen (escala los minutos objetivo → series/ejercicios), carga (×0,85–1,06 sobre los kg sugeridos), cupo de SNC alta (se recorta en dias flojos) y un sesgo de intensidad. Las zonas doloridas restan prioridad a esos patrones en la seleccion. Con energia "Normal", sueño "Ok" y sin dolor, los factores valen 1/0 y no cambian nada.</p>
 
-        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque (carga = e1RM ÷ (1 + reps/30), redondeada a 2 kg y acotada a tu rango), en vez de la sugerencia generica por carga. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
+        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales, de las series que <b>registra el temporizador</b> y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque — con un <b>margen de 2 reps en reserva</b> (carga = e1RM ÷ (1 + (reps+2)/30)): prescribir tu maximo exacto para todas las series no es sostenible. Redondeada a 2 kg y acotada a tu rango. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
       </div>
     </details>
 
@@ -835,7 +853,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <details class="acc">
       <summary>Anadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo y si tiene enfasis en brazos (para que entre en el foco Brazos).</p>
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en principiantes y finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>
@@ -1094,6 +1112,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
+  // High-skill lifts: the limiter is technique, not strength. A beginner's
+  // problem with a snatch is not solved by 2 kg less — selection steers
+  // novices to simpler movements, and these stay out of fatigued finishers.
+  const _SKILL_EXERCISES = new Set([
+    "Snatch", "Turkish Get-Up", "Windmill", "Clean (una mano)", "Clean + Press",
+    "Clean + Sentadilla Goblet", "High Pull", "Push Press", "Press Bottoms-Up",
+  ]);
   // Arm emphasis: exercises where elbow flexion (biceps: curls, rows,
   // chin-ups) or extension (triceps: presses, close-grip push-ups) does a
   // meaningful share of the work. A muscle tag on top of the movement
@@ -1111,6 +1136,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
     e.plyo = _PLYO_EXERCISES.has(e.name);
     e.arms = _ARMS_EXERCISES.has(e.name);
+    e.skill = _SKILL_EXERCISES.has(e.name);
   });
 
   // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
@@ -1134,6 +1160,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const REST_TIME = { SP:150, HP:75, ME:40 };
   const DEFAULT_HOLD_ISO = 35, SS_TRANSITION = 20, INTER_SIDE_REST = 15;
   const SETS_RANGE = { SP:[3,6], HP:[3,5], ME:[3,5] };
+  // Circuit protocols: an EMOM slot is one minute (work + remainder as rest);
+  // AMRAP/circuit moves between exercises on a short fixed transition.
+  // CHANGEOVER_SEC is the between-exercise setup pause in standard sessions
+  // (the guided timer shows it; the duration model counts it).
+  const EMOM_SLOT_SEC = 60, CIRCUIT_TRANSITION = 15, CHANGEOVER_SEC = 30;
 
   // Work time for one SET. ISO uses the per-exercise holdSec (default 35).
   // Unilateral work trains both sides: ~2x work + a small inter-side micro-rest.
@@ -1150,8 +1181,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return p.exercise.plyo ? Math.max(base, REST_TIME.SP) : base;
   }
 
-  function elementTimeSec(el) {
+  function elementTimeSec(el, protocol) {
     const s = el.prescriptions[0].sets;
+    // Circuit protocols run solo slots on protocol timing, not rep-class rest:
+    // EMOM = one minute per slot (work + remainder), AMRAP = work + transition.
+    if (!el.isSuperset && (protocol === "EMOM" || protocol === "AMRAP")) {
+      const p = el.prescriptions[0];
+      const work = setWorkSec(p.exercise, p.reps);
+      if (protocol === "EMOM") return s * Math.max(EMOM_SLOT_SEC, work + 5);
+      return s * (work + CIRCUIT_TRANSITION);
+    }
     if (el.isSuperset) {
       const [a, b] = el.prescriptions;
       const work = setWorkSec(a.exercise, a.reps) + setWorkSec(b.exercise, b.reps);
@@ -1190,12 +1229,49 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }
     return steps;
   }
+  // Block-level timeline. Standard blocks: per-element timelines joined by a
+  // changeover pause. Circuit protocols interleave ROUND-MAJOR — one pass
+  // through every exercise per round, the way a circuit is actually trained —
+  // instead of finishing all sets of one movement before touching the next.
+  function blockTimeline(br, protocol) {
+    const steps = [];
+    if (protocol !== "EMOM" && protocol !== "AMRAP") {
+      br.elements.forEach((el, i) => {
+        if (i) steps.push({ kind: "rest", sec: CHANGEOVER_SEC, label: "Cambio de ejercicio" });
+        elementTimeline(el).forEach(ph => steps.push(ph));
+      });
+      return steps;
+    }
+    const ps = br.elements.flatMap(el => el.prescriptions);   // solo slots (pair:false)
+    const rounds = ps.reduce((a, p) => Math.max(a, p.sets), 0);
+    for (let r = 1; r <= rounds; r++) {
+      ps.forEach((p, i) => {
+        if (r > p.sets) return;
+        const work = Math.round(setWorkSec(p.exercise, p.reps));
+        steps.push({ kind: "work", sec: work, prescription: p, setNo: r, totalSets: p.sets });
+        if (r === rounds && i === ps.length - 1) return;   // no trailing rest
+        if (protocol === "EMOM")
+          steps.push({ kind: "rest", sec: Math.max(5, EMOM_SLOT_SEC - work), label: "Resto del minuto" });
+        else
+          steps.push({ kind: "rest", sec: CIRCUIT_TRANSITION, label: "Transicion" });
+      });
+    }
+    return steps;
+  }
   function routineDurationMin(routine) {
-    let t = 0; routine.blocks.forEach(br => br.elements.forEach(el => t += elementTimeSec(el)));
+    let t = 0, els = 0;
+    const protocol = routine.protocol || null;
+    routine.blocks.forEach(br => br.elements.forEach(el => { t += elementTimeSec(el, protocol); els++; }));
+    // Standard sessions pay a real-world changeover between exercises; circuit
+    // protocols flow continuously, so they don't.
+    if (!protocol && els > 1) t += CHANGEOVER_SEC * (els - 1);
     return Math.round(t / 60);
   }
-  function blockDurationMin(br) {
-    return Math.round(br.elements.reduce((a, el) => a + elementTimeSec(el), 0) / 60);
+  function blockDurationMin(br, protocol) {
+    const n = br.elements.length;
+    let t = br.elements.reduce((a, el) => a + elementTimeSec(el, protocol || null), 0);
+    if (!protocol && n > 1) t += CHANGEOVER_SEC * (n - 1);
+    return Math.round(t / 60);
   }
 
   // --- Antagonism --------------------------------------------------------
@@ -1217,7 +1293,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (a.block !== b.block) return makeResult(false, QUALITY.INVALID, ["Different blocks; they do not form a superset."]);
     if (a.block === BLOCK.A) return validateBlockA(a, b);
     if (a.block === BLOCK.B) return validateBlockB(a, b);
-    return makeResult(true, QUALITY.OPTIMAL, ["Finalizador: combinacion libre."]);
+    return validateBlockC(a, b);
   }
   function validateBlockA(a, b) {
     const ea = a.exercise, eb = b.exercise;
@@ -1230,6 +1306,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       return makeResult(false, QUALITY.INVALID, ["Fuerza 1-5 + metabolico 12+: interferencia."]);
     if (ea.pattern === eb.pattern && ea.pattern !== PAT.CORE)
       return makeResult(false, QUALITY.INVALID, ["Mismo patron: fatiga local, no antagonista."]);
+    // Two grip consumers back-to-back (any dynamics) leave the forearm no
+    // window to recover — never "optimal", whatever the patterns say.
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (isActiveRest(ea) !== isActiveRest(eb))
       return makeResult(true, QUALITY.OPTIMAL, ["Lift principal + core de baja demanda: descanso activo ideal."]);
     // Lower-body cross-pattern (hinge + squat) is NOT a true antagonist recovery:
@@ -1244,11 +1324,29 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const ea = a.exercise, eb = b.exercise;
     if (ea.grip && eb.grip && ea.dynamics === DIN.BALLISTIC && eb.dynamics === DIN.BALLISTIC)
       return makeResult(true, QUALITY.ACCEPTABLE, ["Riesgo de agarre; reduce reps o intercala core."]);
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Par antagonista en accesorios: eficiente."]);
     if (ea.pattern === eb.pattern && new Set([repRange(a), repRange(b)]).has(REP_RANGE.HP))
       return makeResult(true, QUALITY.ACCEPTABLE, ["Mismo patron en hipertrofia: volumen dirigido."]);
     return makeResult(true, QUALITY.ACCEPTABLE, ["Combinacion de accesorios aceptable."]);
+  }
+  // Finisher: no longer an automatic OPTIMAL. High-skill ISO lifts (TGU,
+  // Windmill) do not belong under peak fatigue, double grip is graded down,
+  // and two high-CNS movements together get a caution — a finisher circuit
+  // tolerates them, but it is not the ideal pairing.
+  function validateBlockC(a, b) {
+    const ea = a.exercise, eb = b.exercise;
+    if ((ea.skill && ea.dynamics === DIN.ISO) || (eb.skill && eb.dynamics === DIN.ISO))
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Tecnica exigente (TGU/Windmill) con fatiga alta: mejor al inicio de la sesion."]);
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
+    if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Dos de SNC alta en el finalizador: dosifica el ritmo."]);
+    if (areAntagonists(ea.pattern, eb.pattern))
+      return makeResult(true, QUALITY.OPTIMAL, ["Finalizador antagonista: alterna sin freno."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Finalizador: combinacion libre."]);
   }
 
   // --- Fatigue budget ---------------------------------------------
@@ -1369,7 +1467,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // rest the remainder of the minute, then move to the next. sets = number
     // of rounds through the circuit; reps = reps to hit each minute.
     EMOM: {
-      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3, fixedCount: true,
+      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3, fixedCount: true, protocol: "EMOM",
       blocks: [
         schema(BLOCK.A, 3, 6, 8, [DIN.BALLISTIC, DIN.STRENGTH], false),
       ],
@@ -1377,7 +1475,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // AMRAP / circuit: pair:false keeps every exercise as a solo slot
     // so the routine reads as a linear circuit to repeat for time.
     AMRAP: {
-      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3, fixedCount: true,
+      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3, fixedCount: true, protocol: "AMRAP",
       blocks: [
         schema(BLOCK.A, 4, 3, 10, [DIN.STRENGTH, DIN.BALLISTIC], false),
         schema(BLOCK.C, 1, 3, 15, [DIN.METABOLIC],               false),
@@ -1403,11 +1501,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // must stay small. Time scales the number of ROUNDS through that circuit,
     // not the number of distinct movements.
     if (base.fixedCount) {
-      const oneRound = base.blocks
-        .reduce((a, b) => a + estimateSchemaSec(schema(b.block, b.count, 1, b.reps, [...b.dynamics], b.pair)), 0) || 1;
+      // Protocol-true round estimate: an EMOM round is count minutes by
+      // definition; an AMRAP/circuit round is work + a short transition per
+      // exercise. (The old rep-class-rest estimate made "20 min EMOM" ~12 min.)
+      const roundSec = b => base.protocol === "EMOM"
+        ? b.count * EMOM_SLOT_SEC
+        : b.count * (b.reps * repTempo(b) + CIRCUIT_TRANSITION);
+      const oneRound = base.blocks.reduce((a, b) => a + roundSec(b), 0) || 1;
       const rounds = Math.max(2, Math.min(12, Math.round(target / oneRound)));
       const blocks = base.blocks.map(b => schema(b.block, b.count, rounds, b.reps, [...b.dynamics], b.pair));
-      return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: true, blocks };
+      return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: true, protocol: base.protocol, blocks };
     }
     const baseTotal = base.blocks.reduce((a, b) => a + estimateSchemaSec(b), 0) || 1;
     const factor = Math.max(0.3, Math.min(2.5, target / baseTotal));
@@ -1443,6 +1546,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function prescribe(e, sch) {
     let reps = sch.reps;
     if (e.dynamics === DIN.ISO) reps = Math.max(reps, 8);
+    // Continuous/flow drills (Figure-8, Burpees...) make no sense at a 5-rep
+    // strength dose — a few seconds of work. Floor them at 10 (still HP, so
+    // the SP+ME interference rule cannot fire inside a generated pair).
+    if (e.dynamics === DIN.METABOLIC) reps = Math.max(reps, 10);
     return { exercise: e, block: sch.block, sets: sch.sets, reps };
   }
   function priority(e, sch, bal) {
@@ -1456,6 +1563,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
+    if (bal.beginner && e.skill) s -= 4;                 // novices: technique-first selection
+    if (sch.block === BLOCK.C && e.skill && e.dynamics === DIN.ISO) s -= 5; // no TGU/Windmill under finisher fatigue
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
@@ -1478,10 +1587,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return Math.max(0.7, Math.min(1.3, m));
   }
 
-  function suggestKg(load, min, max, person, exercise) {
+  // Rep-target factor for the cold-start suggestion: the same exercise cannot
+  // carry its "heavy tier" kg at a 15-rep target. Without this, tier and rep
+  // prescription were decoupled (e.g. 3x15 Floor Press at 85% of the range).
+  // SP keeps the tier as-is; HP shades it; ME drops roughly a tier.
+  const REP_LOAD_FACTOR = { SP: 1, HP: 0.9, ME: 0.7 };
+  function suggestKg(load, min, max, person, exercise, reps) {
     if (min == null || max == null) return null;
     const base = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
     let frac = base == null ? 0.5 : base;
+    if (reps > 0) frac *= REP_LOAD_FACTOR[classifyVolume(reps)];
     frac = Math.max(0.1, Math.min(0.95, frac * personSeedMultiplier(person, exercise)));
     const kg = Math.round((min + frac * (max - min)) / 2) * 2;
     return Math.max(min, Math.min(max, kg));
@@ -1568,9 +1683,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // Inverse Epley: the working load that yields `e1` at `reps` reps. Snapped to
   // the 2 kg increment and clamped to [min,max] (opts) so it lands on the
   // adjustable kettlebell. Used to prescribe a weight from a tracked e1RM.
+  // E1RM_PRESCRIPTION_RIR: prescribe as if the set had 2 reps in reserve —
+  // inverting at exactly `reps` would hand back the trainee's rep-max, and
+  // nobody sustains their 10RM for every set of a 3x10.
+  const E1RM_PRESCRIPTION_RIR = 2;
   function loadForReps(e1, reps, opts) {
     if (e1 == null || !(e1 > 0) || !(reps > 0)) return null;
-    const raw = e1 / (1 + Math.min(reps, E1RM_MAX_REPS) / 30);
+    const raw = e1 / (1 + (Math.min(reps, E1RM_MAX_REPS) + E1RM_PRESCRIPTION_RIR) / 30);
     opts = opts || {};
     return snapKg(raw, opts.min, opts.max);
   }
@@ -1619,7 +1738,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function unifiedKg(prescriptions, range, person) {
     if (!range || range.min == null || range.max == null) return null;
     const ks = (prescriptions || [])
-      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise))
+      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise, p.reps))
       .filter(k => k != null)
       .sort((a, b) => a - b);
     if (!ks.length) return null;
@@ -1647,15 +1766,21 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    // Prefer, in order: superset quality, then (single-weight mode) a partner
-    // whose load matches the block anchor, then the balance bonus.
-    let best = null, key = [-1, 1, -1];
+    // Prefer, in order: superset quality, then (for beginners) a partner that
+    // is not a high-skill lift, then (single-weight mode) a partner whose load
+    // matches the block anchor, then the balance bonus.
+    let best = null, key = [-1, -1, 1, -1];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const k = [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
-      if (k[0] > key[0] || (k[0] === key[0] && (k[1] > key[1] || (k[1] === key[1] && k[2] > key[2])))) { best = c; key = k; }
+      const k = [res.quality, (bal.beginner && c.skill) ? 0 : 1, -bal.loadPenalty(c), bal.bonus(c)];
+      let better = false;
+      for (let i = 0; i < k.length; i++) {
+        if (k[i] > key[i]) { better = true; break; }
+        if (k[i] < key[i]) break;
+      }
+      if (better) { best = c; key = k; }
     }
     return best;
   }
@@ -1797,7 +1922,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const blocks = base.blocks
       .filter(b => (structure[b.block] || 0) > 0)
       .map(b => schema(b.block, structure[b.block], b.sets, b.reps, [...b.dynamics], b.pair));
-    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
+    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: base.fixedCount, protocol: base.protocol, blocks };
   }
 
   function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent, sameWeight) {
@@ -1811,6 +1936,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
+    bal.beginner = !!template.__beginner; // steer novices away from high-skill lifts
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -2211,7 +2337,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const nc = Math.max(1, Math.round(b.count * factor));
       return schema(b.block, nc, b.sets, b.reps, [...b.dynamics], b.pair);
     });
-    return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, blocks };
+    return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, protocol: tpl.protocol, blocks };
   }
 
   // --- Daily readiness / mood autoregulation ----------------------------
@@ -2271,11 +2397,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      tpl.__beginner = ((opts.person && opts.person.level) || "").toUpperCase() === "BEG";
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
       rt.readiness = { loadFactor: rf.loadFactor, level: rf.level };
+      rt.protocol = base.protocol || null;   // EMOM/AMRAP run on protocol timing
       return rt;
     };
 
@@ -2310,6 +2438,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     e.tier = fields.tier || TIER.ACCESSORY;
     e.plyo = !!fields.plyo;
     e.arms = !!fields.arms;
+    e.skill = !!fields.skill;
     return e;
   }
 
@@ -2317,7 +2446,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     PAT, DIN, SIM, CNS, EQ, LOAD_TIER, BLOCK, REP_RANGE, QUALITY, QUALITY_NAME, TIER, TIER_LABEL,
     PAT_LABEL, DIN_LABEL, LOAD_LABEL, FOCUS_LABEL,
     BASE_CATALOG, TEMPLATES, RENAMED,
-    classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
+    classifyVolume, elementTimeSec, elementTimeline, blockTimeline, routineDurationMin, blockDurationMin,
+    CHANGEOVER_SEC,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     composeRoutine, auditRoutine, inferObjective, assessObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
@@ -2408,6 +2538,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     hist: [],
     routine: null,
     routineSource: "auto",   // where state.routine came from: generator or manual builder
+    lastSavedId: null, // history id of the live routine (timer updates it instead of duplicating)
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
     prog: {},         // name -> current rep target (double progression, persisted)
@@ -2562,13 +2693,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
   // ---- Formatting
+  // Symmetry suffix: unilateral reps are per side; alternating reps are the
+  // TOTAL split between sides — say so, or "3x15" reads as 15 per leg.
+  const symSuffix = e => e.symmetry === F.SIM.UNILATERAL ? " / lado"
+    : e.symmetry === F.SIM.ALTERNATING ? " (alt.)" : "";
   const dose = p => {
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     if (p.exercise.dynamics === F.DIN.ISO) {
       const sec = p.exercise.holdSec || 35;
-      return `${p.sets}x ~${sec}s` + (perSide ? " / lado" : "");
+      return `${p.sets}x ~${sec}s` + symSuffix(p.exercise);
     }
-    return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
+    return `${p.sets}x${p.reps}` + symSuffix(p.exercise);
   };
 
   // Current rep target for an exercise (double progression). Falls back to the
@@ -2577,12 +2711,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // Dose string using the progression target (for the live, editable routine).
   function doseTarget(p) {
     if (p.exercise.dynamics === F.DIN.ISO) return dose(p);
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
-    return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
+    return `${p.sets}x${targetReps(p)}` + symSuffix(p.exercise);
   }
   // Record the trainee's feedback ('easy'|'ok'|'hard') and autoregulate the
   // next target for this exercise (double progression + RPE nudge).
-  function applyProgression(p, feedback) {
+  // opts.silent skips the toast/re-render (used when the timer applies the
+  // whole session's feedback in one pass at the end).
+  function applyProgression(p, feedback, opts) {
+    opts = opts || {};
     const name = p.exercise.name;
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
@@ -2596,7 +2732,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         const blk = state.routine.blocks.find(b => b.block === p.block);
         curKg = blk ? F.unifiedKg(blk.elements.flatMap(e => e.prescriptions), { min, max }, state.cfg.profile) : null;
       }
-      if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+      if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise, p.reps);
     }
     const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
     const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
@@ -2604,6 +2740,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const up = next.kg != null && next.kg > curKg;
     const down = next.kg != null && next.kg < curKg;
     if (next.kg != null) { state.kg[kgKey] = next.kg; saveKg(); }
+    if (opts.silent) return;
     toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
        : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
                : `Objetivo proxima vez: ${next.reps} reps`);
@@ -2630,10 +2767,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const pool = poolByName();
     const series = {};                    // name -> [values, oldest first]
     const push = (name, v) => { if (v != null) (series[name] || (series[name] = [])).push(v); };
-    // 1) Manual logs, oldest session first.
+    // 1) Logged sets, oldest session first: manual logs AND the performance
+    //    the guided timer captured for generated sessions (same shape).
     state.hist.slice().reverse().forEach(h => {
-      if (!h.manual || !Array.isArray(h.exercises)) return;
-      h.exercises.forEach(ex => {
+      const logs = (h.manual && Array.isArray(h.exercises)) ? h.exercises
+                 : Array.isArray(h.performed) ? h.performed : null;
+      if (!logs) return;
+      logs.forEach(ex => {
         const def = pool[ex.name];
         if (!def || !F.e1rmEligible(def)) return;
         push(ex.name, F.bestE1rm((ex.sets || []).map(r => ({ kg: ex.kg, reps: r }))));
@@ -2701,7 +2841,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const blk = el("div", "block");
       const bh = el("div", "block-head");
       bh.appendChild(el("div", "block-name", `Bloque <b>${br.block}</b> · ${blockName[br.block]}`));
-      bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br)} min`));
+      bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br, r.protocol)} min`));
       blk.appendChild(bh);
 
       // Single-kettlebell mode: one shared weight for the whole block/circuit,
@@ -2749,7 +2889,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
               baseKg = F.loadForReps(est.current, reps, { min: range.min, max: range.max });
               usedE1 = baseKg != null;
             }
-            if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, reps);
             // Daily readiness: lighten (or slightly raise) the suggestion to match
             // how the trainee shows up today. Only touches the suggestion — a
             // dialed kg (savedKg) still wins below.
@@ -2845,20 +2985,38 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   // ---- Guided workout timer --------------------------------------------
   // Flattens a routine into an ordered list of work/rest phases (from the
-  // engine's per-element timeline) and drives a full-screen countdown.
+  // engine's block timelines) and drives a full-screen countdown. The timer
+  // is also the capture point: every completed work set is logged (kg + reps,
+  // adjustable during the following rest) and one-tap RPE per exercise feeds
+  // the double-progression at the end — so history records what was actually
+  // done, not just the plan.
   let timer = null;
   function timerDose(p) {
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
-    if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + (perSide ? " / lado" : "");
-    return `${targetReps(p)} reps` + (perSide ? " / lado" : "");
+    if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + symSuffix(p.exercise);
+    return `${targetReps(p)} reps` + symSuffix(p.exercise);
   }
+  const WARMUP_MOBILITY_SEC = 180, WARMUP_RAMP_REST = 45;
   function buildTimerSteps(routine) {
     const steps = [];
-    routine.blocks.forEach(br => br.elements.forEach(elm => {
-      // 30 s changeover before every element except the very first.
-      if (steps.length) steps.push({ kind: "rest", sec: 30, label: "Cambio de ejercicio", block: br.block });
-      F.elementTimeline(elm).forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
-    }));
+    // Warm-up first: the prep block exists to protect the ballistic work that
+    // follows — the guided flow must not skip it.
+    if (routine.warmup && routine.warmup.items && routine.warmup.items.length)
+      steps.push({ kind: "rest", sec: WARMUP_MOBILITY_SEC, label: "Calentamiento: movilidad + activacion", warmup: true });
+    const ru = routine.warmup && routine.warmup.rampUp;
+    if (ru) {
+      const pseudo = { isSuperset: false, prescriptions: [{ exercise: ru.exercise, block: "A", sets: ru.sets, reps: ru.reps }] };
+      F.elementTimeline(pseudo).forEach(ph => steps.push(Object.assign({}, ph, {
+        block: "A", warmup: true,
+        sec: ph.kind === "rest" ? WARMUP_RAMP_REST : ph.sec,
+        doseLabel: ru.reps + " reps · carga ligera (aproximacion)",
+      })));
+    }
+    routine.blocks.forEach(br => {
+      const tl = F.blockTimeline(br, routine.protocol || null);
+      if (!tl.length) return;
+      if (steps.length) steps.push({ kind: "rest", sec: F.CHANGEOVER_SEC, label: routine.protocol ? "Cambio de bloque" : "Cambio de ejercicio", block: br.block });
+      tl.forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
+    });
     return steps;
   }
   function ensureTimerOverlay() {
@@ -2873,6 +3031,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       '<div id="t-name" class="timer-name"></div>' +
       '<div id="t-sub" class="timer-sub"></div>' +
       '<div id="t-count" class="timer-count">0:00</div>' +
+      '<div id="t-log" class="timer-log hidden">' +
+      '<div class="t-log-title">Serie hecha: <span id="t-log-name"></span></div>' +
+      '<div class="t-log-reps">' +
+      '<button id="t-log-dec" class="kg-adj">−</button>' +
+      '<span id="t-log-val"></span>' +
+      '<button id="t-log-inc" class="kg-adj">+</button></div>' +
+      '<div class="t-log-fb" id="t-log-fb">' +
+      '<button data-fb="easy" class="prog-btn prog-easy">Facil</button>' +
+      '<button data-fb="ok" class="prog-btn prog-ok">OK</button>' +
+      '<button data-fb="hard" class="prog-btn prog-hard">Duro</button>' +
+      '</div></div>' +
       '<div id="t-next" class="timer-next"></div>' +
       '<div class="timer-controls">' +
       '<button id="t-prev" class="btn btn-ghost">‹</button>' +
@@ -2882,24 +3051,69 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     document.body.appendChild(o);
     return o;
   }
-  function startTimer(routine) {
+  // Working kg for a prescription right now: the dialed weight (shared circuit
+  // weight in same-weight mode), else the engine suggestion.
+  function currentKgFor(p) {
+    const sameW = !!state.cfg.sameWeight;
+    if (sameW && state.kg["__sw:" + p.block] != null) return state.kg["__sw:" + p.block];
+    if (state.kg[p.exercise.name] != null) return state.kg[p.exercise.name];
+    return F.suggestKg(p.exercise.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, p.exercise, p.reps);
+  }
+  // Group the flat set log into per-exercise entries (same shape as manual
+  // session logs: { name, kg, sets: [reps...] }), so e1RM and volume can
+  // consume both without caring where the data came from.
+  function groupPerformed(done) {
+    const out = [];
+    const byKey = {};
+    done.forEach(en => {
+      const key = en.name + "@" + en.kg;
+      if (!byKey[key]) { byKey[key] = { name: en.name, kg: en.kg, sets: [] }; out.push(byKey[key]); }
+      byKey[key].sets.push(en.reps);
+    });
+    return out;
+  }
+  function startTimer(routine, histEntry) {
     if (!routine || !routine.blocks) return;
     const steps = buildTimerSteps(routine);
     if (!steps.length) { toast("Rutina vacia"); return; }
     if (timer) clearInterval(timer.tick);
     const o = ensureTimerOverlay(); o.classList.remove("hidden");
-    const T = timer = { i: 0, remaining: 0, paused: false, tick: null };
+    const T = timer = { i: 0, remaining: 0, paused: false, tick: null,
+      done: [], logged: {}, fb: {}, lastEntry: null };
     const fmt = sec => Math.floor(sec / 60) + ":" + String(Math.max(0, sec) % 60).padStart(2, "0");
+    // Log a work step the moment the trainee moves past it. Warm-up and ISO
+    // phases are not logged (no meaningful rep count); re-visiting a step via
+    // ‹/› never double-logs it.
+    function logWorkStep(i) {
+      const s = steps[i];
+      if (!s || s.kind !== "work" || s.warmup) return;
+      if (T.logged[i]) { T.lastEntry = T.logged[i].reps != null ? T.logged[i] : null; return; }
+      const p = s.prescription;
+      if (p.exercise.dynamics === F.DIN.ISO) { T.logged[i] = { name: p.exercise.name }; T.lastEntry = null; return; }
+      const entry = { name: p.exercise.name, kg: currentKgFor(p), reps: targetReps(p), p };
+      T.logged[i] = entry; T.done.push(entry); T.lastEntry = entry;
+    }
+    function renderLog() {
+      const s = steps[T.i];
+      const show = s.kind === "rest" && !s.warmup && T.lastEntry;
+      $("#t-log").classList.toggle("hidden", !show);
+      if (!show) return;
+      $("#t-log-name").textContent = T.lastEntry.name + (T.lastEntry.kg != null ? " · " + T.lastEntry.kg + " kg" : "");
+      $("#t-log-val").textContent = T.lastEntry.reps + " reps";
+      const fb = T.fb[T.lastEntry.name];
+      $("#t-log-fb").querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", b.getAttribute("data-fb") === fb));
+    }
     function render() {
       const s = steps[T.i];
       $("#t-step").textContent = `Paso ${T.i + 1} / ${steps.length}`;
       o.classList.toggle("rest", s.kind === "rest");
       if (s.kind === "work") {
-        $("#t-kind").textContent = "TRABAJO · Bloque " + s.block;
+        $("#t-kind").textContent = (s.warmup ? "CALENTAMIENTO" : "TRABAJO") + " · Bloque " + s.block;
         $("#t-name").textContent = s.prescription.exercise.name;
-        $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${timerDose(s.prescription)}`;
+        $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${s.doseLabel || timerDose(s.prescription)}`;
       } else {
-        $("#t-kind").textContent = "DESCANSO";
+        $("#t-kind").textContent = s.warmup ? "PREPARACION" : "DESCANSO";
         $("#t-name").textContent = s.label || "Descanso";
         $("#t-sub").textContent = "";
       }
@@ -2908,9 +3122,41 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         ? "Sigue: " + (nxt.kind === "work" ? nxt.prescription.exercise.name : (nxt.label || "descanso"))
         : "Ultima fase";
       $("#t-count").textContent = fmt(T.remaining);
+      renderLog();
     }
     function load(i) { T.i = Math.max(0, Math.min(steps.length - 1, i)); T.remaining = steps[T.i].sec; render(); }
-    function finish() { toast("Entrenamiento completado"); stop(); }
+    // Persist what actually happened. Completed=finished the whole flow; an
+    // early close keeps the partial log (if the session lives in history)
+    // without marking it complete.
+    function persist(completed) {
+      const performed = groupPerformed(T.done);
+      if (!performed.length && !completed) return false;
+      let h = histEntry || (state.lastSavedId != null ? state.hist.find(x => x.id === state.lastSavedId) : null);
+      if (h) {
+        if (performed.length) h.performed = performed;
+        if (completed) h.completed = true;
+        saveHistory(); renderHistory();
+        return true;
+      }
+      if (routine === state.routine) {
+        saveToHistory(Object.assign({ completed: !!completed },
+          performed.length ? { performed } : {}));
+        return true;
+      }
+      return false;
+    }
+    function finish() {
+      logWorkStep(T.i);   // the final work phase has no rest after it
+      // One progression nudge per exercise, from the RPE taps collected.
+      Object.keys(T.fb).forEach(name => {
+        const en = T.done.find(x => x.name === name && x.p);
+        if (en) applyProgression(en.p, T.fb[name], { silent: true });
+      });
+      const saved = persist(true);
+      if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+      toast(saved ? "Entrenamiento completado y registrado" : "Entrenamiento completado");
+      stop();
+    }
     function stop() { clearInterval(T.tick); o.classList.add("hidden"); timer = null; }
     function onTick() {
       if (T.paused) return;
@@ -2918,14 +3164,24 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       if (T.remaining <= 0) {
         if (navigator.vibrate) navigator.vibrate(120);
         if (T.i >= steps.length - 1) { $("#t-count").textContent = "0:00"; finish(); return; }
+        logWorkStep(T.i);
         load(T.i + 1); return;
       }
       $("#t-count").textContent = fmt(T.remaining);
     }
     $("#t-pause").onclick = () => { T.paused = !T.paused; $("#t-pause").textContent = T.paused ? "Reanudar" : "Pausa"; };
     $("#t-prev").onclick = () => load(T.i - 1);
-    $("#t-skip").onclick = () => { if (T.i >= steps.length - 1) finish(); else load(T.i + 1); };
-    $("#t-close").onclick = stop;
+    $("#t-skip").onclick = () => {
+      if (T.i >= steps.length - 1) { finish(); return; }
+      logWorkStep(T.i);
+      load(T.i + 1);
+    };
+    $("#t-close").onclick = () => { persist(false); stop(); };
+    $("#t-log-dec").onclick = () => { if (T.lastEntry && T.lastEntry.reps > 0) { T.lastEntry.reps--; renderLog(); } };
+    $("#t-log-inc").onclick = () => { if (T.lastEntry && T.lastEntry.reps < 50) { T.lastEntry.reps++; renderLog(); } };
+    $("#t-log-fb").querySelectorAll("button").forEach(b => {
+      b.onclick = () => { if (T.lastEntry) { T.fb[T.lastEntry.name] = b.getAttribute("data-fb"); renderLog(); } };
+    });
     load(0);
     T.tick = setInterval(onTick, 1000);
   }
@@ -2950,11 +3206,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
-      sameWeight: c.sameWeight, readiness: c.readiness };
+      sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
     state.routineSource = "auto";
+    state.lastSavedId = null;   // a fresh routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#audit-out").innerHTML = "";
     $("#btn-regenerar").classList.remove("hidden");
@@ -2990,7 +3247,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   function mkEffKg(it, e) {
     if (it.kg != null) return it.kg;
     if (state.kg[it.name] != null) return state.kg[it.name];
-    const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e);
+    const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e, it.reps);
     return s == null ? state.cfg.weightMin : s;
   }
 
@@ -3140,6 +3397,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (declared) opts.declared = declared;
     state.routine = r;
     state.routineSource = "manual";
+    state.lastSavedId = null;   // a freshly composed routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
     renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
       { declared, inferred: r.inferred, assessment: capKey ? F.assessObjective(r, capKey) : null });
@@ -3343,17 +3601,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     }
   }
 
-  function saveToHistory() {
-    if (!state.routine) return;
+  // Save the live routine to history. `extra` lets the timer attach outcome
+  // fields ({ completed, performed }) in the same entry. Remembering the id
+  // means a later timer run updates THIS entry instead of duplicating it.
+  function saveToHistory(extra) {
+    if (!state.routine) return null;
     const r = state.routine;
-    state.hist.unshift({
+    const entry = Object.assign({
       id: nextId(),
       date: new Date().toISOString(),
       objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
       minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
-    });
-    saveHistory(); toast("Guardada en el historial"); renderHistory();
+    }, extra || {});
+    state.hist.unshift(entry);
+    state.lastSavedId = entry.id;
+    saveHistory(); renderHistory();
+    return entry;
   }
 
   const repsToText = sets => sets.join(" ");
@@ -3471,6 +3735,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (h.manual) {
       return Math.round(h.exercises.reduce((a, ex) => a + (ex.kg || 0) * ex.sets.reduce((x, n) => x + n, 0), 0));
     }
+    // Generated session trained through the timer: real logged sets beat the
+    // plan-based estimate below.
+    if (Array.isArray(h.performed) && h.performed.length) {
+      return Math.round(h.performed.reduce((a, ex) => a + (ex.kg || 0) * ex.sets.reduce((x, n) => x + n, 0), 0));
+    }
     if (!h.routine) return 0;
     const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     let vol = 0;
@@ -3480,7 +3749,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       // (same-weight mode), then to the engine suggestion.
       const kg = state.kg[name] != null ? state.kg[name]
         : state.kg["__sw:" + p.block] != null ? state.kg["__sw:" + p.block]
-        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
+        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, p.reps) || 0);
       vol += kg * p.sets * p.reps;
     })));
     return Math.round(vol);
@@ -3612,7 +3881,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       };
       const actions = el("div", "hist-actions");
       const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
-      trainBtn.onclick = () => startTimer(h.routine);
+      trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
       okBtn.title = "Marcar completada";
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
@@ -3640,6 +3909,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       e.grip ? "agarre" : "",
       e.plyo ? "pliometrico salto" : "",
       e.arms ? "brazos arms" : "",
+      e.skill ? "tecnica skill" : "",
       e.equipment.join(" "),
     ].join(" "));
   }
@@ -3745,7 +4015,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return { pattern: $("#f-pattern").value, dynamics: $("#f-dynamics").value,
       symmetry: $("#f-symmetry").value, cns: $("#f-cns").value, equipment,
       grip: $("#f-grip").checked, plyo: $("#f-plyo").checked, arms: $("#f-arms").checked,
+      skill: $("#f-skill").checked,
       load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
+  }
+  // Coherence lint for user-defined metadata: non-blocking (the pool is the
+  // trainee's to shape), but incoherent tags silently corrupt the fatigue and
+  // time models, so the contradictions worth catching get a warning toast.
+  function lintExercise(f) {
+    if (f.plyo && f.cns === "LOW") return "Ojo: un pliometrico (salto/impacto) rara vez es SNC baja.";
+    if (f.plyo && f.dynamics === "ISO") return "Ojo: pliometrico e isometrico se contradicen; revisa la dinamica.";
+    if (f.load === 3 && f.dynamics === "METABOLIC") return "Ojo: el trabajo metabolico suele ir con carga ligera/media, no pesada.";
+    return null;
   }
   function fillForm(e) {
     $("#f-name").value = e.name;
@@ -3755,6 +4035,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#f-grip").checked = !!e.grip;
     $("#f-plyo").checked = !!e.plyo;
     $("#f-arms").checked = !!e.arms;
+    $("#f-skill").checked = !!e.skill;
     $("#f-eq-kb").checked = e.equipment.includes("KB");
     $("#f-eq-barbell").checked = e.equipment.includes("BARBELL");
     $("#f-eq-floor").checked = e.equipment.includes("FLOOR");
@@ -3768,6 +4049,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#f-symmetry").selectedIndex = 0; $("#f-cns").selectedIndex = 0;
     $("#f-load").value = "2"; $("#f-tier").value = "ACCESSORY";
     $("#f-grip").checked = false; $("#f-plyo").checked = false; $("#f-arms").checked = false;
+    $("#f-skill").checked = false;
     $("#f-eq-kb").checked = true; $("#f-eq-barbell").checked = false; $("#f-eq-floor").checked = false;
   }
   function openForEdit(e) {
@@ -3782,12 +4064,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   function saveExercise() {
     const fields = readForm();
+    const lint = lintExercise(fields);
     if (state.editing) {
       const name = state.editing;
       if (isBaseExercise(name)) state.overrides[name] = fields;             // modification over the base
       else state.custom = state.custom.map(x => x.name === name ? F.newExercise(Object.assign({ name }, fields)) : x);
       computePool(); savePoolState(); renderPool();
-      $("#pool-form").classList.add("hidden"); resetForm(); toast("Cambios guardados");
+      $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Cambios guardados");
       return;
     }
     const name = $("#f-name").value.trim();
@@ -3795,7 +4078,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (state.pool.some(e => e.name.toLowerCase() === name.toLowerCase())) { toast("Ese nombre ya existe"); return; }
     state.custom.push(F.newExercise(Object.assign({ name }, fields)));
     computePool(); savePoolState(); renderPool();
-    $("#pool-form").classList.add("hidden"); resetForm(); toast("Ejercicio anadido");
+    $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Ejercicio anadido");
   }
 
   // ---- Export / Import
@@ -4126,7 +4409,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
     $("#btn-generar").onclick = generateRoutine;
     $("#btn-regenerar").onclick = generateRoutine;
-    $("#btn-guardar").onclick = saveToHistory;
+    $("#btn-guardar").onclick = () => { if (saveToHistory()) toast("Guardada en el historial"); };
     $("#btn-train").onclick = () => startTimer(state.routine);
 
     $("#btn-add-toggle").onclick = () => {

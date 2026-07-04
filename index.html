@@ -304,6 +304,9 @@
         <div class="field"><div class="label">Enfasis en brazos</div>
           <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Si</span></label>
         </div>
+        <div class="field"><div class="label">Tecnica exigente (tipo snatch/TGU)</div>
+          <label class="field-toggle"><input type="checkbox" id="f-skill"> <span>Si</span></label>
+        </div>
       </div>
       <div class="field">
         <div class="label">Equipamiento necesario</div>
@@ -342,7 +345,8 @@
         <p><b>1.</b> En <b>Generar</b>, ajusta objetivo, foco, equipamiento, tu pesa, la duracion y las opciones.</p>
         <p><b>2.</b> Pulsa <b>Generar rutina</b>. Si no te convence, <b>Regenerar</b> da otra variante.</p>
         <p><b>3.</b> <b>Guardar sesion</b> la envia al <b>Historial</b>.</p>
-        <p><b>4.</b> En Historial, toca una sesion para ver el detalle y marca <b>✓</b> cuando la completes.</p>
+        <p><b>4.</b> <b>Entrenar (▶)</b> abre el temporizador guiado: arranca con el calentamiento, te lleva serie a serie y <b>registra lo que haces de verdad</b> — en cada descanso puedes ajustar las repeticiones de la serie hecha y valorar el ejercicio (Facil / OK / Duro). Al terminar, la sesion se marca <b>✓ completada</b> sola y lo registrado alimenta tu volumen, tu e1RM y la progresion.</p>
+        <p><b>5.</b> En Historial, toca una sesion para ver el detalle; el ✓ tambien se puede marcar a mano.</p>
       </div>
     </details>
 
@@ -372,7 +376,7 @@
       <div class="acc-body">
         <p><b>Superserie:</b> dos ejercicios que haces alternados (uno, luego el otro, descansas, repites). Suelen ser opuestos (empuje/tiron, cadera/rodilla) para que mientras trabajas uno, el otro se recupere. Ahorra tiempo.</p>
         <p><b>Set directo:</b> un solo ejercicio con su descanso completo entre series.</p>
-        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal.</p>
+        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal (por ejemplo, dos ejercicios de agarre seguidos: el antebrazo nunca descansa, asi que ese par nunca es Optimo).</p>
       </div>
     </details>
 
@@ -400,7 +404,8 @@
       <summary>Pesa y kg sugeridos</summary>
       <div class="acc-body">
         <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
-        <p>La sugerencia se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
+        <p>La sugerencia tambien mira el <b>objetivo de repeticiones</b>: el mismo ejercicio a 15 reps se sugiere claramente mas ligero que a 5 (no existe "carga pesada" a muchas repeticiones).</p>
+        <p>Y se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
       </div>
     </details>
 
@@ -408,6 +413,7 @@
       <summary>Perfil</summary>
       <div class="acc-body">
         <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
+        <p>El nivel tambien pesa en la <b>seleccion</b>: para un principiante, los ejercicios de <b>tecnica exigente</b> (snatch, get-up, windmill, cleans…) pierden prioridad frente a movimientos mas simples — el problema de un snatch para quien empieza es la tecnica, no 2 kg mas o menos.</p>
         <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
       </div>
     </details>
@@ -452,21 +458,25 @@
       <div class="acc-body">
         <p>El <b>motor</b> de FORJA no toca la pantalla: recibe tus datos y devuelve la rutina, paso a paso. (1) Elige la plantilla del objetivo y la escala por tiempo o estructura. (2) Filtra el pool por equipamiento. (3) Arma cada bloque emparejando ejercicios con las reglas de superserie, el presupuesto de fatiga y el balance. (4) Calcula duracion, kg sugeridos y objetivos de repeticiones.</p>
 
-        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. La duracion total es la suma de todos los elementos.</p>
+        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. Entre ejercicio y ejercicio se cuenta ademas un <b>cambio de 30 s</b> (colocarte, ajustar la pesa). La duracion total es la suma de todo.</p>
+
+        <p><b>EMOM y AMRAP van a su ritmo, no al descanso por rango.</b> En EMOM cada franja es <b>un minuto</b>: haces las reps y descansas <b>lo que sobra del minuto</b>; el temporizador recorre el circuito en rondas (ejercicio 1 → 2 → 3, y vuelta), no todas las series de un ejercicio seguidas. En AMRAP/circuito se pasa de un ejercicio al siguiente con una <b>transicion corta (15 s)</b>, sin descansos largos. Los minutos que pidas escalan las <b>rondas</b> del circuito.</p>
 
         <p><b>Presupuesto de fatiga (SNC y agarre).</b> Cada objetivo fija un maximo de ejercicios de <b>SNC alta</b> por sesion (p. ej. Fuerza 2, Metabolico 4) y no se supera. El <b>agarre</b> es un acumulador ponderado: un balistico de agarre pesa 1,0 y otros de agarre (carries pesados, remos, get-up, bottoms-up) 0,5; el maximo cuenta "equivalentes balisticos".</p>
 
-        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: dos ejercicios de agarre (el antebrazo no descansa), cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+
+        <p><b>El finalizador (C) tambien se gradua.</b> Ya no vale todo: los lifts de tecnica exigente e isometricos (get-up, windmill) bajo fatiga alta, el doble agarre y dos de SNC alta juntos quedan como Aceptable con su aviso; el par antagonista tranquilo sigue siendo Optimo. Ademas la seleccion evita colocar get-up/windmill en el finalizador.</p>
 
         <p><b>Seleccion con "misma pesa".</b> Si activas "misma pesa por circuito", al elegir los ejercicios de cada bloque el motor penaliza (−2 por escalon de distancia) los que se alejan de la carga ya elegida en ese bloque, y al emparejar superseries prefiere la pareja de carga mas parecida (sin sacrificar la calidad antagonista). Asi los ejercicios de un bloque comparten carga y la unica pesa propuesta (la mediana) le queda bien a todos.</p>
 
-        <p><b>kg sugerido (3 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (3) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
+        <p><b>kg sugerido (4 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × factor del <b>rango de repeticiones</b>: fuerza (≤5) ×1 · hipertrofia (6–11) ×0,9 · metabolico (12+) ×0,7 — el mismo ejercicio a muchas reps se sugiere mas ligero. (3) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (4) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
 
         <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
 
         <p><b>Estado del dia (autorregulacion).</b> Tu energia (1–5), el descanso y las zonas doloridas se traducen en factores que alimentan las mismas palancas que la periodizacion: volumen (escala los minutos objetivo → series/ejercicios), carga (×0,85–1,06 sobre los kg sugeridos), cupo de SNC alta (se recorta en dias flojos) y un sesgo de intensidad. Las zonas doloridas restan prioridad a esos patrones en la seleccion. Con energia "Normal", sueño "Ok" y sin dolor, los factores valen 1/0 y no cambian nada.</p>
 
-        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque (carga = e1RM ÷ (1 + reps/30), redondeada a 2 kg y acotada a tu rango), en vez de la sugerencia generica por carga. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
+        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales, de las series que <b>registra el temporizador</b> y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque — con un <b>margen de 2 reps en reserva</b> (carga = e1RM ÷ (1 + (reps+2)/30)): prescribir tu maximo exacto para todas las series no es sostenible. Redondeada a 2 kg y acotada a tu rango. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
       </div>
     </details>
 
@@ -488,7 +498,7 @@
     <details class="acc">
       <summary>Anadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo y si tiene enfasis en brazos (para que entre en el foco Brazos).</p>
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en principiantes y finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>

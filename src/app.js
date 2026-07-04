@@ -76,6 +76,7 @@
     hist: [],
     routine: null,
     routineSource: "auto",   // where state.routine came from: generator or manual builder
+    lastSavedId: null, // history id of the live routine (timer updates it instead of duplicating)
     editing: null,    // name of the exercise being edited, or null
     kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
     prog: {},         // name -> current rep target (double progression, persisted)
@@ -230,13 +231,16 @@
   const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
   // ---- Formatting
+  // Symmetry suffix: unilateral reps are per side; alternating reps are the
+  // TOTAL split between sides — say so, or "3x15" reads as 15 per leg.
+  const symSuffix = e => e.symmetry === F.SIM.UNILATERAL ? " / lado"
+    : e.symmetry === F.SIM.ALTERNATING ? " (alt.)" : "";
   const dose = p => {
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
     if (p.exercise.dynamics === F.DIN.ISO) {
       const sec = p.exercise.holdSec || 35;
-      return `${p.sets}x ~${sec}s` + (perSide ? " / lado" : "");
+      return `${p.sets}x ~${sec}s` + symSuffix(p.exercise);
     }
-    return `${p.sets}x${p.reps}` + (perSide ? " / lado" : "");
+    return `${p.sets}x${p.reps}` + symSuffix(p.exercise);
   };
 
   // Current rep target for an exercise (double progression). Falls back to the
@@ -245,12 +249,14 @@
   // Dose string using the progression target (for the live, editable routine).
   function doseTarget(p) {
     if (p.exercise.dynamics === F.DIN.ISO) return dose(p);
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
-    return `${p.sets}x${targetReps(p)}` + (perSide ? " / lado" : "");
+    return `${p.sets}x${targetReps(p)}` + symSuffix(p.exercise);
   }
   // Record the trainee's feedback ('easy'|'ok'|'hard') and autoregulate the
   // next target for this exercise (double progression + RPE nudge).
-  function applyProgression(p, feedback) {
+  // opts.silent skips the toast/re-render (used when the timer applies the
+  // whole session's feedback in one pass at the end).
+  function applyProgression(p, feedback, opts) {
+    opts = opts || {};
     const name = p.exercise.name;
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
@@ -264,7 +270,7 @@
         const blk = state.routine.blocks.find(b => b.block === p.block);
         curKg = blk ? F.unifiedKg(blk.elements.flatMap(e => e.prescriptions), { min, max }, state.cfg.profile) : null;
       }
-      if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise);
+      if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise, p.reps);
     }
     const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
     const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
@@ -272,6 +278,7 @@
     const up = next.kg != null && next.kg > curKg;
     const down = next.kg != null && next.kg < curKg;
     if (next.kg != null) { state.kg[kgKey] = next.kg; saveKg(); }
+    if (opts.silent) return;
     toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
        : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
                : `Objetivo proxima vez: ${next.reps} reps`);
@@ -298,10 +305,13 @@
     const pool = poolByName();
     const series = {};                    // name -> [values, oldest first]
     const push = (name, v) => { if (v != null) (series[name] || (series[name] = [])).push(v); };
-    // 1) Manual logs, oldest session first.
+    // 1) Logged sets, oldest session first: manual logs AND the performance
+    //    the guided timer captured for generated sessions (same shape).
     state.hist.slice().reverse().forEach(h => {
-      if (!h.manual || !Array.isArray(h.exercises)) return;
-      h.exercises.forEach(ex => {
+      const logs = (h.manual && Array.isArray(h.exercises)) ? h.exercises
+                 : Array.isArray(h.performed) ? h.performed : null;
+      if (!logs) return;
+      logs.forEach(ex => {
         const def = pool[ex.name];
         if (!def || !F.e1rmEligible(def)) return;
         push(ex.name, F.bestE1rm((ex.sets || []).map(r => ({ kg: ex.kg, reps: r }))));
@@ -369,7 +379,7 @@
       const blk = el("div", "block");
       const bh = el("div", "block-head");
       bh.appendChild(el("div", "block-name", `Bloque <b>${br.block}</b> · ${blockName[br.block]}`));
-      bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br)} min`));
+      bh.appendChild(el("div", "block-dur", `~${F.blockDurationMin(br, r.protocol)} min`));
       blk.appendChild(bh);
 
       // Single-kettlebell mode: one shared weight for the whole block/circuit,
@@ -417,7 +427,7 @@
               baseKg = F.loadForReps(est.current, reps, { min: range.min, max: range.max });
               usedE1 = baseKg != null;
             }
-            if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise);
+            if (!usedE1) baseKg = F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, reps);
             // Daily readiness: lighten (or slightly raise) the suggestion to match
             // how the trainee shows up today. Only touches the suggestion — a
             // dialed kg (savedKg) still wins below.
@@ -513,20 +523,38 @@
 
   // ---- Guided workout timer --------------------------------------------
   // Flattens a routine into an ordered list of work/rest phases (from the
-  // engine's per-element timeline) and drives a full-screen countdown.
+  // engine's block timelines) and drives a full-screen countdown. The timer
+  // is also the capture point: every completed work set is logged (kg + reps,
+  // adjustable during the following rest) and one-tap RPE per exercise feeds
+  // the double-progression at the end — so history records what was actually
+  // done, not just the plan.
   let timer = null;
   function timerDose(p) {
-    const perSide = p.exercise.symmetry === F.SIM.UNILATERAL;
-    if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + (perSide ? " / lado" : "");
-    return `${targetReps(p)} reps` + (perSide ? " / lado" : "");
+    if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + symSuffix(p.exercise);
+    return `${targetReps(p)} reps` + symSuffix(p.exercise);
   }
+  const WARMUP_MOBILITY_SEC = 180, WARMUP_RAMP_REST = 45;
   function buildTimerSteps(routine) {
     const steps = [];
-    routine.blocks.forEach(br => br.elements.forEach(elm => {
-      // 30 s changeover before every element except the very first.
-      if (steps.length) steps.push({ kind: "rest", sec: 30, label: "Cambio de ejercicio", block: br.block });
-      F.elementTimeline(elm).forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
-    }));
+    // Warm-up first: the prep block exists to protect the ballistic work that
+    // follows — the guided flow must not skip it.
+    if (routine.warmup && routine.warmup.items && routine.warmup.items.length)
+      steps.push({ kind: "rest", sec: WARMUP_MOBILITY_SEC, label: "Calentamiento: movilidad + activacion", warmup: true });
+    const ru = routine.warmup && routine.warmup.rampUp;
+    if (ru) {
+      const pseudo = { isSuperset: false, prescriptions: [{ exercise: ru.exercise, block: "A", sets: ru.sets, reps: ru.reps }] };
+      F.elementTimeline(pseudo).forEach(ph => steps.push(Object.assign({}, ph, {
+        block: "A", warmup: true,
+        sec: ph.kind === "rest" ? WARMUP_RAMP_REST : ph.sec,
+        doseLabel: ru.reps + " reps · carga ligera (aproximacion)",
+      })));
+    }
+    routine.blocks.forEach(br => {
+      const tl = F.blockTimeline(br, routine.protocol || null);
+      if (!tl.length) return;
+      if (steps.length) steps.push({ kind: "rest", sec: F.CHANGEOVER_SEC, label: routine.protocol ? "Cambio de bloque" : "Cambio de ejercicio", block: br.block });
+      tl.forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
+    });
     return steps;
   }
   function ensureTimerOverlay() {
@@ -541,6 +569,17 @@
       '<div id="t-name" class="timer-name"></div>' +
       '<div id="t-sub" class="timer-sub"></div>' +
       '<div id="t-count" class="timer-count">0:00</div>' +
+      '<div id="t-log" class="timer-log hidden">' +
+      '<div class="t-log-title">Serie hecha: <span id="t-log-name"></span></div>' +
+      '<div class="t-log-reps">' +
+      '<button id="t-log-dec" class="kg-adj">−</button>' +
+      '<span id="t-log-val"></span>' +
+      '<button id="t-log-inc" class="kg-adj">+</button></div>' +
+      '<div class="t-log-fb" id="t-log-fb">' +
+      '<button data-fb="easy" class="prog-btn prog-easy">Facil</button>' +
+      '<button data-fb="ok" class="prog-btn prog-ok">OK</button>' +
+      '<button data-fb="hard" class="prog-btn prog-hard">Duro</button>' +
+      '</div></div>' +
       '<div id="t-next" class="timer-next"></div>' +
       '<div class="timer-controls">' +
       '<button id="t-prev" class="btn btn-ghost">‹</button>' +
@@ -550,24 +589,69 @@
     document.body.appendChild(o);
     return o;
   }
-  function startTimer(routine) {
+  // Working kg for a prescription right now: the dialed weight (shared circuit
+  // weight in same-weight mode), else the engine suggestion.
+  function currentKgFor(p) {
+    const sameW = !!state.cfg.sameWeight;
+    if (sameW && state.kg["__sw:" + p.block] != null) return state.kg["__sw:" + p.block];
+    if (state.kg[p.exercise.name] != null) return state.kg[p.exercise.name];
+    return F.suggestKg(p.exercise.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, p.exercise, p.reps);
+  }
+  // Group the flat set log into per-exercise entries (same shape as manual
+  // session logs: { name, kg, sets: [reps...] }), so e1RM and volume can
+  // consume both without caring where the data came from.
+  function groupPerformed(done) {
+    const out = [];
+    const byKey = {};
+    done.forEach(en => {
+      const key = en.name + "@" + en.kg;
+      if (!byKey[key]) { byKey[key] = { name: en.name, kg: en.kg, sets: [] }; out.push(byKey[key]); }
+      byKey[key].sets.push(en.reps);
+    });
+    return out;
+  }
+  function startTimer(routine, histEntry) {
     if (!routine || !routine.blocks) return;
     const steps = buildTimerSteps(routine);
     if (!steps.length) { toast("Rutina vacia"); return; }
     if (timer) clearInterval(timer.tick);
     const o = ensureTimerOverlay(); o.classList.remove("hidden");
-    const T = timer = { i: 0, remaining: 0, paused: false, tick: null };
+    const T = timer = { i: 0, remaining: 0, paused: false, tick: null,
+      done: [], logged: {}, fb: {}, lastEntry: null };
     const fmt = sec => Math.floor(sec / 60) + ":" + String(Math.max(0, sec) % 60).padStart(2, "0");
+    // Log a work step the moment the trainee moves past it. Warm-up and ISO
+    // phases are not logged (no meaningful rep count); re-visiting a step via
+    // ‹/› never double-logs it.
+    function logWorkStep(i) {
+      const s = steps[i];
+      if (!s || s.kind !== "work" || s.warmup) return;
+      if (T.logged[i]) { T.lastEntry = T.logged[i].reps != null ? T.logged[i] : null; return; }
+      const p = s.prescription;
+      if (p.exercise.dynamics === F.DIN.ISO) { T.logged[i] = { name: p.exercise.name }; T.lastEntry = null; return; }
+      const entry = { name: p.exercise.name, kg: currentKgFor(p), reps: targetReps(p), p };
+      T.logged[i] = entry; T.done.push(entry); T.lastEntry = entry;
+    }
+    function renderLog() {
+      const s = steps[T.i];
+      const show = s.kind === "rest" && !s.warmup && T.lastEntry;
+      $("#t-log").classList.toggle("hidden", !show);
+      if (!show) return;
+      $("#t-log-name").textContent = T.lastEntry.name + (T.lastEntry.kg != null ? " · " + T.lastEntry.kg + " kg" : "");
+      $("#t-log-val").textContent = T.lastEntry.reps + " reps";
+      const fb = T.fb[T.lastEntry.name];
+      $("#t-log-fb").querySelectorAll("button").forEach(b =>
+        b.classList.toggle("on", b.getAttribute("data-fb") === fb));
+    }
     function render() {
       const s = steps[T.i];
       $("#t-step").textContent = `Paso ${T.i + 1} / ${steps.length}`;
       o.classList.toggle("rest", s.kind === "rest");
       if (s.kind === "work") {
-        $("#t-kind").textContent = "TRABAJO · Bloque " + s.block;
+        $("#t-kind").textContent = (s.warmup ? "CALENTAMIENTO" : "TRABAJO") + " · Bloque " + s.block;
         $("#t-name").textContent = s.prescription.exercise.name;
-        $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${timerDose(s.prescription)}`;
+        $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${s.doseLabel || timerDose(s.prescription)}`;
       } else {
-        $("#t-kind").textContent = "DESCANSO";
+        $("#t-kind").textContent = s.warmup ? "PREPARACION" : "DESCANSO";
         $("#t-name").textContent = s.label || "Descanso";
         $("#t-sub").textContent = "";
       }
@@ -576,9 +660,41 @@
         ? "Sigue: " + (nxt.kind === "work" ? nxt.prescription.exercise.name : (nxt.label || "descanso"))
         : "Ultima fase";
       $("#t-count").textContent = fmt(T.remaining);
+      renderLog();
     }
     function load(i) { T.i = Math.max(0, Math.min(steps.length - 1, i)); T.remaining = steps[T.i].sec; render(); }
-    function finish() { toast("Entrenamiento completado"); stop(); }
+    // Persist what actually happened. Completed=finished the whole flow; an
+    // early close keeps the partial log (if the session lives in history)
+    // without marking it complete.
+    function persist(completed) {
+      const performed = groupPerformed(T.done);
+      if (!performed.length && !completed) return false;
+      let h = histEntry || (state.lastSavedId != null ? state.hist.find(x => x.id === state.lastSavedId) : null);
+      if (h) {
+        if (performed.length) h.performed = performed;
+        if (completed) h.completed = true;
+        saveHistory(); renderHistory();
+        return true;
+      }
+      if (routine === state.routine) {
+        saveToHistory(Object.assign({ completed: !!completed },
+          performed.length ? { performed } : {}));
+        return true;
+      }
+      return false;
+    }
+    function finish() {
+      logWorkStep(T.i);   // the final work phase has no rest after it
+      // One progression nudge per exercise, from the RPE taps collected.
+      Object.keys(T.fb).forEach(name => {
+        const en = T.done.find(x => x.name === name && x.p);
+        if (en) applyProgression(en.p, T.fb[name], { silent: true });
+      });
+      const saved = persist(true);
+      if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+      toast(saved ? "Entrenamiento completado y registrado" : "Entrenamiento completado");
+      stop();
+    }
     function stop() { clearInterval(T.tick); o.classList.add("hidden"); timer = null; }
     function onTick() {
       if (T.paused) return;
@@ -586,14 +702,24 @@
       if (T.remaining <= 0) {
         if (navigator.vibrate) navigator.vibrate(120);
         if (T.i >= steps.length - 1) { $("#t-count").textContent = "0:00"; finish(); return; }
+        logWorkStep(T.i);
         load(T.i + 1); return;
       }
       $("#t-count").textContent = fmt(T.remaining);
     }
     $("#t-pause").onclick = () => { T.paused = !T.paused; $("#t-pause").textContent = T.paused ? "Reanudar" : "Pausa"; };
     $("#t-prev").onclick = () => load(T.i - 1);
-    $("#t-skip").onclick = () => { if (T.i >= steps.length - 1) finish(); else load(T.i + 1); };
-    $("#t-close").onclick = stop;
+    $("#t-skip").onclick = () => {
+      if (T.i >= steps.length - 1) { finish(); return; }
+      logWorkStep(T.i);
+      load(T.i + 1);
+    };
+    $("#t-close").onclick = () => { persist(false); stop(); };
+    $("#t-log-dec").onclick = () => { if (T.lastEntry && T.lastEntry.reps > 0) { T.lastEntry.reps--; renderLog(); } };
+    $("#t-log-inc").onclick = () => { if (T.lastEntry && T.lastEntry.reps < 50) { T.lastEntry.reps++; renderLog(); } };
+    $("#t-log-fb").querySelectorAll("button").forEach(b => {
+      b.onclick = () => { if (T.lastEntry) { T.fb[T.lastEntry.name] = b.getAttribute("data-fb"); renderLog(); } };
+    });
     load(0);
     T.tick = setInterval(onTick, 1000);
   }
@@ -618,11 +744,12 @@
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
-      sameWeight: c.sameWeight, readiness: c.readiness };
+      sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
     const r = F.generate(state.pool, opts);
     state.routine = r;
     state.routineSource = "auto";
+    state.lastSavedId = null;   // a fresh routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#audit-out").innerHTML = "";
     $("#btn-regenerar").classList.remove("hidden");
@@ -658,7 +785,7 @@
   function mkEffKg(it, e) {
     if (it.kg != null) return it.kg;
     if (state.kg[it.name] != null) return state.kg[it.name];
-    const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e);
+    const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e, it.reps);
     return s == null ? state.cfg.weightMin : s;
   }
 
@@ -808,6 +935,7 @@
     if (declared) opts.declared = declared;
     state.routine = r;
     state.routineSource = "manual";
+    state.lastSavedId = null;   // a freshly composed routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
     renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
       { declared, inferred: r.inferred, assessment: capKey ? F.assessObjective(r, capKey) : null });
@@ -1011,17 +1139,23 @@
     }
   }
 
-  function saveToHistory() {
-    if (!state.routine) return;
+  // Save the live routine to history. `extra` lets the timer attach outcome
+  // fields ({ completed, performed }) in the same entry. Remembering the id
+  // means a later timer run updates THIS entry instead of duplicating it.
+  function saveToHistory(extra) {
+    if (!state.routine) return null;
     const r = state.routine;
-    state.hist.unshift({
+    const entry = Object.assign({
       id: nextId(),
       date: new Date().toISOString(),
       objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
       minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
-    });
-    saveHistory(); toast("Guardada en el historial"); renderHistory();
+    }, extra || {});
+    state.hist.unshift(entry);
+    state.lastSavedId = entry.id;
+    saveHistory(); renderHistory();
+    return entry;
   }
 
   const repsToText = sets => sets.join(" ");
@@ -1139,6 +1273,11 @@
     if (h.manual) {
       return Math.round(h.exercises.reduce((a, ex) => a + (ex.kg || 0) * ex.sets.reduce((x, n) => x + n, 0), 0));
     }
+    // Generated session trained through the timer: real logged sets beat the
+    // plan-based estimate below.
+    if (Array.isArray(h.performed) && h.performed.length) {
+      return Math.round(h.performed.reduce((a, ex) => a + (ex.kg || 0) * ex.sets.reduce((x, n) => x + n, 0), 0));
+    }
     if (!h.routine) return 0;
     const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     let vol = 0;
@@ -1148,7 +1287,7 @@
       // (same-weight mode), then to the engine suggestion.
       const kg = state.kg[name] != null ? state.kg[name]
         : state.kg["__sw:" + p.block] != null ? state.kg["__sw:" + p.block]
-        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || 0);
+        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, p.reps) || 0);
       vol += kg * p.sets * p.reps;
     })));
     return Math.round(vol);
@@ -1280,7 +1419,7 @@
       };
       const actions = el("div", "hist-actions");
       const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
-      trainBtn.onclick = () => startTimer(h.routine);
+      trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
       okBtn.title = "Marcar completada";
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
@@ -1308,6 +1447,7 @@
       e.grip ? "agarre" : "",
       e.plyo ? "pliometrico salto" : "",
       e.arms ? "brazos arms" : "",
+      e.skill ? "tecnica skill" : "",
       e.equipment.join(" "),
     ].join(" "));
   }
@@ -1413,7 +1553,17 @@
     return { pattern: $("#f-pattern").value, dynamics: $("#f-dynamics").value,
       symmetry: $("#f-symmetry").value, cns: $("#f-cns").value, equipment,
       grip: $("#f-grip").checked, plyo: $("#f-plyo").checked, arms: $("#f-arms").checked,
+      skill: $("#f-skill").checked,
       load: parseInt($("#f-load").value, 10), tier: $("#f-tier").value };
+  }
+  // Coherence lint for user-defined metadata: non-blocking (the pool is the
+  // trainee's to shape), but incoherent tags silently corrupt the fatigue and
+  // time models, so the contradictions worth catching get a warning toast.
+  function lintExercise(f) {
+    if (f.plyo && f.cns === "LOW") return "Ojo: un pliometrico (salto/impacto) rara vez es SNC baja.";
+    if (f.plyo && f.dynamics === "ISO") return "Ojo: pliometrico e isometrico se contradicen; revisa la dinamica.";
+    if (f.load === 3 && f.dynamics === "METABOLIC") return "Ojo: el trabajo metabolico suele ir con carga ligera/media, no pesada.";
+    return null;
   }
   function fillForm(e) {
     $("#f-name").value = e.name;
@@ -1423,6 +1573,7 @@
     $("#f-grip").checked = !!e.grip;
     $("#f-plyo").checked = !!e.plyo;
     $("#f-arms").checked = !!e.arms;
+    $("#f-skill").checked = !!e.skill;
     $("#f-eq-kb").checked = e.equipment.includes("KB");
     $("#f-eq-barbell").checked = e.equipment.includes("BARBELL");
     $("#f-eq-floor").checked = e.equipment.includes("FLOOR");
@@ -1436,6 +1587,7 @@
     $("#f-symmetry").selectedIndex = 0; $("#f-cns").selectedIndex = 0;
     $("#f-load").value = "2"; $("#f-tier").value = "ACCESSORY";
     $("#f-grip").checked = false; $("#f-plyo").checked = false; $("#f-arms").checked = false;
+    $("#f-skill").checked = false;
     $("#f-eq-kb").checked = true; $("#f-eq-barbell").checked = false; $("#f-eq-floor").checked = false;
   }
   function openForEdit(e) {
@@ -1450,12 +1602,13 @@
 
   function saveExercise() {
     const fields = readForm();
+    const lint = lintExercise(fields);
     if (state.editing) {
       const name = state.editing;
       if (isBaseExercise(name)) state.overrides[name] = fields;             // modification over the base
       else state.custom = state.custom.map(x => x.name === name ? F.newExercise(Object.assign({ name }, fields)) : x);
       computePool(); savePoolState(); renderPool();
-      $("#pool-form").classList.add("hidden"); resetForm(); toast("Cambios guardados");
+      $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Cambios guardados");
       return;
     }
     const name = $("#f-name").value.trim();
@@ -1463,7 +1616,7 @@
     if (state.pool.some(e => e.name.toLowerCase() === name.toLowerCase())) { toast("Ese nombre ya existe"); return; }
     state.custom.push(F.newExercise(Object.assign({ name }, fields)));
     computePool(); savePoolState(); renderPool();
-    $("#pool-form").classList.add("hidden"); resetForm(); toast("Ejercicio anadido");
+    $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Ejercicio anadido");
   }
 
   // ---- Export / Import
@@ -1794,7 +1947,7 @@
 
     $("#btn-generar").onclick = generateRoutine;
     $("#btn-regenerar").onclick = generateRoutine;
-    $("#btn-guardar").onclick = saveToHistory;
+    $("#btn-guardar").onclick = () => { if (saveToHistory()) toast("Guardada en el historial"); };
     $("#btn-train").onclick = () => startTimer(state.routine);
 
     $("#btn-add-toggle").onclick = () => {

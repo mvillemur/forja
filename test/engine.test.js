@@ -146,8 +146,13 @@ ok("e1rmEligible: grind yes, ballistic/ISO no",
 ok("bestE1rm: picks the heaviest-equivalent set",
   F.bestE1rm([{ kg: 16, reps: 5 }, { kg: 16, reps: 8 }, { kg: 14, reps: 6 }]) === F.e1rm(16, 8));
 ok("bestE1rm: empty -> null", F.bestE1rm([]) === null);
-// Inverse Epley round-trips: load that yields an e1RM at N reps, snapped to 2 kg.
-ok("loadForReps: inverts e1rm (snapped)", F.loadForReps(F.e1rm(20, 5), 5, { min: 8, max: 32 }) === 20);
+// Prescription keeps reps in reserve: inverting at the trainee's own rep-max
+// would prescribe every set AT that max, so the working load lands BELOW the
+// exact round-trip (2 RIR margin), never above it.
+ok("loadForReps: prescribes below the exact rep-max (RIR margin)",
+  F.loadForReps(F.e1rm(20, 5), 5, { min: 8, max: 32 }) < 20);
+ok("loadForReps: margin is small (within ~10%)",
+  F.loadForReps(F.e1rm(20, 5), 5, { min: 8, max: 32 }) >= 18);
 ok("loadForReps: lighter for more reps", F.loadForReps(24, 10, { min: 8, max: 40 }) < F.loadForReps(24, 3, { min: 8, max: 40 }));
 ok("loadForReps: clamps to range", F.loadForReps(80, 1, { min: 8, max: 32 }) === 32);
 ok("loadForReps: null on bad input", F.loadForReps(null, 5) === null && F.loadForReps(20, 0) === null);
@@ -457,6 +462,109 @@ const armsPicked = armsRoutine.blocks.reduce((a, b) =>
 ok("ARMS focus loads the session with arm-emphasis work", armsPicked >= 3);
 ok("newExercise carries the arms flag", F.newExercise({ name: "Y", pattern: "PULL_H", dynamics: "STRENGTH",
   symmetry: "BILATERAL", cns: "LOW", equipment: ["KB"], arms: true }).arms === true);
+
+// --- Trainer-review fixes -------------------------------------------------
+
+// Rep-aware cold start: the same tier suggests less kg at a high-rep target.
+ok("suggestKg: no reps arg == legacy behavior", F.suggestKg(3, 12, 32) === 30);
+ok("suggestKg: heavy tier drops at a 15-rep target",
+  F.suggestKg(3, 8, 32, null, null, 15) < F.suggestKg(3, 8, 32, null, null, 5));
+ok("suggestKg: SP target keeps the tier as-is",
+  F.suggestKg(3, 8, 32, null, null, 5) === F.suggestKg(3, 8, 32));
+ok("suggestKg: rep-adjusted stays within range", (() => {
+  const k = F.suggestKg(1, 8, 32, null, null, 20);
+  return k >= 8 && k <= 32;
+})());
+
+// Metabolic/flow drills get a rep floor (no 5-rep Figure-8s).
+const fig8 = F.BASE_CATALOG.find(e => e.name === "Figure-8");
+const strengthGen = F.generate(null, { objective: "STRENGTH", equipment: ["KB", "FLOOR"], minutes: 45, seed: 42 });
+const metaDoses = strengthGen.blocks.flatMap(b => b.elements.flatMap(e => e.prescriptions))
+  .filter(p => p.exercise.dynamics === "METABOLIC");
+ok("prescribe: metabolic drills floored at 10 reps", metaDoses.every(p => p.reps >= 10));
+
+// Grip+grip supersets are never OPTIMAL (forearm never rests).
+const suitcase = F.BASE_CATALOG.find(e => e.name === "Suitcase Carry");
+const gripPairA = F.validateCombination(
+  { exercise: swing, block: "A", sets: 5, reps: 5 },
+  { exercise: suitcase, block: "A", sets: 5, reps: 8 });
+ok("grip: swing + grip-carry capped at ACCEPTABLE in block A",
+  gripPairA.valid && gripPairA.quality === F.QUALITY.ACCEPTABLE);
+const rowB = F.validateCombination(
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo (una mano)"), block: "B", sets: 3, reps: 10 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Peso Muerto Rumano"), block: "B", sets: 3, reps: 10 });
+ok("grip: two grip grinds capped at ACCEPTABLE in block B", rowB.quality === F.QUALITY.ACCEPTABLE);
+ok("grip: grip-free pair unaffected (push/pull still OPTIMAL)", (() => {
+  const q = F.validateCombination(
+    { exercise: press, block: "A", sets: 4, reps: 5 },
+    { exercise: F.BASE_CATALOG.find(e => e.name === "Remo Vertical"), block: "A", sets: 4, reps: 5 });
+  return q.quality === F.QUALITY.OPTIMAL;
+})());
+
+// Block C is no longer an automatic OPTIMAL.
+const windmill = F.BASE_CATALOG.find(e => e.name === "Windmill");
+const thruster = F.BASE_CATALOG.find(e => e.name === "Thruster");
+const cWindmill = F.validateCombination(
+  { exercise: thruster, block: "C", sets: 3, reps: 15 },
+  { exercise: windmill, block: "C", sets: 3, reps: 8 });
+ok("blockC: high-skill ISO under finisher fatigue is not OPTIMAL",
+  cWindmill.valid && cWindmill.quality === F.QUALITY.ACCEPTABLE);
+const cBurpees = F.validateCombination(
+  { exercise: thruster, block: "C", sets: 3, reps: 15 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Burpees"), block: "C", sets: 3, reps: 15 });
+ok("blockC: two high-CNS finishers get a caution (ACCEPTABLE)",
+  cBurpees.valid && cBurpees.quality === F.QUALITY.ACCEPTABLE);
+const cAntag = F.validateCombination(
+  { exercise: press, block: "C", sets: 3, reps: 15 },
+  { exercise: F.BASE_CATALOG.find(e => e.name === "Remo Vertical"), block: "C", sets: 3, reps: 15 });
+ok("blockC: calm antagonist finisher pair stays OPTIMAL", cAntag.quality === F.QUALITY.OPTIMAL);
+
+// Skill gating: technical lifts flagged; beginners steered to simpler moves.
+ok("skill: snatch/TGU/windmill are flagged", snatch.skill === true && tgu.skill === true && windmill.skill === true);
+ok("skill: swing/goblet squat are not", swing.skill === false && goblet.skill === false);
+ok("newExercise carries the skill flag", F.newExercise({ name: "Z", pattern: "HYBRID", dynamics: "BALLISTIC",
+  symmetry: "UNILATERAL", cns: "HIGH", equipment: ["KB"], skill: true }).skill === true);
+function countSkill(rt) {
+  return rt.blocks.reduce((a, b) => a + b.elements.reduce((x, e) =>
+    x + e.prescriptions.filter(p => p.exercise.skill).length, 0), 0);
+}
+let skillBeg = 0, skillAdv = 0;
+for (let s = 1; s <= 20; s++) {
+  skillBeg += countSkill(F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "BEG" } }));
+  skillAdv += countSkill(F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "ADV" } }));
+}
+ok("skill: beginners get fewer high-skill lifts than advanced", skillBeg < skillAdv);
+
+// EMOM runs on the minute; AMRAP flows on short transitions (protocol timing).
+const emom = F.generate(null, { objective: "EMOM", equipment: ["KB"], minutes: 20, seed: 6 });
+ok("protocol: EMOM routine is tagged", emom.protocol === "EMOM");
+ok("protocol: standard routine is not", strengthGen.protocol === null);
+const emomSteps = emom.blocks.flatMap(b => F.blockTimeline(b, emom.protocol));
+ok("protocol: EMOM work+rest slots total one minute (or slight overrun)", (() => {
+  for (let i = 0; i + 1 < emomSteps.length; i += 1) {
+    const w = emomSteps[i], rst = emomSteps[i + 1];
+    if (w.kind !== "work" || !rst || rst.kind !== "rest") continue;
+    if (w.sec + rst.sec < 60) return false;
+  }
+  return true;
+})());
+// Round-major interleave: consecutive work steps cycle exercises, not sets.
+const workNames = emomSteps.filter(s => s.kind === "work").map(s => s.prescription.exercise.name);
+const distinct = new Set(workNames.slice(0, new Set(workNames).size));
+ok("protocol: circuit interleaves exercises round-major", distinct.size === new Set(workNames).size);
+ok("protocol: EMOM duration ~= requested minutes", (() => {
+  const d = F.routineDurationMin(emom);
+  return d >= 20 * 0.8 && d <= 20 * 1.2;
+})());
+const amrap = F.generate(null, { objective: "AMRAP", equipment: ["KB"], minutes: 20, seed: 4 });
+const amrapSteps = amrap.blocks.flatMap(b => F.blockTimeline(b, amrap.protocol));
+ok("protocol: AMRAP rests are short transitions",
+  amrapSteps.filter(s => s.kind === "rest").every(s => s.sec <= 15));
+// Standard sessions now count the between-exercise changeover in duration.
+ok("changeover: routine duration >= sum of block durations", (() => {
+  const sum = strengthGen.blocks.reduce((a, b) => a + F.blockDurationMin(b), 0);
+  return F.routineDurationMin(strengthGen) >= sum;
+})());
 
 if (process.exitCode) console.error("\n--- FAILURES FOUND ---");
 else console.log(pass + " engine checks OK");

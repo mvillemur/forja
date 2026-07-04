@@ -177,6 +177,13 @@
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
+  // High-skill lifts: the limiter is technique, not strength. A beginner's
+  // problem with a snatch is not solved by 2 kg less — selection steers
+  // novices to simpler movements, and these stay out of fatigued finishers.
+  const _SKILL_EXERCISES = new Set([
+    "Snatch", "Turkish Get-Up", "Windmill", "Clean (una mano)", "Clean + Press",
+    "Clean + Sentadilla Goblet", "High Pull", "Push Press", "Press Bottoms-Up",
+  ]);
   // Arm emphasis: exercises where elbow flexion (biceps: curls, rows,
   // chin-ups) or extension (triceps: presses, close-grip push-ups) does a
   // meaningful share of the work. A muscle tag on top of the movement
@@ -194,6 +201,7 @@
            : _OPTIONAL_EXERCISES.has(e.name) ? TIER.OPTIONAL : TIER.ACCESSORY;
     e.plyo = _PLYO_EXERCISES.has(e.name);
     e.arms = _ARMS_EXERCISES.has(e.name);
+    e.skill = _SKILL_EXERCISES.has(e.name);
   });
 
   // Per-exercise ISO hold/duration (seconds of work for ONE side / round).
@@ -217,6 +225,11 @@
   const REST_TIME = { SP:150, HP:75, ME:40 };
   const DEFAULT_HOLD_ISO = 35, SS_TRANSITION = 20, INTER_SIDE_REST = 15;
   const SETS_RANGE = { SP:[3,6], HP:[3,5], ME:[3,5] };
+  // Circuit protocols: an EMOM slot is one minute (work + remainder as rest);
+  // AMRAP/circuit moves between exercises on a short fixed transition.
+  // CHANGEOVER_SEC is the between-exercise setup pause in standard sessions
+  // (the guided timer shows it; the duration model counts it).
+  const EMOM_SLOT_SEC = 60, CIRCUIT_TRANSITION = 15, CHANGEOVER_SEC = 30;
 
   // Work time for one SET. ISO uses the per-exercise holdSec (default 35).
   // Unilateral work trains both sides: ~2x work + a small inter-side micro-rest.
@@ -233,8 +246,16 @@
     return p.exercise.plyo ? Math.max(base, REST_TIME.SP) : base;
   }
 
-  function elementTimeSec(el) {
+  function elementTimeSec(el, protocol) {
     const s = el.prescriptions[0].sets;
+    // Circuit protocols run solo slots on protocol timing, not rep-class rest:
+    // EMOM = one minute per slot (work + remainder), AMRAP = work + transition.
+    if (!el.isSuperset && (protocol === "EMOM" || protocol === "AMRAP")) {
+      const p = el.prescriptions[0];
+      const work = setWorkSec(p.exercise, p.reps);
+      if (protocol === "EMOM") return s * Math.max(EMOM_SLOT_SEC, work + 5);
+      return s * (work + CIRCUIT_TRANSITION);
+    }
     if (el.isSuperset) {
       const [a, b] = el.prescriptions;
       const work = setWorkSec(a.exercise, a.reps) + setWorkSec(b.exercise, b.reps);
@@ -273,12 +294,49 @@
     }
     return steps;
   }
+  // Block-level timeline. Standard blocks: per-element timelines joined by a
+  // changeover pause. Circuit protocols interleave ROUND-MAJOR — one pass
+  // through every exercise per round, the way a circuit is actually trained —
+  // instead of finishing all sets of one movement before touching the next.
+  function blockTimeline(br, protocol) {
+    const steps = [];
+    if (protocol !== "EMOM" && protocol !== "AMRAP") {
+      br.elements.forEach((el, i) => {
+        if (i) steps.push({ kind: "rest", sec: CHANGEOVER_SEC, label: "Cambio de ejercicio" });
+        elementTimeline(el).forEach(ph => steps.push(ph));
+      });
+      return steps;
+    }
+    const ps = br.elements.flatMap(el => el.prescriptions);   // solo slots (pair:false)
+    const rounds = ps.reduce((a, p) => Math.max(a, p.sets), 0);
+    for (let r = 1; r <= rounds; r++) {
+      ps.forEach((p, i) => {
+        if (r > p.sets) return;
+        const work = Math.round(setWorkSec(p.exercise, p.reps));
+        steps.push({ kind: "work", sec: work, prescription: p, setNo: r, totalSets: p.sets });
+        if (r === rounds && i === ps.length - 1) return;   // no trailing rest
+        if (protocol === "EMOM")
+          steps.push({ kind: "rest", sec: Math.max(5, EMOM_SLOT_SEC - work), label: "Resto del minuto" });
+        else
+          steps.push({ kind: "rest", sec: CIRCUIT_TRANSITION, label: "Transicion" });
+      });
+    }
+    return steps;
+  }
   function routineDurationMin(routine) {
-    let t = 0; routine.blocks.forEach(br => br.elements.forEach(el => t += elementTimeSec(el)));
+    let t = 0, els = 0;
+    const protocol = routine.protocol || null;
+    routine.blocks.forEach(br => br.elements.forEach(el => { t += elementTimeSec(el, protocol); els++; }));
+    // Standard sessions pay a real-world changeover between exercises; circuit
+    // protocols flow continuously, so they don't.
+    if (!protocol && els > 1) t += CHANGEOVER_SEC * (els - 1);
     return Math.round(t / 60);
   }
-  function blockDurationMin(br) {
-    return Math.round(br.elements.reduce((a, el) => a + elementTimeSec(el), 0) / 60);
+  function blockDurationMin(br, protocol) {
+    const n = br.elements.length;
+    let t = br.elements.reduce((a, el) => a + elementTimeSec(el, protocol || null), 0);
+    if (!protocol && n > 1) t += CHANGEOVER_SEC * (n - 1);
+    return Math.round(t / 60);
   }
 
   // --- Antagonism --------------------------------------------------------
@@ -300,7 +358,7 @@
     if (a.block !== b.block) return makeResult(false, QUALITY.INVALID, ["Different blocks; they do not form a superset."]);
     if (a.block === BLOCK.A) return validateBlockA(a, b);
     if (a.block === BLOCK.B) return validateBlockB(a, b);
-    return makeResult(true, QUALITY.OPTIMAL, ["Finalizador: combinacion libre."]);
+    return validateBlockC(a, b);
   }
   function validateBlockA(a, b) {
     const ea = a.exercise, eb = b.exercise;
@@ -313,6 +371,10 @@
       return makeResult(false, QUALITY.INVALID, ["Fuerza 1-5 + metabolico 12+: interferencia."]);
     if (ea.pattern === eb.pattern && ea.pattern !== PAT.CORE)
       return makeResult(false, QUALITY.INVALID, ["Mismo patron: fatiga local, no antagonista."]);
+    // Two grip consumers back-to-back (any dynamics) leave the forearm no
+    // window to recover — never "optimal", whatever the patterns say.
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (isActiveRest(ea) !== isActiveRest(eb))
       return makeResult(true, QUALITY.OPTIMAL, ["Lift principal + core de baja demanda: descanso activo ideal."]);
     // Lower-body cross-pattern (hinge + squat) is NOT a true antagonist recovery:
@@ -327,11 +389,29 @@
     const ea = a.exercise, eb = b.exercise;
     if (ea.grip && eb.grip && ea.dynamics === DIN.BALLISTIC && eb.dynamics === DIN.BALLISTIC)
       return makeResult(true, QUALITY.ACCEPTABLE, ["Riesgo de agarre; reduce reps o intercala core."]);
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Par antagonista en accesorios: eficiente."]);
     if (ea.pattern === eb.pattern && new Set([repRange(a), repRange(b)]).has(REP_RANGE.HP))
       return makeResult(true, QUALITY.ACCEPTABLE, ["Mismo patron en hipertrofia: volumen dirigido."]);
     return makeResult(true, QUALITY.ACCEPTABLE, ["Combinacion de accesorios aceptable."]);
+  }
+  // Finisher: no longer an automatic OPTIMAL. High-skill ISO lifts (TGU,
+  // Windmill) do not belong under peak fatigue, double grip is graded down,
+  // and two high-CNS movements together get a caution — a finisher circuit
+  // tolerates them, but it is not the ideal pairing.
+  function validateBlockC(a, b) {
+    const ea = a.exercise, eb = b.exercise;
+    if ((ea.skill && ea.dynamics === DIN.ISO) || (eb.skill && eb.dynamics === DIN.ISO))
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Tecnica exigente (TGU/Windmill) con fatiga alta: mejor al inicio de la sesion."]);
+    if (ea.grip && eb.grip)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
+    if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Dos de SNC alta en el finalizador: dosifica el ritmo."]);
+    if (areAntagonists(ea.pattern, eb.pattern))
+      return makeResult(true, QUALITY.OPTIMAL, ["Finalizador antagonista: alterna sin freno."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Finalizador: combinacion libre."]);
   }
 
   // --- Fatigue budget ---------------------------------------------
@@ -452,7 +532,7 @@
     // rest the remainder of the minute, then move to the next. sets = number
     // of rounds through the circuit; reps = reps to hit each minute.
     EMOM: {
-      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3, fixedCount: true,
+      name: "EMOM (cada minuto)", maxCns: 3, maxGrip: 3, fixedCount: true, protocol: "EMOM",
       blocks: [
         schema(BLOCK.A, 3, 6, 8, [DIN.BALLISTIC, DIN.STRENGTH], false),
       ],
@@ -460,7 +540,7 @@
     // AMRAP / circuit: pair:false keeps every exercise as a solo slot
     // so the routine reads as a linear circuit to repeat for time.
     AMRAP: {
-      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3, fixedCount: true,
+      name: "AMRAP / Circuito", maxCns: 4, maxGrip: 3, fixedCount: true, protocol: "AMRAP",
       blocks: [
         schema(BLOCK.A, 4, 3, 10, [DIN.STRENGTH, DIN.BALLISTIC], false),
         schema(BLOCK.C, 1, 3, 15, [DIN.METABOLIC],               false),
@@ -486,11 +566,16 @@
     // must stay small. Time scales the number of ROUNDS through that circuit,
     // not the number of distinct movements.
     if (base.fixedCount) {
-      const oneRound = base.blocks
-        .reduce((a, b) => a + estimateSchemaSec(schema(b.block, b.count, 1, b.reps, [...b.dynamics], b.pair)), 0) || 1;
+      // Protocol-true round estimate: an EMOM round is count minutes by
+      // definition; an AMRAP/circuit round is work + a short transition per
+      // exercise. (The old rep-class-rest estimate made "20 min EMOM" ~12 min.)
+      const roundSec = b => base.protocol === "EMOM"
+        ? b.count * EMOM_SLOT_SEC
+        : b.count * (b.reps * repTempo(b) + CIRCUIT_TRANSITION);
+      const oneRound = base.blocks.reduce((a, b) => a + roundSec(b), 0) || 1;
       const rounds = Math.max(2, Math.min(12, Math.round(target / oneRound)));
       const blocks = base.blocks.map(b => schema(b.block, b.count, rounds, b.reps, [...b.dynamics], b.pair));
-      return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: true, blocks };
+      return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: true, protocol: base.protocol, blocks };
     }
     const baseTotal = base.blocks.reduce((a, b) => a + estimateSchemaSec(b), 0) || 1;
     const factor = Math.max(0.3, Math.min(2.5, target / baseTotal));
@@ -526,6 +611,10 @@
   function prescribe(e, sch) {
     let reps = sch.reps;
     if (e.dynamics === DIN.ISO) reps = Math.max(reps, 8);
+    // Continuous/flow drills (Figure-8, Burpees...) make no sense at a 5-rep
+    // strength dose — a few seconds of work. Floor them at 10 (still HP, so
+    // the SP+ME interference rule cannot fire inside a generated pair).
+    if (e.dynamics === DIN.METABOLIC) reps = Math.max(reps, 10);
     return { exercise: e, block: sch.block, sets: sch.sets, reps };
   }
   function priority(e, sch, bal) {
@@ -539,6 +628,8 @@
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
+    if (bal.beginner && e.skill) s -= 4;                 // novices: technique-first selection
+    if (sch.block === BLOCK.C && e.skill && e.dynamics === DIN.ISO) s -= 5; // no TGU/Windmill under finisher fatigue
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
   }
@@ -561,10 +652,16 @@
     return Math.max(0.7, Math.min(1.3, m));
   }
 
-  function suggestKg(load, min, max, person, exercise) {
+  // Rep-target factor for the cold-start suggestion: the same exercise cannot
+  // carry its "heavy tier" kg at a 15-rep target. Without this, tier and rep
+  // prescription were decoupled (e.g. 3x15 Floor Press at 85% of the range).
+  // SP keeps the tier as-is; HP shades it; ME drops roughly a tier.
+  const REP_LOAD_FACTOR = { SP: 1, HP: 0.9, ME: 0.7 };
+  function suggestKg(load, min, max, person, exercise, reps) {
     if (min == null || max == null) return null;
     const base = { 1: 0.15, 2: 0.5, 3: 0.85 }[load];
     let frac = base == null ? 0.5 : base;
+    if (reps > 0) frac *= REP_LOAD_FACTOR[classifyVolume(reps)];
     frac = Math.max(0.1, Math.min(0.95, frac * personSeedMultiplier(person, exercise)));
     const kg = Math.round((min + frac * (max - min)) / 2) * 2;
     return Math.max(min, Math.min(max, kg));
@@ -651,9 +748,13 @@
   // Inverse Epley: the working load that yields `e1` at `reps` reps. Snapped to
   // the 2 kg increment and clamped to [min,max] (opts) so it lands on the
   // adjustable kettlebell. Used to prescribe a weight from a tracked e1RM.
+  // E1RM_PRESCRIPTION_RIR: prescribe as if the set had 2 reps in reserve —
+  // inverting at exactly `reps` would hand back the trainee's rep-max, and
+  // nobody sustains their 10RM for every set of a 3x10.
+  const E1RM_PRESCRIPTION_RIR = 2;
   function loadForReps(e1, reps, opts) {
     if (e1 == null || !(e1 > 0) || !(reps > 0)) return null;
-    const raw = e1 / (1 + Math.min(reps, E1RM_MAX_REPS) / 30);
+    const raw = e1 / (1 + (Math.min(reps, E1RM_MAX_REPS) + E1RM_PRESCRIPTION_RIR) / 30);
     opts = opts || {};
     return snapKg(raw, opts.min, opts.max);
   }
@@ -702,7 +803,7 @@
   function unifiedKg(prescriptions, range, person) {
     if (!range || range.min == null || range.max == null) return null;
     const ks = (prescriptions || [])
-      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise))
+      .map(p => suggestKg(p.exercise.load, range.min, range.max, person, p.exercise, p.reps))
       .filter(k => k != null)
       .sort((a, b) => a - b);
     if (!ks.length) return null;
@@ -730,15 +831,21 @@
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    // Prefer, in order: superset quality, then (single-weight mode) a partner
-    // whose load matches the block anchor, then the balance bonus.
-    let best = null, key = [-1, 1, -1];
+    // Prefer, in order: superset quality, then (for beginners) a partner that
+    // is not a high-skill lift, then (single-weight mode) a partner whose load
+    // matches the block anchor, then the balance bonus.
+    let best = null, key = [-1, -1, 1, -1];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const k = [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
-      if (k[0] > key[0] || (k[0] === key[0] && (k[1] > key[1] || (k[1] === key[1] && k[2] > key[2])))) { best = c; key = k; }
+      const k = [res.quality, (bal.beginner && c.skill) ? 0 : 1, -bal.loadPenalty(c), bal.bonus(c)];
+      let better = false;
+      for (let i = 0; i < k.length; i++) {
+        if (k[i] > key[i]) { better = true; break; }
+        if (k[i] < key[i]) break;
+      }
+      if (better) { best = c; key = k; }
     }
     return best;
   }
@@ -880,7 +987,7 @@
     const blocks = base.blocks
       .filter(b => (structure[b.block] || 0) > 0)
       .map(b => schema(b.block, structure[b.block], b.sets, b.reps, [...b.dynamics], b.pair));
-    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, blocks };
+    return { name: base.name, maxCns: base.maxCns, maxGrip: base.maxGrip, fixedCount: base.fixedCount, protocol: base.protocol, blocks };
   }
 
   function buildRoutine(template, available, weightKb, seed, balance, tol, focus, pinnedNames, recent, sameWeight) {
@@ -894,6 +1001,7 @@
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
+    bal.beginner = !!template.__beginner; // steer novices away from high-skill lifts
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -1294,7 +1402,7 @@
       const nc = Math.max(1, Math.round(b.count * factor));
       return schema(b.block, nc, b.sets, b.reps, [...b.dynamics], b.pair);
     });
-    return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, blocks };
+    return { name: tpl.name, maxCns: tpl.maxCns, maxGrip: tpl.maxGrip, fixedCount: tpl.fixedCount, protocol: tpl.protocol, blocks };
   }
 
   // --- Daily readiness / mood autoregulation ----------------------------
@@ -1354,11 +1462,13 @@
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      tpl.__beginner = ((opts.person && opts.person.level) || "").toUpperCase() === "BEG";
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
       rt.readiness = { loadFactor: rf.loadFactor, level: rf.level };
+      rt.protocol = base.protocol || null;   // EMOM/AMRAP run on protocol timing
       return rt;
     };
 
@@ -1393,6 +1503,7 @@
     e.tier = fields.tier || TIER.ACCESSORY;
     e.plyo = !!fields.plyo;
     e.arms = !!fields.arms;
+    e.skill = !!fields.skill;
     return e;
   }
 
@@ -1400,7 +1511,8 @@
     PAT, DIN, SIM, CNS, EQ, LOAD_TIER, BLOCK, REP_RANGE, QUALITY, QUALITY_NAME, TIER, TIER_LABEL,
     PAT_LABEL, DIN_LABEL, LOAD_LABEL, FOCUS_LABEL,
     BASE_CATALOG, TEMPLATES, RENAMED,
-    classifyVolume, elementTimeSec, elementTimeline, routineDurationMin, blockDurationMin,
+    classifyVolume, elementTimeSec, elementTimeline, blockTimeline, routineDurationMin, blockDurationMin,
+    CHANGEOVER_SEC,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     composeRoutine, auditRoutine, inferObjective, assessObjective,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
