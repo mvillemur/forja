@@ -396,7 +396,7 @@ const dupImbal = F.composeRoutine([
 ]);
 const dupAudit = F.auditRoutine(dupImbal);
 ok("audit: repeated exercise is flagged", dupAudit.findings.some(f => /2 veces/.test(f.msg)));
-ok("audit: push/pull imbalance is flagged", dupAudit.findings.some(f => /empuje\/tiron/.test(f.msg)));
+ok("audit: push/pull imbalance is flagged", dupAudit.findings.some(f => /empuje\/tir(o|ó)n/.test(f.msg)));
 
 // Audit suggestions: prescriptive fixes drawn from the available pool.
 ok("suggestions: absent without a pool", F.auditRoutine(risky).suggestions.length === 0);
@@ -405,7 +405,7 @@ const riskySugg = F.auditRoutine(risky, { pool: F.BASE_CATALOG }).suggestions;
 ok("suggestions: broken superset gets a concrete fix", riskySugg.some(s => /Superserie rota/.test(s)));
 const dupSugg = F.auditRoutine(dupImbal, { pool: F.BASE_CATALOG }).suggestions;
 ok("suggestions: repeated exercise offers a variant", dupSugg.some(s => /En vez de repetir Press Goblet, prueba /.test(s)));
-ok("suggestions: imbalance names the missing pattern with options", dupSugg.some(s => /Anade tiron para equilibrar: .+ o .+\./.test(s)));
+ok("suggestions: imbalance names the missing pattern with options", dupSugg.some(s => /A(n|ñ)ade tir(o|ó)n para equilibrar: .+ o .+\./.test(s)));
 const cnsSugg = F.auditRoutine(manual, { maxCns: 0, pool: F.BASE_CATALOG }).suggestions;
 ok("suggestions: CNS over budget offers a calmer same-pattern swap",
   cnsSugg.some(s => /presupuesto de SNC, cambia Swing/.test(s)));
@@ -450,9 +450,9 @@ const isoOnly = F.composeRoutine([
 ok("infer: ISO-only session claims no profile (carries fit any objective)", F.inferObjective(isoOnly).objective === null);
 // Declared objective: the audit flags a composition that resembles another profile.
 const misdeclared = F.auditRoutine(metaLike, { declared: "STRENGTH" });
-ok("audit: declared vs detected mismatch is a warning", misdeclared.findings.some(f => f.level === "warn" && /se parece mas/.test(f.msg)));
+ok("audit: declared vs detected mismatch is a warning", misdeclared.findings.some(f => f.level === "warn" && /se parece m(a|á)s/.test(f.msg)));
 const wellDeclared = F.auditRoutine(strengthLike, { declared: "STRENGTH" });
-ok("audit: matching declaration adds no mismatch finding", !wellDeclared.findings.some(f => /se parece mas/.test(f.msg)));
+ok("audit: matching declaration adds no mismatch finding", !wellDeclared.findings.some(f => /se parece m(a|á)s/.test(f.msg)));
 
 // Objective assessment: why it serves the goal + global adjustments toward it.
 const asOk = F.assessObjective(strengthLike, "STRENGTH");

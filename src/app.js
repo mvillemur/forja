@@ -70,8 +70,8 @@
 
   const STRIPE = { HIP:"#e8742c", KNEE:"#e6b450", PULL_H:"#6fa8c7", PULL_V:"#5b93b8",
     PUSH_H:"#b98cc9", PUSH_V:"#a978bf", CORE:"#7fae6a", HYBRID:"#d9533b" };
-  const OBJ_LABEL = { STRENGTH:"Fuerza", METABOLIC:"Metabolico", STRENGTH_ENDURANCE:"Resistencia",
-    POWER:"Potencia", EMOM:"EMOM", AMRAP:"AMRAP", MANUAL:"Creada por mi" };
+  const OBJ_LABEL = { STRENGTH:"Fuerza", METABOLIC:"Metabólico", STRENGTH_ENDURANCE:"Resistencia",
+    POWER:"Potencia", EMOM:"EMOM", AMRAP:"AMRAP", MANUAL:"Creada por mí" };
 
   const state = {
     cfg: { objective:"STRENGTH", focus:[], equipment:["KB", "FLOOR"], weightMin:12, weightMax:32,
@@ -136,7 +136,7 @@
   let warnedStoreFail = false;
   Store.onFail = () => {
     if (warnedStoreFail) return; warnedStoreFail = true;
-    toast("No se pudo guardar en el dispositivo (almacenamiento lleno o bloqueado). Exporta una copia: los cambios se perderan al recargar.");
+    toast("No se pudo guardar en el dispositivo (almacenamiento lleno o bloqueado). Exporta una copia: los cambios se perderán al recargar.");
   };
 
   // ---- Persistence
@@ -288,7 +288,7 @@
     const i = state.paused.indexOf(name);
     if (i >= 0) state.paused.splice(i, 1); else state.paused.push(name);
     savePaused(); renderPool();
-    toast(i >= 0 ? "Reactivado: vuelve a la seleccion" : "Pausado: fuera de la seleccion");
+    toast(i >= 0 ? "Reactivado: vuelve a la selección" : "Pausado: fuera de la selección");
   }
   const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
   const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
@@ -344,7 +344,7 @@
     if (opts.silent) return;
     toast(up   ? `¡Progreso! Sube a ${next.kg} kg · reps reinician en ${next.reps}`
        : down  ? `Bajamos a ${next.kg} kg para afianzar · ${next.reps} reps`
-               : `Objetivo proxima vez: ${next.reps} reps`);
+               : `Objetivo próxima vez: ${next.reps} reps`);
     if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min, max }, true);
   }
 
@@ -414,7 +414,7 @@
     range = range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     if (editable) {
       const back = el("button", "to-settings", "↑ Ajustes");
-      back.title = "Volver a la configuracion";
+      back.title = "Volver a la configuración";
       back.onclick = scrollToTop;
       into.appendChild(back);
     }
@@ -426,7 +426,7 @@
     if (r.warmup && r.warmup.items && r.warmup.items.length) {
       const wu = el("div", "block warmup");
       const wh = el("div", "block-head");
-      wh.appendChild(el("div", "block-name", "Calentamiento · preparacion"));
+      wh.appendChild(el("div", "block-name", "Calentamiento · preparación"));
       wu.appendChild(wh);
       const ul = el("ul", "warmup-list");
       r.warmup.items.forEach(it => ul.appendChild(el("li", null, it)));
@@ -528,7 +528,7 @@
                   ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? " · ajustado 2º superserie" : " · ajustado fatiga")
                   : "";
                 const reason = sameW ? "misma pesa · circuito"
-                  : usedE1 ? "segun tu e1RM" + tapered
+                  : usedE1 ? "según tu e1RM" + tapered
                   : tapered ? tapered.replace(" · ", "") : "sugerido";
                 doseEl.appendChild(el("div", "ex-kg-hint", reason));
               }
@@ -566,9 +566,9 @@
             const progRow = el("div", "prog-row");
             progRow.appendChild(el("span", "prog-target", `objetivo ${targetReps(p)} reps`));
             const fbRow = el("div", "prog-fb");
-            [["easy", "Facil", "Demasiado facil: sube mas rapido"],
+            [["easy", "Fácil", "Demasiado fácil: sube más rápido"],
              ["ok", "OK", "En punto: progresa normal"],
-             ["hard", "Duro", "Demasiado duro: baja un escalon"]].forEach(([fb, label, title]) => {
+             ["hard", "Duro", "Demasiado duro: baja un escalón"]].forEach(([fb, label, title]) => {
               const b = el("button", "prog-btn prog-" + fb, label);
               b.title = title;
               b.onclick = () => applyProgression(p, fb);
@@ -636,14 +636,14 @@
     // Warm-up first: the prep block exists to protect the ballistic work that
     // follows — the guided flow must not skip it.
     if (routine.warmup && routine.warmup.items && routine.warmup.items.length)
-      steps.push({ kind: "rest", sec: WARMUP_MOBILITY_SEC, label: "Calentamiento: movilidad + activacion", warmup: true });
+      steps.push({ kind: "rest", sec: WARMUP_MOBILITY_SEC, label: "Calentamiento: movilidad + activación", warmup: true });
     const ru = routine.warmup && routine.warmup.rampUp;
     if (ru) {
       const pseudo = { isSuperset: false, prescriptions: [{ exercise: ru.exercise, block: "A", sets: ru.sets, reps: ru.reps }] };
       F.elementTimeline(pseudo).forEach(ph => steps.push(Object.assign({}, ph, {
         block: "A", warmup: true,
         sec: ph.kind === "rest" ? WARMUP_RAMP_REST : ph.sec,
-        doseLabel: ru.reps + " reps · carga ligera (aproximacion)",
+        doseLabel: ru.reps + " reps · carga ligera (aproximación)",
       })));
     }
     routine.blocks.forEach(br => {
@@ -669,11 +669,11 @@
       '<div id="t-log" class="timer-log hidden">' +
       '<div class="t-log-title">Serie hecha: <span id="t-log-name"></span></div>' +
       '<div class="t-log-reps">' +
-      '<button id="t-log-dec" class="kg-adj" aria-label="Una repeticion menos">−</button>' +
+      '<button id="t-log-dec" class="kg-adj" aria-label="Una repetición menos">−</button>' +
       '<span id="t-log-val"></span>' +
-      '<button id="t-log-inc" class="kg-adj" aria-label="Una repeticion mas">+</button></div>' +
+      '<button id="t-log-inc" class="kg-adj" aria-label="Una repetición más">+</button></div>' +
       '<div class="t-log-fb" id="t-log-fb">' +
-      '<button data-fb="easy" class="prog-btn prog-easy">Facil</button>' +
+      '<button data-fb="easy" class="prog-btn prog-easy">Fácil</button>' +
       '<button data-fb="ok" class="prog-btn prog-ok">OK</button>' +
       '<button data-fb="hard" class="prog-btn prog-hard">Duro</button>' +
       '</div></div>' +
@@ -710,7 +710,7 @@
   function startTimer(routine, histEntry, resume) {
     if (!routine || !routine.blocks) return;
     const steps = buildTimerSteps(routine);
-    if (!steps.length) { toast("Rutina vacia"); return; }
+    if (!steps.length) { toast("Rutina vacía"); return; }
     if (timer) clearInterval(timer.tick);
     const o = ensureTimerOverlay(); o.classList.remove("hidden");
     const T = timer = { i: 0, remaining: 0, paused: false, tick: null,
@@ -775,14 +775,14 @@
         $("#t-name").textContent = s.prescription.exercise.name;
         $("#t-sub").textContent = `Serie ${s.setNo}/${s.totalSets} · ${s.doseLabel || timerDose(s.prescription)}`;
       } else {
-        $("#t-kind").textContent = s.warmup ? "PREPARACION" : "DESCANSO";
+        $("#t-kind").textContent = s.warmup ? "PREPARACIÓN" : "DESCANSO";
         $("#t-name").textContent = s.label || "Descanso";
         $("#t-sub").textContent = "";
       }
       const nxt = steps[T.i + 1];
       $("#t-next").textContent = nxt
         ? "Sigue: " + (nxt.kind === "work" ? nxt.prescription.exercise.name : (nxt.label || "descanso"))
-        : "Ultima fase";
+        : "Última fase";
       $("#t-count").textContent = fmt(T.remaining);
       renderLog();
     }
@@ -996,7 +996,7 @@
         host.appendChild(row);
       });
       if (!items.length && mkPicker.block !== k)
-        host.appendChild(el("div", "pin-empty", "Vacio: este bloque no saldra en la rutina."));
+        host.appendChild(el("div", "pin-empty", "Vacío: este bloque no saldrá en la rutina."));
       if (F.TEMPLATES[state.cfg.manualObjective] && !mkObjSchema(k))
         host.appendChild(el("div", "pin-empty", "El objetivo declarado no suele usar este bloque."));
       // Searchable picker, opened by "+ Anadir a <block>".
@@ -1010,7 +1010,7 @@
   function renderMkPicker(k, pool) {
     const panel = el("div", "mk-pick");
     const input = document.createElement("input");
-    input.type = "text"; input.placeholder = "Buscar por nombre, patron, tag…";
+    input.type = "text"; input.placeholder = "Buscar por nombre, patrón, tag…";
     input.autocomplete = "off"; input.className = "mk-pick-search";
     input.value = mkPicker.text;
     panel.appendChild(input);
@@ -1051,7 +1051,7 @@
       const e = pool[it.name];
       if (e) entries.push({ exercise: e, block: k, sets: it.sets, reps: it.reps, pair: it.pair });
     }));
-    if (!entries.length) { toast("Anade al menos un ejercicio a la rutina"); return; }
+    if (!entries.length) { toast("Añade al menos un ejercicio a la rutina"); return; }
     // Weights chosen in the builder become the dialed kg for those exercises,
     // so the rendered routine, the timer and the progression all use them.
     let kgTouched = false;
@@ -1108,11 +1108,11 @@
         : inf && inf.objective
         ? "Perfil detectado: <b>" + (OBJ_LABEL[inf.objective] || esc(inf.objective)) + "</b> (" +
           Math.round(inf.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
-        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos.";
+        : "Perfil mixto: sin objetivo claro; auditada con presupuestos genéricos.";
       card.appendChild(el("div", "audit-infer", txt));
     }
     if (!a.findings.length) {
-      card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura solida segun las reglas del motor."));
+      card.appendChild(el("div", "audit-clean", "Sin objeciones: estructura sólida según las reglas del motor."));
     } else {
       const ul = el("div", "audit-list");
       a.findings.forEach(f => {
@@ -1167,11 +1167,11 @@
     if (!host) return;
     const parts = [];
     if (f.level === "low") {
-      parts.push("Dia flojo: menos volumen y cargas mas suaves.");
+      parts.push("Día flojo: menos volumen y cargas más suaves.");
       if (c.objective === "STRENGTH" || c.objective === "POWER")
-        parts.push("Quiza hoy rinda mas un dia metabolico o de tecnica que ir a fuerza maxima.");
+        parts.push("Quizá hoy rinda más un día metabólico o de técnica que ir a fuerza máxima.");
     } else if (f.level === "high") {
-      parts.push("Buen dia: algo mas de volumen y permiso para cargar.");
+      parts.push("Buen día: algo más de volumen y permiso para cargar.");
     }
     if (c.readiness.sore && c.readiness.sore.length) parts.push("Aliviamos las zonas doloridas.");
     host.innerHTML = parts.join(" ");
@@ -1209,8 +1209,8 @@
   function renderPinFilters() {
     const host = $("#pin-filters"); host.innerHTML = "";
     const groups = [
-      { key: "pattern",  label: "Patron",   labels: F.PAT_LABEL },
-      { key: "dynamics", label: "Dinamica", labels: F.DIN_LABEL },
+      { key: "pattern",  label: "Patrón",   labels: F.PAT_LABEL },
+      { key: "dynamics", label: "Dinámica", labels: F.DIN_LABEL },
       { key: "tier",     label: "Tier",     labels: F.TIER_LABEL },
     ];
     groups.forEach(g => {
@@ -1238,7 +1238,7 @@
     renderPinFilters();
     const wrap = $("#pin-chips"); wrap.innerHTML = "";
     const list = pinPoolFiltered().slice().sort((a, b) => a.name.localeCompare(b.name));
-    if (!list.length) wrap.appendChild(el("div", "pin-empty", "Ningun ejercicio coincide con los filtros."));
+    if (!list.length) wrap.appendChild(el("div", "pin-empty", "Ningún ejercicio coincide con los filtros."));
     list.forEach(e => {
       const b = el("button", "chip fijado", esc(e.name));
       b.setAttribute("aria-pressed", String(pinnedIndex(e.name) >= 0));
@@ -1350,7 +1350,7 @@
       actions.appendChild(edit); actions.appendChild(okBtn);
     }
     const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
-    del.onclick = () => { manualEditId = null; state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+    del.onclick = () => { manualEditId = null; state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesión eliminada"); };
     actions.appendChild(del);
     row.appendChild(meta); row.appendChild(actions);
     card.appendChild(row); card.appendChild(detail);
@@ -1395,7 +1395,7 @@
       wrap.appendChild(box);
     });
 
-    const add = el("button", "btn btn-ghost", "+ Anadir ejercicio");
+    const add = el("button", "btn btn-ghost", "+ Añadir ejercicio");
     add.style.cssText = "margin-top:8px;padding:9px;font-size:13px;";
     add.onclick = () => {
       const last = h.exercises[h.exercises.length - 1];
@@ -1444,7 +1444,7 @@
     const card = el("div", "card stats-card");
     card.appendChild(el("div", "label", "Fuerza estimada · e1RM"));
     card.appendChild(el("div", "e1rm-note",
-      "Tu 1RM estimado (el peso que moverias una sola vez) por ejercicio, a partir de tus series. Es una estimacion, no un maximo real."));
+      "Tu 1RM estimado (el peso que moverías una sola vez) por ejercicio, a partir de tus series. Es una estimación, no un máximo real."));
     const list = el("div", "e1rm-list");
     names.forEach(name => {
       const e = map[name];
@@ -1470,7 +1470,7 @@
     renderE1rmPanel(host);
     if (state.hist.length < 2) return;   // not enough data for the volume trend
     const card = el("div", "card stats-card");
-    card.appendChild(el("div", "label", "Progreso · volumen por sesion"));
+    card.appendChild(el("div", "label", "Progreso · volumen por sesión"));
 
     // Oldest -> newest, last 12 sessions.
     const series = state.hist.slice(0, 12).map(h => ({ vol: sessionVolume(h), date: new Date(h.date), done: !!h.completed })).reverse();
@@ -1496,7 +1496,7 @@
     const fig = (n2, lbl) => { const f = el("div", "stat-fig"); f.appendChild(el("div", "stat-num", String(n2))); f.appendChild(el("div", "stat-lbl", lbl)); return f; };
     row.appendChild(fig(state.hist.length, "sesiones"));
     row.appendChild(fig(done, "completadas"));
-    row.appendChild(fig(week, "ult. 7 dias"));
+    row.appendChild(fig(week, "últ. 7 días"));
     card.appendChild(row);
     host.appendChild(card);
   }
@@ -1596,7 +1596,7 @@
     renderStats();
     const list = $("#hist-list"); list.innerHTML = "";
     if (!state.hist.length) {
-      list.appendChild(el("div", "empty", "<b>Sin sesiones todavia</b>Genera una rutina y guardala para llevar el registro."));
+      list.appendChild(el("div", "empty", "<b>Sin sesiones todavía</b>Genera una rutina y guárdala para llevar el registro."));
       return;
     }
     state.hist.forEach(h => {
@@ -1607,10 +1607,10 @@
       } catch (e) {
         const card = el("div", "card");
         const row = el("div", "hist-item");
-        row.appendChild(el("div", "hist-meta", "Sesion ilegible (datos incompletos)"));
+        row.appendChild(el("div", "hist-meta", "Sesión ilegible (datos incompletos)"));
         const actions = el("div", "hist-actions");
         const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
-        del.onclick = () => { state.hist = state.hist.filter(x => x !== h); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+        del.onclick = () => { state.hist = state.hist.filter(x => x !== h); saveHistory(); renderHistory(); toast("Sesión eliminada"); };
         actions.appendChild(del);
         row.appendChild(actions);
         card.appendChild(row); list.appendChild(card);
@@ -1679,7 +1679,7 @@
       a11y(okBtn, "Marcar completada");
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
-      del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+      del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesión eliminada"); };
       actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
       card.appendChild(row); card.appendChild(detail);
@@ -1726,8 +1726,8 @@
   function renderPoolFilters() {
     const host = $("#pool-filters"); host.innerHTML = "";
     const groups = [
-      { key: "pattern", label: "Patron", labels: F.PAT_LABEL },
-      { key: "dynamics", label: "Dinamica", labels: F.DIN_LABEL },
+      { key: "pattern", label: "Patrón", labels: F.PAT_LABEL },
+      { key: "dynamics", label: "Dinámica", labels: F.DIN_LABEL },
       { key: "tier", label: "Tier", labels: F.TIER_LABEL },
     ];
     groups.forEach(g => {
@@ -1761,7 +1761,7 @@
     $("#pool-count").textContent = sorted.length === all.length
       ? all.length + " ejercicios"
       : sorted.length + " de " + all.length;
-    if (!sorted.length) { list.appendChild(el("div", "empty", "<b>Sin resultados</b>Ajusta la busqueda o los filtros.")); return; }
+    if (!sorted.length) { list.appendChild(el("div", "empty", "<b>Sin resultados</b>Ajusta la búsqueda o los filtros.")); return; }
     sorted.forEach(e => {
       const card = el("div", "card"); card.style.padding = "0";
       const row = el("div", "pool-item");
@@ -1776,7 +1776,7 @@
       else if (e.tier === "OPTIONAL") tags.appendChild(el("span", "tag", "opcional"));
       tags.appendChild(el("span", "tag snc-" + e.cns, "SNC " + e.cns));
       if (e.grip) tags.appendChild(el("span", "tag", "agarre"));
-      if (e.plyo) tags.appendChild(el("span", "tag tag-plyo", "pliometrico"));
+      if (e.plyo) tags.appendChild(el("span", "tag tag-plyo", "pliométrico"));
       if (e.arms) tags.appendChild(el("span", "tag", "brazos"));
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
@@ -1787,7 +1787,7 @@
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
       const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
-      a11y(pauseBtn, isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)");
+      a11y(pauseBtn, isPaused(e.name) ? "Reactivar (vuelve a la selección)" : "Pausar temporalmente (fuera de la selección)");
       pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
       row.appendChild(pauseBtn);
       const del = el("button", "icon-btn del", "✕"); a11y(del, "Quitar del pool");
@@ -1820,9 +1820,9 @@
   // trainee's to shape), but incoherent tags silently corrupt the fatigue and
   // time models, so the contradictions worth catching get a warning toast.
   function lintExercise(f) {
-    if (f.plyo && f.cns === "LOW") return "Ojo: un pliometrico (salto/impacto) rara vez es SNC baja.";
-    if (f.plyo && f.dynamics === "ISO") return "Ojo: pliometrico e isometrico se contradicen; revisa la dinamica.";
-    if (f.load === 3 && f.dynamics === "METABOLIC") return "Ojo: el trabajo metabolico suele ir con carga ligera/media, no pesada.";
+    if (f.plyo && f.cns === "LOW") return "Ojo: un pliométrico (salto/impacto) rara vez es SNC baja.";
+    if (f.plyo && f.dynamics === "ISO") return "Ojo: pliométrico e isométrico se contradicen; revisa la dinámica.";
+    if (f.load === 3 && f.dynamics === "METABOLIC") return "Ojo: el trabajo metabólico suele ir con carga ligera/media, no pesada.";
     return null;
   }
   function fillForm(e) {
@@ -1841,7 +1841,7 @@
   function resetForm() {
     state.editing = null;
     $("#pool-form-title").textContent = "Nuevo ejercicio";
-    $("#btn-add").textContent = "Anadir al pool";
+    $("#btn-add").textContent = "Añadir al pool";
     $("#f-name").value = ""; $("#f-name").disabled = false;
     $("#f-pattern").selectedIndex = 0; $("#f-dynamics").selectedIndex = 0;
     $("#f-symmetry").selectedIndex = 0; $("#f-cns").selectedIndex = 0;
@@ -1876,7 +1876,7 @@
     if (state.pool.some(e => e.name.toLowerCase() === name.toLowerCase())) { toast("Ese nombre ya existe"); return; }
     state.custom.push(F.newExercise(Object.assign({ name }, fields)));
     computePool(); savePoolState(); renderPool();
-    $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Ejercicio anadido");
+    $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Ejercicio añadido");
   }
 
   // ---- Export / Import
@@ -1920,7 +1920,7 @@
         const ok = window.confirm(
           "Restaurar copia: " + nh + " sesiones y " + nc + " ejercicios propios.\n" +
           "Reemplaza los datos actuales (" + state.hist.length + " sesiones). ¿Continuar?");
-        if (!ok) { toast("Importacion cancelada"); return; }
+        if (!ok) { toast("Importación cancelada"); return; }
         // Drop entries that are not even objects (hand-edited/truncated
         // files) so one bad row cannot break the History render.
         if (Array.isArray(data.hist)) data.hist = data.hist.filter(x => x && typeof x === "object");
@@ -1950,7 +1950,7 @@
         // the whole UI from storage instead of hand-patching each widget.
         if (data.cfg) setTimeout(() => { try { location.reload(); } catch (e) {} }, 700);
       } catch (_) {
-        toast("Error al importar: archivo no valido");
+        toast("Error al importar: archivo no válido");
       }
     };
     reader.readAsText(file);
@@ -2016,7 +2016,7 @@
           if (prev && Array.isArray(prev.hist) && prev.hist.length > 0) {
             if (!warnedBackupGuard) {
               warnedBackupGuard = true;
-              toast("Copia automatica en pausa: el archivo vinculado tiene sesiones y la app ninguna. Importalo (o desvincula) antes de sobrescribir.");
+              toast("Copia automática en pausa: el archivo vinculado tiene sesiones y la app ninguna. Impórtalo (o desvincula) antes de sobrescribir.");
             }
             renderBackupStatus();
             return false;
@@ -2044,7 +2044,7 @@
       backupHandle = h; backupPending = null;
       await idbSet("backup", h);
       const wrote = await writeBackup();   // first snapshot right away
-      if (wrote) toast("Copia automatica vinculada");
+      if (wrote) toast("Copia automática vinculada");
     } catch (e) { /* picker cancelled */ }
     renderBackupStatus();
   }
@@ -2055,7 +2055,7 @@
       if (perm === "granted") {
         backupHandle = backupPending; backupPending = null;
         const wrote = await writeBackup();
-        if (wrote) toast("Copia automatica reactivada");
+        if (wrote) toast("Copia automática reactivada");
       }
     } catch (e) {}
     renderBackupStatus();
@@ -2063,7 +2063,7 @@
   async function unlinkBackupFile() {
     backupHandle = null; backupPending = null;
     try { await idbSet("backup", null); } catch (e) {}
-    renderBackupStatus(); toast("Copia automatica desvinculada");
+    renderBackupStatus(); toast("Copia automática desvinculada");
   }
   // Share sheet fallback (mobile: "save to Files / Drive"). Falls back to a
   // classic download when files cannot be shared.
@@ -2079,16 +2079,16 @@
   function backupAgeText() {
     try {
       const j = JSON.parse(localStorage.getItem("forja:backupAt"));
-      if (!j) return "Sin copias todavia.";
+      if (!j) return "Sin copias todavía.";
       const when = new Date(j.t).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-      return "Ultima copia: " + when + (j.kind === "auto" ? " · automatica" : "");
-    } catch (e) { return "Sin copias todavia."; }
+      return "Última copia: " + when + (j.kind === "auto" ? " · automática" : "");
+    } catch (e) { return "Sin copias todavía."; }
   }
   function renderBackupStatus() {
     const st = $("#backup-status"); if (!st) return;
     const bits = [backupAgeText()];
-    if (backupHandle) bits.push("Copia automatica activa → " + (backupHandle.name || "archivo vinculado") + ".");
-    else if (backupPending) bits.push("Archivo vinculado; reactivala para seguir copiando.");
+    if (backupHandle) bits.push("Copia automática activa → " + (backupHandle.name || "archivo vinculado") + ".");
+    else if (backupPending) bits.push("Archivo vinculado; reactívala para seguir copiando.");
     st.textContent = bits.join(" ");
     $("#btn-link-backup").classList.toggle("hidden", !fsSupported() || !!backupHandle || !!backupPending);
     $("#btn-relink-backup").classList.toggle("hidden", !backupPending);
@@ -2164,7 +2164,7 @@
       if (!byDate.has(iso)) byDate.set(iso, []);
       byDate.get(iso).push(ex);
     }
-    if (!byDate.size) throw new Error("sin filas validas");
+    if (!byDate.size) throw new Error("sin filas válidas");
 
     return [...byDate.entries()].map(([iso, exercises]) => ({
       id: nextId(), date: iso, manual: true, completed: true, exercises,
@@ -2174,7 +2174,7 @@
   function importCsvSessions(text) {
     let sessions;
     try { sessions = parseSessionsCsv(text); }
-    catch (err) { toast("CSV no valido: " + err.message); return; }
+    catch (err) { toast("CSV no válido: " + err.message); return; }
     state.hist = state.hist.concat(sessions).sort((a, b) => new Date(b.date) - new Date(a.date));
     saveHistory(); renderHistory();
     const exTotal = sessions.reduce((a, s) => a + s.exercises.length, 0);
@@ -2225,7 +2225,7 @@
     // user instead of silently starting over (and see writeBackup's guard).
     if (corruptKeys.length) {
       setTimeout(() => toast("Aviso: datos guardados ilegibles (" + corruptKeys.join(", ") +
-        "). Se conservo una copia interna; restaura desde tu backup si algo falta."), 400);
+        "). Se conservó una copia interna; restaura desde tu backup si algo falta."), 400);
     }
     fillSelectOptions();
 
@@ -2287,7 +2287,7 @@
     $("#btn-mk-complete").onclick = () => {
       const rows = [];
       ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => rows.push({ name: it.name, block: k })));
-      if (!rows.length) { toast("Anade ejercicios primero"); return; }
+      if (!rows.length) { toast("Añade ejercicios primero"); return; }
       state.cfg.pinned = rows;
       if (F.TEMPLATES[state.cfg.manualObjective]) {
         state.cfg.objective = state.cfg.manualObjective;
@@ -2297,7 +2297,7 @@
       state.cfg.mode = "auto"; setSeg("#seg-mode", "auto"); applyMode();
       updatePinnedCount(); saveConfig();
       generateRoutine();
-      toast("Tus ejercicios quedan fijados; el generador completo el resto");
+      toast("Tus ejercicios quedan fijados; el generador completó el resto");
     };
 
     wireSeg("#seg-objective", v => { state.cfg.objective = v; updateReadinessHint(); saveConfig(); });
@@ -2443,7 +2443,7 @@
     const savedT = await loadJson(K.TIMER);
     if (savedT && savedT.routine && savedT.routine.blocks) {
       const h = savedT.histId != null ? state.hist.find(x => x.id === savedT.histId) : null;
-      if (window.confirm("Hay un entrenamiento a medias. ¿Reanudarlo donde quedo?")) {
+      if (window.confirm("Hay un entrenamiento a medias. ¿Reanudarlo donde quedó?")) {
         if (!h) {
           // The workout ran on a live unsaved routine: restore it as the
           // current one so finishing can still save to history.

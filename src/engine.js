@@ -56,11 +56,11 @@
   const QUALITY = { OPTIMAL:3, ACCEPTABLE:2, INVALID:0 };
   const QUALITY_NAME = { 3:"OPTIMAL", 2:"ACCEPTABLE", 0:"INVALID" };
 
-  const PAT_LABEL = { HIP:"Cadera", KNEE:"Rodilla", PULL_H:"Tiron horiz.",
-    PULL_V:"Tiron vert.", PUSH_H:"Empuje horiz.", PUSH_V:"Empuje vert.",
-    CORE:"Core / estab.", HYBRID:"Hibrido" };
-  const DIN_LABEL = { STRENGTH:"Fuerza/Hipertrofia", BALLISTIC:"Balistico/Potencia",
-    ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
+  const PAT_LABEL = { HIP:"Cadera", KNEE:"Rodilla", PULL_H:"Tirón horiz.",
+    PULL_V:"Tirón vert.", PUSH_H:"Empuje horiz.", PUSH_V:"Empuje vert.",
+    CORE:"Core / estab.", HYBRID:"Híbrido" };
+  const DIN_LABEL = { STRENGTH:"Fuerza/Hipertrofia", BALLISTIC:"Balístico/Potencia",
+    ISO:"Isométrico/Transporte", METABOLIC:"Metabólico" };
   const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
   // --- Base catalog (40) -------------------------------------------------
@@ -320,7 +320,7 @@
         if (protocol === "EMOM")
           steps.push({ kind: "rest", sec: Math.max(5, EMOM_SLOT_SEC - work), label: "Resto del minuto" });
         else
-          steps.push({ kind: "rest", sec: CIRCUIT_TRANSITION, label: "Transicion" });
+          steps.push({ kind: "rest", sec: CIRCUIT_TRANSITION, label: "Transición" });
       });
     }
     return steps;
@@ -367,12 +367,12 @@
     if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
       return makeResult(false, QUALITY.INVALID, ["Dos de SNC alta degradan la fuerza/potencia."]);
     if (ea.grip && eb.grip && ea.dynamics === DIN.BALLISTIC && eb.dynamics === DIN.BALLISTIC)
-      return makeResult(false, QUALITY.INVALID, ["Dos balisticos de agarre: fallo de agarre prematuro."]);
+      return makeResult(false, QUALITY.INVALID, ["Dos balísticos de agarre: fallo de agarre prematuro."]);
     const ranges = new Set([repRange(a), repRange(b)]);
     if (ranges.has(REP_RANGE.SP) && ranges.has(REP_RANGE.ME))
-      return makeResult(false, QUALITY.INVALID, ["Fuerza 1-5 + metabolico 12+: interferencia."]);
+      return makeResult(false, QUALITY.INVALID, ["Fuerza 1-5 + metabólico 12+: interferencia."]);
     if (ea.pattern === eb.pattern && ea.pattern !== PAT.CORE)
-      return makeResult(false, QUALITY.INVALID, ["Mismo patron: fatiga local, no antagonista."]);
+      return makeResult(false, QUALITY.INVALID, ["Mismo patrón: fatiga local, no antagonista."]);
     // Two grip consumers back-to-back (any dynamics) leave the forearm no
     // window to recover — never "optimal", whatever the patterns say.
     if (ea.grip && eb.grip)
@@ -400,8 +400,8 @@
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Par antagonista en accesorios: eficiente."]);
     if (ea.pattern === eb.pattern && new Set([repRange(a), repRange(b)]).has(REP_RANGE.HP))
-      return makeResult(true, QUALITY.ACCEPTABLE, ["Mismo patron en hipertrofia: volumen dirigido."]);
-    return makeResult(true, QUALITY.ACCEPTABLE, ["Combinacion de accesorios aceptable."]);
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Mismo patrón en hipertrofia: volumen dirigido."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Combinación de accesorios aceptable."]);
   }
   // Finisher: no longer an automatic OPTIMAL. High-skill ISO lifts (TGU,
   // Windmill) do not belong under peak fatigue, double grip is graded down,
@@ -410,7 +410,7 @@
   function validateBlockC(a, b) {
     const ea = a.exercise, eb = b.exercise;
     if ((ea.skill && ea.dynamics === DIN.ISO) || (eb.skill && eb.dynamics === DIN.ISO))
-      return makeResult(true, QUALITY.ACCEPTABLE, ["Tecnica exigente (TGU/Windmill) con fatiga alta: mejor al inicio de la sesion."]);
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Técnica exigente (TGU/Windmill) con fatiga alta: mejor al inicio de la sesión."]);
     if (ea.grip && eb.grip)
       return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
@@ -421,7 +421,7 @@
       return makeResult(true, QUALITY.ACCEPTABLE, ["Cadera + rodilla: sin grupo en reposo real (ambos cargan cadena posterior)."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Finalizador antagonista: alterna sin freno."]);
-    return makeResult(true, QUALITY.ACCEPTABLE, ["Finalizador: combinacion libre."]);
+    return makeResult(true, QUALITY.ACCEPTABLE, ["Finalizador: combinación libre."]);
   }
 
   // --- Fatigue budget ---------------------------------------------
@@ -511,7 +511,7 @@
       ],
     },
     METABOLIC: {
-      name: "Acondicionamiento metabolico", maxCns: 4, maxGrip: 3,
+      name: "Acondicionamiento metabólico", maxCns: 4, maxGrip: 3,
       blocks: [
         schema(BLOCK.A, 2, 4, 6, [DIN.BALLISTIC]),
         schema(BLOCK.B, 4, 3, 12, [DIN.STRENGTH, DIN.BALLISTIC]),
@@ -531,7 +531,7 @@
     // Low reps (3) classify as SP, which already buys long rest; plyometric
     // movements force full recovery on top of that (see elementTimeSec).
     POWER: {
-      name: "Potencia / Pliometria", maxCns: 3, maxGrip: 2,
+      name: "Potencia / Pliometría", maxCns: 3, maxGrip: 2,
       blocks: [
         schema(BLOCK.A, 3, 5, 3, [DIN.BALLISTIC]),
         schema(BLOCK.B, 3, 4, 6, [DIN.BALLISTIC, DIN.STRENGTH]),
@@ -1055,8 +1055,8 @@
   // rampUp: { exercise, sets, reps } | null }.
   function buildWarmup(blocks) {
     const items = [
-      "Movilidad de cadera y columna toracica (~3 min): rotaciones, gato-camello, halos ligeros.",
-      "Activacion de gluteo y core: puentes y planchas cortas.",
+      "Movilidad de cadera y columna torácica (~3 min): rotaciones, gato-camello, halos ligeros.",
+      "Activación de glúteo y core: puentes y planchas cortas.",
     ];
     const blockA = blocks.find(b => b.block === BLOCK.A);
     let rampUp = null;
@@ -1066,7 +1066,7 @@
       const lead = firstBallistic || prescriptions[0];
       if (lead) {
         rampUp = { exercise: lead.exercise, sets: 2, reps: Math.max(5, Math.round(lead.reps * 0.6)) };
-        items.push("Series de aproximacion: 2 x " + rampUp.reps + " de " + lead.exercise.name +
+        items.push("Series de aproximación: 2 x " + rampUp.reps + " de " + lead.exercise.name +
           " con carga ligera antes del trabajo pesado.");
       }
     }
@@ -1157,8 +1157,8 @@
   // more weight", "swap grinds for ballistics", "drop the finisher").
   const DYN_HINT = {
     STRENGTH: "trabajo controlado de fuerza/hipertrofia",
-    BALLISTIC: "trabajo balistico (swings, cleans, snatch)",
-    METABOLIC: "trabajo metabolico (alta demanda, poco descanso)",
+    BALLISTIC: "trabajo balístico (swings, cleans, snatch)",
+    METABOLIC: "trabajo metabólico (alta demanda, poco descanso)",
   };
   function assessObjective(routine, key) {
     const tpl = TEMPLATES[key];
@@ -1174,7 +1174,7 @@
     tpl.blocks.forEach(sch => {
       const ps = byBlock[sch.block] || [];
       if (!ps.length) {
-        adjustments.push("Falta el bloque " + sch.block + ": para " + tpl.name + " ahi va " +
+        adjustments.push("Falta el bloque " + sch.block + ": para " + tpl.name + " ahí va " +
           [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + " a ~" + sch.reps + " reps.");
         return;
       }
@@ -1183,18 +1183,18 @@
       const dynOff = ps.filter(p => !sch.dynamics.has(p.exercise.dynamics));
       if (!repsOff.length && !dynOff.length)
         strengths.push("Bloque " + sch.block + " ya sirve a " + tpl.name +
-          ": dinamica correcta en el rango de ~" + sch.reps + " reps.");
+          ": dinámica correcta en el rango de ~" + sch.reps + " reps.");
       if (repsOff.length) {
         const high = repsOff.filter(p => RANGE_ORDER[classifyVolume(p.reps)] > RANGE_ORDER[expRange]).length;
         const dir = high >= repsOff.length - high
-          ? "baja a ~" + sch.reps + " reps y SUBE el peso (menos repeticiones, mas carga)"
+          ? "baja a ~" + sch.reps + " reps y SUBE el peso (menos repeticiones, más carga)"
           : "sube a ~" + sch.reps + " reps (baja algo el peso si hace falta)";
         adjustments.push("Bloque " + sch.block + ": " + names(repsOff) +
-          " esta fuera del rango de " + tpl.name + " — " + dir + ".");
+          " está fuera del rango de " + tpl.name + " — " + dir + ".");
       }
       if (dynOff.length)
         adjustments.push("Bloque " + sch.block + ": " + names(dynOff) + " no es el tipo de trabajo que " +
-          tpl.name + " busca ahi — cambialo por " + [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + ".");
+          tpl.name + " busca ahí — cámbialo por " + [...sch.dynamics].map(d => DYN_HINT[d] || d).join(" o ") + ".");
       // Strength-specific: a featherweight lift as main work defeats the goal.
       if (key === "STRENGTH" && sch.block === BLOCK.A) {
         const light = ps.filter(p => (p.exercise.load || 2) === LOAD_TIER.LIGHT);
@@ -1208,7 +1208,7 @@
     Object.keys(byBlock).forEach(b => {
       if (byBlock[b].length && tplBlocks.indexOf(b) < 0)
         adjustments.push(tpl.name + " no suele usar el bloque " + b +
-          ": quita ese trabajo o muevelo a " + tplBlocks.join("/") + ".");
+          ": quita ese trabajo o muévelo a " + tplBlocks.join("/") + ".");
     });
     if (!strengths.length && !adjustments.length)
       strengths.push("Estructura coherente con " + tpl.name + ".");
@@ -1227,7 +1227,7 @@
   // concrete fixes (swap/add/split) for what the findings flag.
   const AUDIT_PENALTY = { error: 25, warn: 10, tip: 3 };
   function auditVerdict(score) {
-    return score >= 90 ? "Solida" : score >= 70 ? "Con matices"
+    return score >= 90 ? "Sólida" : score >= 70 ? "Con matices"
          : score >= 45 ? "Mejorable" : "Arriesgada";
   }
   function auditRoutine(routine, opts) {
@@ -1241,7 +1241,7 @@
     blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => all.push([p, br.block]))));
 
     if (!all.length) {
-      add("error", "Rutina vacia: anade al menos un ejercicio.");
+      add("error", "Rutina vacía: añade al menos un ejercicio.");
       return { score: 0, verdict: auditVerdict(0), findings, suggestions: [],
                stats: { exercises: 0, highCns: 0, grip: 0, minutes: 0 } };
     }
@@ -1260,11 +1260,11 @@
     const highCns = all.filter(([p]) => p.exercise.cns === CNS.HIGH).length;
     if (highCns > maxCns)
       add(highCns > maxCns + 1 ? "error" : "warn",
-        highCns + " ejercicios de SNC alta (presupuesto: " + maxCns + "): la sesion puede fundirte antes del final.");
+        highCns + " ejercicios de SNC alta (presupuesto: " + maxCns + "): la sesión puede fundirte antes del final.");
     const grip = all.reduce((acc, [p]) => acc + gripWeight(p.exercise), 0);
     if (grip > maxGrip + 1e-9)
-      add("warn", "Carga de agarre " + (Math.round(grip * 10) / 10) + " sobre un maximo de " + maxGrip +
-        ": el agarre puede fallar antes que el musculo objetivo.");
+      add("warn", "Carga de agarre " + (Math.round(grip * 10) / 10) + " sobre un máximo de " + maxGrip +
+        ": el agarre puede fallar antes que el músculo objetivo.");
 
     // 3) Repeated exercise across the session.
     const seen = {};
@@ -1276,22 +1276,22 @@
     // 4) Pattern balance: push/pull and hip/knee should not diverge by 2+.
     const cat = {};
     all.forEach(([p]) => { const c = PAT_CATEGORY[p.exercise.pattern]; if (c !== "NEUTRAL") cat[c] = (cat[c] || 0) + 1; });
-    [["PUSH", "PULL", "empuje", "tiron"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
+    [["PUSH", "PULL", "empuje", "tirón"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
       const nx = cat[x] || 0, ny = cat[y] || 0;
       if (Math.abs(nx - ny) >= 2)
-        add("warn", "Desequilibrio " + lx + "/" + ly + " (" + nx + " vs " + ny + "): a la larga pasa factura; compensa el patron contrario.");
+        add("warn", "Desequilibrio " + lx + "/" + ly + " (" + nx + " vs " + ny + "): a la larga pasa factura; compensa el patrón contrario.");
     });
 
     // 5) Order: demanding work belongs early, metabolic work late.
     blocks.forEach(br => br.elements.forEach(elm => elm.prescriptions.forEach(p => {
       if (br.block === BLOCK.C && p.exercise.cns === CNS.HIGH)
-        add("tip", p.exercise.name + " en el finalizador: lo de SNC alta rinde mas al principio, en fresco.", br.block);
+        add("tip", p.exercise.name + " en el finalizador: lo de SNC alta rinde más al principio, en fresco.", br.block);
       if (br.block === BLOCK.A && p.exercise.dynamics === DIN.METABOLIC)
-        add("tip", p.exercise.name + " en el bloque A: lo metabolico encaja mejor como finalizador (C).", br.block);
+        add("tip", p.exercise.name + " en el bloque A: lo metabólico encaja mejor como finalizador (C).", br.block);
       if (p.exercise.dynamics === DIN.STRENGTH && p.reps >= 15)
         add("tip", p.exercise.name + " a " + p.reps + " reps: eso ya es resistencia, no fuerza; sube carga o baja reps.", br.block);
       if (p.sets > 6)
-        add("tip", p.exercise.name + " a " + p.sets + " series: mas de 6 rara vez suma; reparte en otro ejercicio.", br.block);
+        add("tip", p.exercise.name + " a " + p.sets + " series: más de 6 rara vez suma; reparte en otro ejercicio.", br.block);
     })));
 
     // 6) Declared vs detected: when the trainee states an objective
@@ -1300,8 +1300,8 @@
     if (opts.declared && TEMPLATES[opts.declared]) {
       const inf = inferObjective(routine);
       if (inf.objective && inf.objective !== opts.declared && inf.score >= 0.7)
-        add("warn", "Declaraste " + TEMPLATES[opts.declared].name + " pero la composicion se parece mas a " +
-          inf.name + " (" + Math.round(inf.score * 100) + "%): ajusta reps/dinamicas o cambia el objetivo.");
+        add("warn", "Declaraste " + TEMPLATES[opts.declared].name + " pero la composición se parece más a " +
+          inf.name + " (" + Math.round(inf.score * 100) + "%): ajusta reps/dinámicas o cambia el objetivo.");
     }
 
     let score = 100;
@@ -1340,7 +1340,7 @@
       const partner = candidates(e => validateCombination(a,
         { exercise: e, block: br.block, sets: b.sets, reps: b.reps }).quality === QUALITY.OPTIMAL)[0];
       sugg.push(partner
-        ? "Superserie rota: empareja " + a.exercise.name + " con " + partner.name + " (combinacion optima) o separa ambos en huecos propios."
+        ? "Superserie rota: empareja " + a.exercise.name + " con " + partner.name + " (combinación óptima) o separa ambos en huecos propios."
         : "Superserie rota: separa " + a.exercise.name + " y " + b.exercise.name + " en huecos propios.");
     }));
 
@@ -1373,13 +1373,13 @@
     });
 
     // Pattern imbalance: name the missing category with up to two options.
-    [["PUSH", "PULL", "empuje", "tiron"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
+    [["PUSH", "PULL", "empuje", "tirón"], ["HIP", "KNEE", "cadera", "rodilla"]].forEach(([x, y, lx, ly]) => {
       const nx = ctx.cat[x] || 0, ny = ctx.cat[y] || 0;
       if (Math.abs(nx - ny) < 2) return;
       const short = nx < ny ? x : y, label = nx < ny ? lx : ly;
       const picks = candidates(e => PAT_CATEGORY[e.pattern] === short).slice(0, 2);
       if (picks.length)
-        sugg.push("Anade " + label + " para equilibrar: " + picks.map(e => e.name).join(" o ") + ".");
+        sugg.push("Añade " + label + " para equilibrar: " + picks.map(e => e.name).join(" o ") + ".");
     });
 
     return sugg.slice(0, MAX_SUGGESTIONS);

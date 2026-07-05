@@ -42,7 +42,7 @@ setTimeout(() => {
   ok("normal energy hides the readiness hint", d.querySelector("#readiness-hint").classList.contains("hidden"));
   d.querySelector('#seg-energy button[data-val="1"]').click();
   ok("low-energy surfaces a readiness hint", !d.querySelector("#readiness-hint").classList.contains("hidden"));
-  ok("low-energy + strength suggests an easier objective", /metabolico|tecnica/i.test(d.querySelector("#readiness-hint").textContent));
+  ok("low-energy + strength suggests an easier objective", /metab(o|ó)lico|t(e|é)cnica/i.test(d.querySelector("#readiness-hint").textContent));
   const soreChip = d.querySelector('#sore-chips .chip[data-val="HIP,KNEE"]');
   soreChip.click();
   ok("sore zone toggles on", soreChip.getAttribute("aria-pressed") === "true");
@@ -130,7 +130,7 @@ setTimeout(() => {
   // offer the set-log strip, and driving the session to the end auto-marks it
   // completed with the performed sets attached.
   trainBtn.click();
-  ok("timer starts with the warm-up", /PREPARACION|CALENTAMIENTO/.test(d.querySelector("#t-kind").textContent));
+  ok("timer starts with the warm-up", /PREPARACI(O|Ó)N|CALENTAMIENTO/.test(d.querySelector("#t-kind").textContent));
   let sawLogStrip = false, guard = 0;
   while (!d.querySelector("#timer-overlay").classList.contains("hidden") && guard++ < 400) {
     if (!d.querySelector("#t-log").classList.contains("hidden")) sawLogStrip = true;
@@ -250,14 +250,14 @@ setTimeout(() => {
   ok("paired rows render as a superset", d.querySelectorAll("#routine-out .element.ss").length === 1);
   ok("scrutiny card renders with a score", !!d.querySelector("#audit-out .audit-card") && /\/100/.test(d.querySelector("#audit-out .audit-score").textContent));
   ok("scrutiny identifies the routine type", /Perfil detectado|Perfil mixto/.test(d.querySelector("#audit-out .audit-infer").textContent));
-  ok("scrutiny assesses the routine against its objective", /Para (Fuerza|Metabolico|Resistencia|Potencia)/.test(d.querySelector("#audit-out .audit-card").textContent));
+  ok("scrutiny assesses the routine against its objective", /Para (Fuerza|Metab(o|ó)lico|Resistencia|Potencia)/.test(d.querySelector("#audit-out .audit-card").textContent));
   ok("assessment lists strengths or global adjustments", d.querySelectorAll("#audit-out .audit-item.aud-good, #audit-out .audit-item.aud-adj").length > 0);
   ok("scrutiny flags the duplicated exercise", [...d.querySelectorAll("#audit-out .audit-item")].some(n => /veces/.test(n.textContent)));
   ok("scrutiny offers suggestions after the findings", !!d.querySelector("#audit-out .audit-sug-label") &&
     d.querySelectorAll("#audit-out .audit-item.aud-sug").length > 0);
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
-  ok("manual session lands in history as 'Creada por mi'", /Creada por mi/.test(d.querySelector("#hist-list .hist-title").textContent));
+  ok("manual session lands in history as 'Creada por mi'", /Creada por m(i|í)/.test(d.querySelector("#hist-list .hist-title").textContent));
   // Scrutinize later: expanding a saved session offers an audit button.
   d.querySelector("#hist-list .hist-meta").click();
   const laterAudit = d.querySelector("#hist-list .audit-btn");
@@ -286,7 +286,7 @@ setTimeout(() => {
 
   d.querySelector('.nav button[data-view="pool"]').click();
   ok("pool shows 40 exercises", d.querySelectorAll("#pool-list .card").length === 40);
-  ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
+  ok("pool shows a plyometric tag", /pliom(e|é)trico/i.test(d.querySelector("#pool-list").textContent));
 
   // Pool search narrows the list by name; clearing restores it.
   const search = d.querySelector("#pool-search");
@@ -347,7 +347,7 @@ setTimeout(() => {
 
   // Backup card: status line renders; auto-backup controls only appear when
   // the browser has the File System Access API (jsdom does not).
-  ok("backup card shows copy status", /Sin copias|Ultima copia/.test(d.querySelector("#backup-status").textContent));
+  ok("backup card shows copy status", /Sin copias|(U|Ú)ltima copia/.test(d.querySelector("#backup-status").textContent));
   ok("auto-backup link stays hidden without FS Access", d.querySelector("#btn-link-backup").classList.contains("hidden"));
   ok("share button hidden without navigator.share", d.querySelector("#btn-share-backup").classList.contains("hidden"));
 

@@ -27,7 +27,7 @@
       <div class="label">Rutina</div>
       <div class="seg" id="seg-mode">
         <button data-val="auto" aria-pressed="true">Generada</button>
-        <button data-val="manual" aria-pressed="false">Creada por mi</button>
+        <button data-val="manual" aria-pressed="false">Creada por mí</button>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
       <div class="label">Objetivo</div>
       <div class="seg" id="seg-objective" style="flex-wrap:wrap">
         <button class="forge" data-val="STRENGTH" aria-pressed="true">Fuerza</button>
-        <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabolico</button>
+        <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabólico</button>
         <button class="forge" data-val="STRENGTH_ENDURANCE" aria-pressed="false">Resistencia</button>
         <button class="forge" data-val="POWER" aria-pressed="false">Potencia</button>
         <button class="forge" data-val="EMOM" aria-pressed="false">EMOM</button>
@@ -92,8 +92,8 @@
 
         <div class="card">
           <div class="label">Pesa ajustable (kg)</div>
-          <div class="est-row"><span>Minimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
-          <div class="est-row"><span>Maximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
+          <div class="est-row"><span>Mínimo</span><div class="stepper"><button id="kg-min-dec">−</button><span class="val" id="kg-min-val">12</span><button id="kg-min-inc">+</button></div></div>
+          <div class="est-row"><span>Máximo</span><div class="stepper"><button id="kg-max-dec">−</button><span class="val" id="kg-max-val">32</span><button id="kg-max-inc">+</button></div></div>
           <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">Cada ejercicio sugiere su kg dentro de este rango.</div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;">
             <div>
@@ -102,7 +102,7 @@
             </div>
             <div class="seg" id="seg-sameweight" style="width:auto;flex:0 0 auto;">
               <button data-val="no" aria-pressed="true">No</button>
-              <button data-val="yes" aria-pressed="false">Si</button>
+              <button data-val="yes" aria-pressed="false">Sí</button>
             </div>
           </div>
         </div>
@@ -111,7 +111,7 @@
           <details class="acc" style="margin:0;border:0;background:transparent;">
             <summary>Perfil <span id="profile-sub" style="font-weight:400;color:var(--ink-faint);font-size:12px;"></span></summary>
             <div class="acc-body">
-              <p style="margin:0 0 12px;">Afina los kg sugeridos para la primera sesion. Opcional; al ajustar pesos tu historial manda.</p>
+              <p style="margin:0 0 12px;">Afina los kg sugeridos para la primera sesión. Opcional; al ajustar pesos tu historial manda.</p>
               <div class="est-row">
                 <span>Peso corporal (kg)</span>
                 <div class="stepper"><button id="bw-dec">−</button><span class="val" id="bw-val">—</span><button id="bw-inc">+</button></div>
@@ -134,7 +134,7 @@
 
         <div class="card" id="card-balance">
           <div class="label">Balance de patrones</div>
-          <div id="balance-note" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a proposito).</div>
+          <div id="balance-note" class="hidden" style="font-size:11.5px;color:var(--ink-faint);margin-bottom:9px;">El foco desactiva el balance (desequilibra a propósito).</div>
           <div class="seg" id="seg-balance">
             <button data-val="NONE" aria-pressed="true">Ninguno</button>
             <button data-val="SOFT" aria-pressed="false">Suave</button>
@@ -154,7 +154,7 @@
             <div style="font-size:11.5px;color:var(--ink-faint);">Evita repetir lo de sesiones recientes</div>
           </div>
           <div class="seg" id="seg-vary" style="width:auto;flex:0 0 auto;">
-            <button data-val="yes" aria-pressed="true">Si</button>
+            <button data-val="yes" aria-pressed="true">Sí</button>
             <button data-val="no" aria-pressed="false">No</button>
           </div>
         </div>
@@ -172,7 +172,7 @@
     </div>
 
     <div class="card" id="card-readiness">
-      <div class="label">¿Como llegas hoy? <span style="font-weight:400;color:var(--ink-faint)">(ajusta la sesion a tu dia)</span></div>
+      <div class="label">¿Cómo llegas hoy? <span style="font-weight:400;color:var(--ink-faint)">(ajusta la sesión a tu día)</span></div>
       <div class="seg" id="seg-energy" style="flex-wrap:wrap;margin-bottom:12px;">
         <button class="forge" data-val="1" aria-pressed="false">Agotado</button>
         <button class="forge" data-val="2" aria-pressed="false">Flojo</button>
@@ -203,15 +203,15 @@
     <!-- Manual builder: the trainee composes the routine; the engine scrutinizes it. -->
     <div id="mode-manual" class="hidden">
       <div class="card" style="padding-bottom:10px;">
-        <div class="label">Compon tu rutina</div>
-        <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:4px;">Anade ejercicios a cada bloque con sus series y repeticiones. Marca ⇄ para hacer superserie con el anterior. Al evaluar, el motor la revisa con sus propias reglas.</div>
+        <div class="label">Compón tu rutina</div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:4px;">Añade ejercicios a cada bloque con sus series y repeticiones. Marca ⇄ para hacer superserie con el anterior. Al evaluar, el motor la revisa con sus propias reglas.</div>
       </div>
       <div class="card">
         <div class="label">Objetivo de la rutina <span style="font-weight:400;color:var(--ink-faint)">(Auto = detectarlo al evaluar)</span></div>
         <div class="seg" id="seg-mk-obj" style="flex-wrap:wrap">
           <button data-val="AUTO" aria-pressed="true">Auto</button>
           <button class="forge" data-val="STRENGTH" aria-pressed="false">Fuerza</button>
-          <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabolico</button>
+          <button class="forge" data-val="METABOLIC" aria-pressed="false">Metabólico</button>
           <button class="forge" data-val="STRENGTH_ENDURANCE" aria-pressed="false">Resistencia</button>
           <button class="forge" data-val="POWER" aria-pressed="false">Potencia</button>
         </div>
@@ -220,17 +220,17 @@
       <div class="card">
         <div class="label">Bloque A · Principal</div>
         <div id="mk-A"></div>
-        <button class="btn btn-ghost mk-add" data-block="A">+ Anadir a A</button>
+        <button class="btn btn-ghost mk-add" data-block="A">+ Añadir a A</button>
       </div>
       <div class="card">
         <div class="label">Bloque B · Accesorios</div>
         <div id="mk-B"></div>
-        <button class="btn btn-ghost mk-add" data-block="B">+ Anadir a B</button>
+        <button class="btn btn-ghost mk-add" data-block="B">+ Añadir a B</button>
       </div>
       <div class="card">
         <div class="label">Bloque C · Finalizador</div>
         <div id="mk-C"></div>
-        <button class="btn btn-ghost mk-add" data-block="C">+ Anadir a C</button>
+        <button class="btn btn-ghost mk-add" data-block="C">+ Añadir a C</button>
       </div>
       <button class="btn btn-forge" id="btn-componer">Evaluar mi rutina</button>
       <button class="btn btn-ghost" id="btn-mk-complete" style="margin-top:10px;">Completar con el generador (fija estos y rellena)</button>
@@ -242,7 +242,7 @@
     <div id="save-row" class="hidden" style="margin-top:14px;">
       <div class="btn-row">
         <button class="btn btn-ghost" id="btn-regenerar">Regenerar</button>
-        <button class="btn btn-forge" id="btn-guardar">Guardar sesion</button>
+        <button class="btn btn-forge" id="btn-guardar">Guardar sesión</button>
       </div>
       <button class="btn btn-ghost" id="btn-train" style="margin-top:10px;">▶ Entrenar (temporizador)</button>
     </div>
@@ -254,7 +254,7 @@
       <details class="acc" style="margin:0;border:0;background:transparent;">
         <summary>Importar registro (CSV)</summary>
         <div class="acc-body">
-          <p style="margin:0 0 8px;">Pega tu tabla (desde la hoja de calculo) o un CSV. Debe tener una fila de cabecera con los nombres de columna. Reconoce: <b>Fecha</b>, <b>Bloque / Orden</b>, <b>Ejercicio</b>, <b>Carga (kg)</b>, <b>Serie 1..N</b> y <b>Notas</b>. Cada fecha se guarda como una sesion.</p>
+          <p style="margin:0 0 8px;">Pega tu tabla (desde la hoja de cálculo) o un CSV. Debe tener una fila de cabecera con los nombres de columna. Reconoce: <b>Fecha</b>, <b>Bloque / Orden</b>, <b>Ejercicio</b>, <b>Carga (kg)</b>, <b>Serie 1..N</b> y <b>Notas</b>. Cada fecha se guarda como una sesión.</p>
           <textarea id="csv-input" rows="6" placeholder="Fecha	Bloque / Orden	Ejercicio	Carga (kg)	Serie 1	Serie 2	Serie 3	Serie 4	Notas&#10;15/06/2026	Bloque A	Peso Muerto Rumano	18	16	10	10		Ritmo controlado." style="width:100%;padding:10px;border-radius:9px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--ink);font-family:var(--mono);font-size:12px;resize:vertical;"></textarea>
           <div class="btn-row" style="margin-top:10px;">
             <label class="btn btn-ghost" style="flex:1;text-align:center;cursor:pointer;">Subir archivo<input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="display:none;"></label>
@@ -271,11 +271,11 @@
   <section id="view-pool" class="view">
     <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 2px 12px;">
       <span class="label" id="pool-count" style="margin:0;">— ejercicios</span>
-      <button class="btn btn-ghost" id="btn-add-toggle" style="width:auto;padding:9px 16px;">+ Anadir</button>
+      <button class="btn btn-ghost" id="btn-add-toggle" style="width:auto;padding:9px 16px;">+ Añadir</button>
     </div>
 
     <div class="pool-search-wrap">
-      <input type="text" id="pool-search" placeholder="Buscar por nombre, patron, tag…" autocomplete="off">
+      <input type="text" id="pool-search" placeholder="Buscar por nombre, patrón, tag…" autocomplete="off">
       <button class="btn btn-ghost" id="pool-filter-toggle" style="width:auto;padding:9px 14px;">Filtros <span id="pool-filter-count"></span></button>
     </div>
     <div id="pool-filters" class="hidden"></div>
@@ -291,22 +291,22 @@
         <select id="f-tier"></select>
       </div>
       <div class="grid2">
-        <div class="field"><div class="label">Patron</div><select id="f-pattern"></select></div>
-        <div class="field"><div class="label">Dinamica</div><select id="f-dynamics"></select></div>
-        <div class="field"><div class="label">Simetria</div><select id="f-symmetry"></select></div>
+        <div class="field"><div class="label">Patrón</div><select id="f-pattern"></select></div>
+        <div class="field"><div class="label">Dinámica</div><select id="f-dynamics"></select></div>
+        <div class="field"><div class="label">Simetría</div><select id="f-symmetry"></select></div>
         <div class="field"><div class="label">SNC</div><select id="f-cns"></select></div>
         <div class="field"><div class="label">Carga ideal</div><select id="f-load"></select></div>
         <div class="field"><div class="label">Agarre intensivo</div>
-          <label class="field-toggle"><input type="checkbox" id="f-grip"> <span>Si</span></label>
+          <label class="field-toggle"><input type="checkbox" id="f-grip"> <span>Sí</span></label>
         </div>
-        <div class="field"><div class="label">Pliometrico (salto / impacto)</div>
-          <label class="field-toggle"><input type="checkbox" id="f-plyo"> <span>Si</span></label>
+        <div class="field"><div class="label">Pliométrico (salto / impacto)</div>
+          <label class="field-toggle"><input type="checkbox" id="f-plyo"> <span>Sí</span></label>
         </div>
-        <div class="field"><div class="label">Enfasis en brazos</div>
-          <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Si</span></label>
+        <div class="field"><div class="label">Énfasis en brazos</div>
+          <label class="field-toggle"><input type="checkbox" id="f-arms"> <span>Sí</span></label>
         </div>
-        <div class="field"><div class="label">Tecnica exigente (tipo snatch/TGU)</div>
-          <label class="field-toggle"><input type="checkbox" id="f-skill"> <span>Si</span></label>
+        <div class="field"><div class="label">Técnica exigente (tipo snatch/TGU)</div>
+          <label class="field-toggle"><input type="checkbox" id="f-skill"> <span>Sí</span></label>
         </div>
       </div>
       <div class="field">
@@ -319,7 +319,7 @@
       </div>
       <div class="btn-row">
         <button class="btn btn-ghost" id="btn-add-cancel">Cancelar</button>
-        <button class="btn btn-forge" id="btn-add">Anadir al pool</button>
+        <button class="btn btn-forge" id="btn-add">Añadir al pool</button>
       </div>
     </div>
 
@@ -327,73 +327,73 @@
 
     <div class="card" style="margin-top:12px;">
       <div class="label" style="margin-bottom:10px;">Copia de seguridad</div>
-      <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">Todos tus datos (historial, pool, pesos, progresion y ajustes) viven en este dispositivo. La copia es un unico JSON que guardas <b>donde tu decidas</b>: descargalo, compartelo a tus archivos/nube, o vincula un archivo para que se actualice solo con cada cambio. Importar reemplaza los datos actuales.</div>
+      <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">Todos tus datos (historial, pool, pesos, progresión y ajustes) viven en este dispositivo. La copia es un único JSON que guardas <b>donde tú decidas</b>: descárgalo, compártelo a tus archivos/nube, o vincula un archivo para que se actualice solo con cada cambio. Importar reemplaza los datos actuales.</div>
       <div id="backup-status" style="font-size:11.5px;color:var(--steel);margin-bottom:10px;"></div>
       <div class="btn-row">
         <button class="btn btn-ghost" id="btn-export">Descargar copia</button>
         <button class="btn btn-ghost" id="btn-share-backup">Compartir…</button>
         <button class="btn btn-ghost" id="btn-import-trigger">Importar</button>
       </div>
-      <button class="btn btn-ghost hidden" id="btn-link-backup" style="margin-top:10px;">Vincular archivo de copia automatica</button>
-      <button class="btn btn-ghost hidden" id="btn-relink-backup" style="margin-top:10px;">Reactivar copia automatica</button>
-      <button class="btn btn-ghost hidden" id="btn-unlink-backup" style="margin-top:10px;">Desvincular copia automatica</button>
+      <button class="btn btn-ghost hidden" id="btn-link-backup" style="margin-top:10px;">Vincular archivo de copia automática</button>
+      <button class="btn btn-ghost hidden" id="btn-relink-backup" style="margin-top:10px;">Reactivar copia automática</button>
+      <button class="btn btn-ghost hidden" id="btn-unlink-backup" style="margin-top:10px;">Desvincular copia automática</button>
       <input type="file" id="import-file" accept=".json" style="display:none">
     </div>
   </section>
 
   <!-- ===== GUIDE ===== -->
   <section id="view-guia" class="view">
-    <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Como funciona FORJA, como se calcula cada cosa y la ciencia que lo respalda. Toca para desplegar.</p>
+    <p style="color:var(--ink-dim);font-size:14px;margin:6px 2px 16px;">Cómo funciona FORJA, cómo se calcula cada cosa y la ciencia que lo respalda. Toca para desplegar.</p>
 
     <details class="acc" open>
-      <summary>Como usar la app</summary>
+      <summary>Cómo usar la app</summary>
       <div class="acc-body">
-        <p><b>1.</b> En <b>Generar</b>, ajusta objetivo, foco, equipamiento, tu pesa, la duracion y las opciones.</p>
+        <p><b>1.</b> En <b>Generar</b>, ajusta objetivo, foco, equipamiento, tu pesa, la duración y las opciones.</p>
         <p><b>2.</b> Pulsa <b>Generar rutina</b>. Si no te convence, <b>Regenerar</b> da otra variante.</p>
-        <p><b>3.</b> <b>Guardar sesion</b> la envia al <b>Historial</b>.</p>
-        <p><b>4.</b> <b>Entrenar (▶)</b> abre el temporizador guiado: arranca con el calentamiento, te lleva serie a serie y <b>registra lo que haces de verdad</b> — en cada descanso puedes ajustar las repeticiones de la serie hecha y valorar el ejercicio (Facil / OK / Duro). Al terminar, la sesion se marca <b>✓ completada</b> sola y lo registrado alimenta tu volumen, tu e1RM y la progresion.</p>
-        <p><b>5.</b> En Historial, toca una sesion para ver el detalle; el ✓ tambien se puede marcar a mano. Con <b>✎</b> editas la rutina guardada — puedes <b>cambiar el ejercicio</b> de cada hueco y sus series, repeticiones y kg — y los cambios quedan en esa sesion (el temporizador los usa tal cual; al cambiar un ejercicio se reevalua la superserie y el calentamiento).</p>
+        <p><b>3.</b> <b>Guardar sesión</b> la envía al <b>Historial</b>.</p>
+        <p><b>4.</b> <b>Entrenar (▶)</b> abre el temporizador guiado: arranca con el calentamiento, te lleva serie a serie y <b>registra lo que haces de verdad</b> — en cada descanso puedes ajustar las repeticiones de la serie hecha y valorar el ejercicio (Fácil / OK / Duro). Al terminar, la sesión se marca <b>✓ completada</b> sola y lo registrado alimenta tu volumen, tu e1RM y la progresión.</p>
+        <p><b>5.</b> En Historial, toca una sesión para ver el detalle; el ✓ también se puede marcar a mano. Con <b>✎</b> editas la rutina guardada — puedes <b>cambiar el ejercicio</b> de cada hueco y sus series, repeticiones y kg — y los cambios quedan en esa sesión (el temporizador los usa tal cual; al cambiar un ejercicio se reevalúa la superserie y el calentamiento).</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Objetivos (que entrenas)</summary>
+      <summary>Objetivos (qué entrenas)</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Fuerza:</b> sesion full-body clasica. Pocas repeticiones con carga, enfocada en levantar mas fuerte. Bloques A/B/C completos.</p>
-        <p class="gloss"><b>Metabolico:</b> acondicionamiento. Mas balistico y metabolico, menos descanso, sube el pulso.</p>
-        <p class="gloss"><b>Resistencia:</b> resistencia de fuerza. Repeticiones mas altas con carga moderada; aguantar el esfuerzo mas tiempo.</p>
-        <p class="gloss"><b>Potencia / Pliometria:</b> trabajo explosivo. Pocas repeticiones por serie (calidad sobre cantidad) y <b>descanso completo</b> entre esfuerzos para mover rapido cada vez. Prioriza balisticos (swings, cleans, snatch) y movimientos de salto/impacto (jump squats, tuck jumps).</p>
-        <p class="gloss"><b>EMOM</b> (cada minuto): al inicio de cada minuto haces las repeticiones marcadas de un ejercicio, descansas lo que sobra del minuto y al minuto siguiente sigues con el proximo. Se repite el circuito varias rondas. Es un set directo por ejercicio (no superserie).</p>
-        <p class="gloss"><b>AMRAP / Circuito:</b> tantas rondas como puedas. Haces los ejercicios en fila, sin parar, y repites el circuito durante el tiempo fijado. Tambien set directo.</p>
+        <p class="gloss"><b>Fuerza:</b> sesión full-body clásica. Pocas repeticiones con carga, enfocada en levantar más fuerte. Bloques A/B/C completos.</p>
+        <p class="gloss"><b>Metabólico:</b> acondicionamiento. Más balístico y metabólico, menos descanso, sube el pulso.</p>
+        <p class="gloss"><b>Resistencia:</b> resistencia de fuerza. Repeticiones más altas con carga moderada; aguantar el esfuerzo más tiempo.</p>
+        <p class="gloss"><b>Potencia / Pliometría:</b> trabajo explosivo. Pocas repeticiones por serie (calidad sobre cantidad) y <b>descanso completo</b> entre esfuerzos para mover rápido cada vez. Prioriza balísticos (swings, cleans, snatch) y movimientos de salto/impacto (jump squats, tuck jumps).</p>
+        <p class="gloss"><b>EMOM</b> (cada minuto): al inicio de cada minuto haces las repeticiones marcadas de un ejercicio, descansas lo que sobra del minuto y al minuto siguiente sigues con el próximo. Se repite el circuito varias rondas. Es un set directo por ejercicio (no superserie).</p>
+        <p class="gloss"><b>AMRAP / Circuito:</b> tantas rondas como puedas. Haces los ejercicios en fila, sin parar, y repites el circuito durante el tiempo fijado. También set directo.</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Bloques de la rutina</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Bloque A · Principal:</b> los ejercicios mas exigentes, hechos en fresco (fuerza y potencia).</p>
+        <p class="gloss"><b>Bloque A · Principal:</b> los ejercicios más exigentes, hechos en fresco (fuerza y potencia).</p>
         <p class="gloss"><b>Bloque B · Accesorios:</b> volumen e hipertrofia, complementan al A.</p>
-        <p class="gloss"><b>Bloque C · Finalizador:</b> trabajo metabolico y de acondicionamiento para cerrar.</p>
+        <p class="gloss"><b>Bloque C · Finalizador:</b> trabajo metabólico y de acondicionamiento para cerrar.</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Superserie y set directo</summary>
       <div class="acc-body">
-        <p><b>Superserie:</b> dos ejercicios que haces alternados (uno, luego el otro, descansas, repites). Suelen ser opuestos (empuje/tiron, cadera/rodilla) para que mientras trabajas uno, el otro se recupere. Ahorra tiempo.</p>
+        <p><b>Superserie:</b> dos ejercicios que haces alternados (uno, luego el otro, descansas, repites). Suelen ser opuestos (empuje/tirón, cadera/rodilla) para que mientras trabajas uno, el otro se recupere. Ahorra tiempo.</p>
         <p><b>Set directo:</b> un solo ejercicio con su descanso completo entre series.</p>
-        <p><b>Calidad (Optima / Aceptable):</b> que tan bien combinan los dos de una superserie. Optima = par antagonista o con un core de descanso activo; Aceptable = valido pero no ideal (por ejemplo, dos ejercicios de agarre seguidos: el antebrazo nunca descansa, asi que ese par nunca es Optimo).</p>
+        <p><b>Calidad (Óptima / Aceptable):</b> qué tan bien combinan los dos de una superserie. Óptima = par antagonista o con un core de descanso activo; Aceptable = válido pero no ideal (por ejemplo, dos ejercicios de agarre seguidos: el antebrazo nunca descansa, así que ese par nunca es Óptimo).</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Las 4 categorias de cada ejercicio</summary>
+      <summary>Las 4 categorías de cada ejercicio</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Patron de movimiento</b> — como se mueve el cuerpo: Cadera (bisagra: peso muerto, swing), Rodilla (sentadilla, zancada), Tiron horizontal (remos) y vertical (dominadas), Empuje horizontal (flexiones) y vertical (press), Core/estabilidad (carries, halos), Hibrido (combina varios, p. ej. clean &amp; press).</p>
-        <p class="gloss"><b>Dinamica</b> — como se entrena: Fuerza/Hipertrofia (controlado), Balistico/Potencia (explosivo: swings, cleans), Isometrico/Transporte (sostener o llevar peso), Metabolico (acondicionamiento).</p>
-        <p class="gloss"><b>Pliometrico</b> — subtipo de los balisticos con salto o impacto (jump squats, tuck jumps, burpees). Llevan el tag "pliometrico" y siempre reciben descanso completo entre series; son la base del objetivo Potencia.</p>
-        <p class="gloss"><b>Simetria</b> — Bilateral (los dos lados a la vez), Unilateral (un lado), Alterno (va cambiando de lado).</p>
-        <p class="gloss"><b>SNC</b> — cuanto exige al sistema nervioso: Alta (swings, cleans, get-up), Media, Baja (core suave). La app limita cuantos de SNC alta entran por sesion para que no te fundas.</p>
+        <p class="gloss"><b>Patrón de movimiento</b> — cómo se mueve el cuerpo: Cadera (bisagra: peso muerto, swing), Rodilla (sentadilla, zancada), Tirón horizontal (remos) y vertical (dominadas), Empuje horizontal (flexiones) y vertical (press), Core/estabilidad (carries, halos), Híbrido (combina varios, p. ej. clean &amp; press).</p>
+        <p class="gloss"><b>Dinámica</b> — cómo se entrena: Fuerza/Hipertrofia (controlado), Balistico/Potencia (explosivo: swings, cleans), Isométrico/Transporte (sostener o llevar peso), Metabólico (acondicionamiento).</p>
+        <p class="gloss"><b>Pliométrico</b> — subtipo de los balísticos con salto o impacto (jump squats, tuck jumps, burpees). Llevan el tag "pliométrico" y siempre reciben descanso completo entre series; son la base del objetivo Potencia.</p>
+        <p class="gloss"><b>Simetría</b> — Bilateral (los dos lados a la vez), Unilateral (un lado), Alterno (va cambiando de lado).</p>
+        <p class="gloss"><b>SNC</b> — cuánto exige al sistema nervioso: Alta (swings, cleans, get-up), Media, Baja (core suave). La app limita cuántos de SNC alta entran por sesión para que no te fundas.</p>
       </div>
     </details>
 
@@ -409,133 +409,133 @@
     <details class="acc">
       <summary>Pesa y kg sugeridos</summary>
       <div class="acc-body">
-        <p>Defines el rango de tu pesa ajustable (minimo y maximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los tecnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
-        <p>La sugerencia tambien mira el <b>objetivo de repeticiones</b>: el mismo ejercicio a 15 reps se sugiere claramente mas ligero que a 5 (no existe "carga pesada" a muchas repeticiones).</p>
-        <p>Y se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco optima o cae tarde en una sesion muy exigente, baja un poco (veras "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
+        <p>Defines el rango de tu pesa ajustable (mínimo y máximo). Cada ejercicio tiene una carga ideal —ligera, media o pesada— y la app te sugiere los kg dentro de tu rango: los técnicos hacia abajo, los compuestos hacia arriba. Solo ajustas la pesa al valor que indica.</p>
+        <p>La sugerencia también mira el <b>objetivo de repeticiones</b>: el mismo ejercicio a 15 reps se sugiere claramente más ligero que a 5 (no existe "carga pesada" a muchas repeticiones).</p>
+        <p>Y se afina por contexto: si un ejercicio es la segunda mitad de una superserie poco óptima o cae tarde en una sesión muy exigente, baja un poco (verás "ajustado"). En cuanto fijas tu pesa, tu valor manda.</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Perfil</summary>
       <div class="acc-body">
-        <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
-        <p>El nivel <b>no</b> filtra ejercicios: la app asume que la tecnica ya esta aprendida y todo el catalogo entra en la seleccion sea cual sea tu nivel. La etiqueta de <b>tecnica exigente</b> (snatch, get-up, windmill, cleans…) solo dosifica esos lifts en el finalizador — precision bajo fatiga alta — y ayuda a encontrarlos en el Pool.</p>
+        <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca más ligero, un avanzado más pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
+        <p>El nivel <b>no</b> filtra ejercicios: la app asume que la técnica ya está aprendida y todo el catálogo entra en la selección sea cual sea tu nivel. La etiqueta de <b>técnica exigente</b> (snatch, get-up, windmill, cleans…) solo dosifica esos lifts en el finalizador — precisión bajo fatiga alta — y ayuda a encontrarlos en el Pool.</p>
         <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Progresion (Facil / OK / Duro)</summary>
+      <summary>Progresión (Fácil / OK / Duro)</summary>
       <div class="acc-body">
-        <p>En cada ejercicio de la rutina veras un <b>objetivo de repeticiones</b> y tres botones para valorar la serie:</p>
-        <p class="gloss"><b>OK</b> — en punto: sube el objetivo una repeticion. Al llegar al tope del rango, la pesa sube 2 kg y las reps reinician abajo (doble progresion).</p>
-        <p class="gloss"><b>Facil</b> — demasiado facil: avanza mas rapido (dos repeticiones, o sube la pesa si ya estabas cerca del tope).</p>
-        <p class="gloss"><b>Duro</b> — demasiado duro: baja un escalon (una repeticion menos; si ya estabas abajo, baja 2 kg).</p>
-        <p>Asi los numeros se ajustan solos a como te fue: progresas cuando toca y aflojas cuando hace falta. La pesa nunca sale de tu rango.</p>
+        <p>En cada ejercicio de la rutina verás un <b>objetivo de repeticiones</b> y tres botones para valorar la serie:</p>
+        <p class="gloss"><b>OK</b> — en punto: sube el objetivo una repetición. Al llegar al tope del rango, la pesa sube 2 kg y las reps reinician abajo (doble progresión).</p>
+        <p class="gloss"><b>Fácil</b> — demasiado fácil: avanza más rápido (dos repeticiones, o sube la pesa si ya estabas cerca del tope).</p>
+        <p class="gloss"><b>Duro</b> — demasiado duro: baja un escalón (una repetición menos; si ya estabas abajo, baja 2 kg).</p>
+        <p>Así los números se ajustan solos a cómo te fue: progresas cuando toca y aflojas cuando hace falta. La pesa nunca sale de tu rango.</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>¿Como llegas hoy? (estado del dia)</summary>
+      <summary>¿Cómo llegas hoy? (estado del día)</summary>
       <div class="acc-body">
-        <p>Lo que toca entrenar no depende solo de tu objetivo y tu progresion: depende tambien de <b>como llegas hoy</b>. Antes de generar puedes decir tu <b>energia</b> (agotado → a tope), si <b>dormiste/descansaste</b> bien y que <b>zonas tienes doloridas</b>. La sesion se ajusta a eso.</p>
-        <p class="gloss"><b>Energia.</b> Un dia flojo baja el <b>volumen</b> (menos series/ejercicios) y suaviza un poco los <b>kg sugeridos</b>; un buen dia sube algo el volumen y te da permiso para cargar. "Normal" no cambia nada.</p>
-        <p class="gloss"><b>Descanso / sueño.</b> Si marcas que dormiste mal, recorta un poco mas el volumen, la carga y el cupo de ejercicios muy exigentes (SNC alta).</p>
-        <p class="gloss"><b>Zonas doloridas.</b> Las que marques pierden prioridad al elegir ejercicios, asi la sesion se va hacia patrones frescos en vez de insistir sobre lo dolorido.</p>
-        <p class="gloss"><b>Sugerencia de objetivo.</b> Si llegas muy flojo pero tenias puesto Fuerza o Potencia, la app te avisa de que quiza rindas mas con un dia metabolico o de tecnica. Tu decides: es un consejo, no un cambio automatico.</p>
-        <p>Es <b>autorregulacion</b>: tu pesa fijada siempre manda, y dejarlo en "Normal / Ok / sin dolor" deja la app como siempre.</p>
+        <p>Lo que toca entrenar no depende solo de tu objetivo y tu progresión: depende también de <b>cómo llegas hoy</b>. Antes de generar puedes decir tu <b>energía</b> (agotado → a tope), si <b>dormiste/descansaste</b> bien y qué <b>zonas tienes doloridas</b>. La sesión se ajusta a eso.</p>
+        <p class="gloss"><b>Energía.</b> Un día flojo baja el <b>volumen</b> (menos series/ejercicios) y suaviza un poco los <b>kg sugeridos</b>; un buen día sube algo el volumen y te da permiso para cargar. "Normal" no cambia nada.</p>
+        <p class="gloss"><b>Descanso / sueño.</b> Si marcas que dormiste mal, recorta un poco más el volumen, la carga y el cupo de ejercicios muy exigentes (SNC alta).</p>
+        <p class="gloss"><b>Zonas doloridas.</b> Las que marques pierden prioridad al elegir ejercicios, así la sesión se va hacia patrones frescos en vez de insistir sobre lo dolorido.</p>
+        <p class="gloss"><b>Sugerencia de objetivo.</b> Si llegas muy flojo pero tenías puesto Fuerza o Potencia, la app te avisa de que quizá rindas más con un día metabólico o de técnica. Tú decides: es un consejo, no un cambio automático.</p>
+        <p>Es <b>autorregulación</b>: tu pesa fijada siempre manda, y dejarlo en "Normal / Ok / sin dolor" deja la app como siempre.</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Fuerza estimada (e1RM)</summary>
       <div class="acc-body">
-        <p>El <b>e1RM</b> es tu <b>1RM estimado</b>: el peso que podrias levantar <b>una sola vez</b> en un ejercicio. No hace falta que lo intentes de verdad —se <b>calcula</b> a partir de una serie normal—, asi tienes un unico numero comparable para ver si te haces mas fuerte.</p>
-        <p class="gloss"><b>Como se calcula.</b> Con la formula de Epley: <b>1RM ≈ peso × (1 + reps/30)</b>. Por ejemplo, 16 kg × 6 reps ≈ 19 kg de e1RM. La formula se desvia con repeticiones muy altas, asi que para el calculo se topan en 12.</p>
-        <p class="gloss"><b>De donde salen los datos.</b> De tus <b>registros manuales</b> (kg + reps reales de cada serie) y de la <b>serie en curso</b> (la pesa que fijaste + tu objetivo de reps). Varias sesiones se <b>suavizan</b> (media movil) para que una serie suelta no dispare el numero.</p>
-        <p class="gloss"><b>Solo ejercicios de fuerza.</b> Se calcula para grinds (press, sentadilla, peso muerto, remo…). Los <b>balisticos</b> (swing, clean, snatch) son potencia, no fuerza maxima, y los <b>isometricos/carries</b> son tiempo bajo carga: esos progresan por reps, densidad o tiempo, no por e1RM.</p>
-        <p class="gloss"><b>Para que sirve.</b> (1) Lo ves en <b>Historial · Fuerza estimada</b> con la variacion desde tu primer registro (▲/▼). (2) Cuando un ejercicio tiene suficientes datos (2+), la app deja de usar la sugerencia generica y te propone los <b>kg segun tu e1RM</b> para el objetivo de reps de ese bloque (veras "segun tu e1RM"). Si fijas tu pesa a mano, tu valor sigue mandando.</p>
-        <p>Es una <b>estimacion</b>, no un maximo medido: usala como guia, no como cifra exacta.</p>
+        <p>El <b>e1RM</b> es tu <b>1RM estimado</b>: el peso que podrías levantar <b>una sola vez</b> en un ejercicio. No hace falta que lo intentes de verdad —se <b>calcula</b> a partir de una serie normal—, así tienes un único número comparable para ver si te haces más fuerte.</p>
+        <p class="gloss"><b>Cómo se calcula.</b> Con la fórmula de Epley: <b>1RM ≈ peso × (1 + reps/30)</b>. Por ejemplo, 16 kg × 6 reps ≈ 19 kg de e1RM. La fórmula se desvía con repeticiones muy altas, así que para el cálculo se topan en 12.</p>
+        <p class="gloss"><b>De dónde salen los datos.</b> De tus <b>registros manuales</b> (kg + reps reales de cada serie) y de la <b>serie en curso</b> (la pesa que fijaste + tu objetivo de reps). Varias sesiones se <b>suavizan</b> (media móvil) para que una serie suelta no dispare el número.</p>
+        <p class="gloss"><b>Solo ejercicios de fuerza.</b> Se calcula para grinds (press, sentadilla, peso muerto, remo…). Los <b>balísticos</b> (swing, clean, snatch) son potencia, no fuerza máxima, y los <b>isométricos/carries</b> son tiempo bajo carga: esos progresan por reps, densidad o tiempo, no por e1RM.</p>
+        <p class="gloss"><b>Para qué sirve.</b> (1) Lo ves en <b>Historial · Fuerza estimada</b> con la variación desde tu primer registro (▲/▼). (2) Cuando un ejercicio tiene suficientes datos (2+), la app deja de usar la sugerencia genérica y te propone los <b>kg según tu e1RM</b> para el objetivo de reps de ese bloque (verás "según tu e1RM"). Si fijas tu pesa a mano, tu valor sigue mandando.</p>
+        <p>Es una <b>estimación</b>, no un máximo medido: úsala como guía, no como cifra exacta.</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Como se calcula todo (en detalle)</summary>
+      <summary>Cómo se calcula todo (en detalle)</summary>
       <div class="acc-body">
-        <p>El <b>motor</b> de FORJA no toca la pantalla: recibe tus datos y devuelve la rutina, paso a paso. (1) Elige la plantilla del objetivo y la escala por tiempo o estructura. (2) Filtra el pool por equipamiento. (3) Arma cada bloque emparejando ejercicios con las reglas de superserie, el presupuesto de fatiga y el balance. (4) Calcula duracion, kg sugeridos y objetivos de repeticiones.</p>
+        <p>El <b>motor</b> de FORJA no toca la pantalla: recibe tus datos y devuelve la rutina, paso a paso. (1) Elige la plantilla del objetivo y la escala por tiempo o estructura. (2) Filtra el pool por equipamiento. (3) Arma cada bloque emparejando ejercicios con las reglas de superserie, el presupuesto de fatiga y el balance. (4) Calcula duración, kg sugeridos y objetivos de repeticiones.</p>
 
-        <p><b>Duracion estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balistico 1,2 s · metabolico 2,0 s; los isometricos usan sus segundos de sosten, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series segun el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabolico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabolico ×0,4) + 20 s de transicion. Entre ejercicio y ejercicio se cuenta ademas un <b>cambio de 30 s</b> (colocarte, ajustar la pesa). La duracion total es la suma de todo.</p>
+        <p><b>Duración estimada.</b> Trabajo por serie = repeticiones × tempo por rep (fuerza 3,0 s · balístico 1,2 s · metabólico 2,0 s; los isométricos usan sus segundos de sostén, 35 s por defecto). Unilateral entrena los dos lados: trabajo ×2 + 15 s entre lados. Descanso entre series según el rango: fuerza (≤5 reps) 150 s · hipertrofia (6–11) 75 s · metabólico (12+) 40 s. En superserie se suma el trabajo de ambos y el descanso compartido se recorta (fuerza ×0,75 · hipertrofia ×0,5 · metabólico ×0,4) + 20 s de transición. Entre ejercicio y ejercicio se cuenta además un <b>cambio de 30 s</b> (colocarte, ajustar la pesa). La duración total es la suma de todo.</p>
 
-        <p><b>EMOM y AMRAP van a su ritmo, no al descanso por rango.</b> En EMOM cada franja es <b>un minuto</b>: haces las reps y descansas <b>lo que sobra del minuto</b>; el temporizador recorre el circuito en rondas (ejercicio 1 → 2 → 3, y vuelta), no todas las series de un ejercicio seguidas. En AMRAP/circuito se pasa de un ejercicio al siguiente con una <b>transicion corta (15 s)</b>, sin descansos largos. Los minutos que pidas escalan las <b>rondas</b> del circuito.</p>
+        <p><b>EMOM y AMRAP van a su ritmo, no al descanso por rango.</b> En EMOM cada franja es <b>un minuto</b>: haces las reps y descansas <b>lo que sobra del minuto</b>; el temporizador recorre el circuito en rondas (ejercicio 1 → 2 → 3, y vuelta), no todas las series de un ejercicio seguidas. En AMRAP/circuito se pasa de un ejercicio al siguiente con una <b>transición corta (15 s)</b>, sin descansos largos. Los minutos que pidas escalan las <b>rondas</b> del circuito.</p>
 
-        <p><b>Presupuesto de fatiga (SNC y agarre).</b> Cada objetivo fija un maximo de ejercicios de <b>SNC alta</b> por sesion (p. ej. Fuerza 2, Metabolico 4) y no se supera. El <b>agarre</b> es un acumulador ponderado: un balistico de agarre pesa 1,0 y otros de agarre (carries pesados, remos, get-up, bottoms-up) 0,5; el maximo cuenta "equivalentes balisticos".</p>
+        <p><b>Presupuesto de fatiga (SNC y agarre).</b> Cada objetivo fija un máximo de ejercicios de <b>SNC alta</b> por sesión (p. ej. Fuerza 2, Metabólico 4) y no se supera. El <b>agarre</b> es un acumulador ponderado: un balístico de agarre pesa 1,0 y otros de agarre (carries pesados, remos, get-up, bottoms-up) 0,5; el máximo cuenta "equivalentes balísticos".</p>
 
-        <p><b>Calidad de la superserie (bloque A).</b> Invalida: dos de SNC alta, dos balisticos de agarre, fuerza 1–5 junto a metabolico 12+ (interferencia) o el mismo patron. Optima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: dos ejercicios de agarre (el antebrazo no descansa), cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
+        <p><b>Calidad de la superserie (bloque A).</b> Inválida: dos de SNC alta, dos balísticos de agarre, fuerza 1–5 junto a metabólico 12+ (interferencia) o el mismo patrón. Óptima: lift principal + core de baja demanda (descanso activo) o par antagonista verdadero. Aceptable: dos ejercicios de agarre (el antebrazo no descansa), cadera+rodilla (ambos cargan la cadena posterior, no hay grupo en reposo) o viable pero no antagonista.</p>
 
-        <p><b>El finalizador (C) tambien se gradua.</b> Ya no vale todo: los lifts de tecnica exigente e isometricos (get-up, windmill) bajo fatiga alta, el doble agarre y dos de SNC alta juntos quedan como Aceptable con su aviso; el par antagonista tranquilo sigue siendo Optimo. Ademas la seleccion evita colocar get-up/windmill en el finalizador.</p>
+        <p><b>El finalizador (C) también se gradúa.</b> Ya no vale todo: los lifts de técnica exigente e isométricos (get-up, windmill) bajo fatiga alta, el doble agarre y dos de SNC alta juntos quedan como Aceptable con su aviso; el par antagonista tranquilo sigue siendo Óptimo. Además la selección evita colocar get-up/windmill en el finalizador.</p>
 
-        <p><b>Seleccion con "misma pesa".</b> Si activas "misma pesa por circuito", al elegir los ejercicios de cada bloque el motor penaliza (−2 por escalon de distancia) los que se alejan de la carga ya elegida en ese bloque, y al emparejar superseries prefiere la pareja de carga mas parecida (sin sacrificar la calidad antagonista). Asi los ejercicios de un bloque comparten carga y la unica pesa propuesta (la mediana) le queda bien a todos.</p>
+        <p><b>Selección con "misma pesa".</b> Si activas "misma pesa por circuito", al elegir los ejercicios de cada bloque el motor penaliza (−2 por escalón de distancia) los que se alejan de la carga ya elegida en ese bloque, y al emparejar superseries prefiere la pareja de carga más parecida (sin sacrificar la calidad antagonista). Así los ejercicios de un bloque comparten carga y la única pesa propuesta (la mediana) le queda bien a todos.</p>
 
-        <p><b>kg sugerido (4 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × factor del <b>rango de repeticiones</b>: fuerza (≤5) ×1 · hipertrofia (6–11) ×0,9 · metabolico (12+) ×0,7 — el mismo ejercicio a muchas reps se sugiere mas ligero. (3) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (4) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
+        <p><b>kg sugerido (4 capas; siempre es solo el punto de partida).</b> (1) Base por carga del ejercicio: ligera 15%, media 50%, pesada 85% de tu rango, redondeado a 2 kg. (2) × factor del <b>rango de repeticiones</b>: fuerza (≤5) ×1 · hipertrofia (6–11) ×0,9 · metabólico (12+) ×0,7 — el mismo ejercicio a muchas reps se sugiere más ligero. (3) × multiplicador de <b>perfil</b>: nivel (principiante 0,85 / intermedio 1 / avanzado 1,12), mujer en tren superior ×0,9, peso corporal como ancla suave (±15% respecto a 75 kg), acotado 0,7–1,3. (4) × ajuste de <b>contexto</b>: 2º de una superserie aceptable ×0,92 y la fatiga acumulada de SNC baja hasta 0,85; nunca por debajo de 0,8. En cuanto fijas tu pesa, tu valor reemplaza toda la sugerencia.</p>
 
-        <p><b>Objetivo de repeticiones y progresion.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabolico 15–20 (los isometricos suben). Doble progresion: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Facil avanza doble, OK avanza normal, Duro retrocede un escalon (o baja 2 kg si ya estabas en el minimo).</p>
+        <p><b>Objetivo de repeticiones y progresión.</b> Rango por bloque: fuerza 5–8 · hipertrofia 8–12 · metabólico 15–20 (los isométricos suben). Doble progresión: subes repeticiones hasta el tope del rango y, al alcanzarlo, +2 kg con las reps reiniciadas abajo. El RPE ajusta el ritmo: Fácil avanza doble, OK avanza normal, Duro retrocede un escalón (o baja 2 kg si ya estabas en el mínimo).</p>
 
-        <p><b>Estado del dia (autorregulacion).</b> Tu energia (1–5), el descanso y las zonas doloridas se traducen en factores que alimentan las mismas palancas que la periodizacion: volumen (escala los minutos objetivo → series/ejercicios), carga (×0,85–1,06 sobre los kg sugeridos), cupo de SNC alta (se recorta en dias flojos) y un sesgo de intensidad. Las zonas doloridas restan prioridad a esos patrones en la seleccion. Con energia "Normal", sueño "Ok" y sin dolor, los factores valen 1/0 y no cambian nada.</p>
+        <p><b>Estado del día (autorregulación).</b> Tu energía (1–5), el descanso y las zonas doloridas se traducen en factores que alimentan las mismas palancas que la periodización: volumen (escala los minutos objetivo → series/ejercicios), carga (×0,85–1,06 sobre los kg sugeridos), cupo de SNC alta (se recorta en días flojos) y un sesgo de intensidad. Las zonas doloridas restan prioridad a esos patrones en la selección. Con energía "Normal", sueño "Ok" y sin dolor, los factores valen 1/0 y no cambian nada.</p>
 
-        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales, de las series que <b>registra el temporizador</b> y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media movil (alfa 0,5). Con 2 o mas datos, los kg sugeridos pasan a calcularse invirtiendo la formula para el objetivo de reps del bloque — con un <b>margen de 2 reps en reserva</b> (carga = e1RM ÷ (1 + (reps+2)/30)): prescribir tu maximo exacto para todas las series no es sostenible. Redondeada a 2 kg y acotada a tu rango. Balisticos e isometricos quedan fuera (potencia y tiempo bajo carga, no fuerza maxima).</p>
+        <p><b>Fuerza estimada (e1RM).</b> Por cada ejercicio de fuerza, e1RM = peso × (1 + reps/30) (Epley, reps topadas en 12), tomando tu mejor serie. Se nutre de los registros manuales, de las series que <b>registra el temporizador</b> y de la serie en curso (pesa fijada + objetivo de reps), suavizado con media móvil (alfa 0,5). Con 2 o más datos, los kg sugeridos pasan a calcularse invirtiendo la fórmula para el objetivo de reps del bloque — con un <b>margen de 2 reps en reserva</b> (carga = e1RM ÷ (1 + (reps+2)/30)): prescribir tu máximo exacto para todas las series no es sostenible. Redondeada a 2 kg y acotada a tu rango. Balísticos e isométricos quedan fuera (potencia y tiempo bajo carga, no fuerza máxima).</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Foco:</b> concentra la sesion en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a proposito).</p>
-        <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patron de movimiento sino un tag muscular: prioriza los ejercicios donde biceps (curls, remos, dominadas) o triceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balisticos de cadera (clean, push press, high pull) quedan fuera: ahi el brazo solo transmite.</p>
-        <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tiron y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia maxima permitida entre opuestos).</p>
-        <p class="gloss"><b>Variar:</b> evita repetir lo de tus ultimas sesiones, asi los ejercicios rotan.</p>
-        <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un unico kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
-        <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el numero de ejercicios y series) o Por estructura (eliges cuantos ejercicios tiene cada bloque).</p>
-        <p class="gloss"><b>Fijar ejercicios:</b> elige cuales quieres si o si; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
-        <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos asi para que el agarre no falle antes que el musculo.</p>
-        <p class="gloss"><b>Misma pesa por circuito:</b> pensado para una sola pesa ajustable. Al generar, ademas de proponer una unica pesa por bloque (la mediana), el motor <b>prioriza ejercicios de carga parecida</b> dentro de cada bloque, para que esa unica pesa le quede bien a todos (ni demasiado ligera para los compuestos ni demasiado pesada para los tecnicos). Se aplica en la siguiente rutina que generes.</p>
+        <p class="gloss"><b>Foco:</b> concentra la sesión en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a propósito).</p>
+        <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patrón de movimiento sino un tag muscular: prioriza los ejercicios donde bíceps (curls, remos, dominadas) o tríceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balísticos de cadera (clean, push press, high pull) quedan fuera: ahí el brazo solo transmite.</p>
+        <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tirón y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia máxima permitida entre opuestos).</p>
+        <p class="gloss"><b>Variar:</b> evita repetir lo de tus últimas sesiones, así los ejercicios rotan.</p>
+        <p class="gloss"><b>Misma pesa por circuito:</b> si tienes una sola pesa ajustable, sugiere un único kg por bloque (la mediana de las cargas) para no recalibrar la pesa entre ejercicios. Al ajustarlo, todo el circuito cambia a la vez.</p>
+        <p class="gloss"><b>Volumen:</b> Por tiempo (eliges minutos y la app ajusta el número de ejercicios y series) o Por estructura (eliges cuántos ejercicios tiene cada bloque).</p>
+        <p class="gloss"><b>Fijar ejercicios:</b> elige cuáles quieres sí o sí; el resto se autocompleta. A cada fijado puedes asignarle su bloque o dejarlo en Auto.</p>
+        <p class="gloss"><b>Agarre intensivo:</b> marca ejercicios que cargan mucho el agarre (swings, cleans). La app evita juntar dos así para que el agarre no falle antes que el músculo.</p>
+        <p class="gloss"><b>Misma pesa por circuito:</b> pensado para una sola pesa ajustable. Al generar, además de proponer una única pesa por bloque (la mediana), el motor <b>prioriza ejercicios de carga parecida</b> dentro de cada bloque, para que esa única pesa le quede bien a todos (ni demasiado ligera para los compuestos ni demasiado pesada para los técnicos). Se aplica en la siguiente rutina que generes.</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Anadir y editar ejercicios</summary>
+      <summary>Añadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en los finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
-        <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
-        <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la seleccion</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Util para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
-        <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+        <p><b>Añadir:</b> en Pool toca <b>+ Añadir</b>, pon nombre y elige las 4 categorías, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene énfasis en brazos (para que entre en el foco Brazos) y si es de <b>técnica exigente</b> (para que la selección lo dosifique en los finalizadores). Si las etiquetas se contradicen (p. ej. un pliométrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
+        <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorías. En los de fábrica se guarda tu modificación (verás el tag "editado") sin perder el original; el nombre no se cambia.</p>
+        <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la selección</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Útil para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
+        <p><b>Quitar:</b> la ✕. Los de fábrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>
     </details>
 
     <details class="acc">
       <summary>Crear tu propia rutina (y su escrutinio)</summary>
       <div class="acc-body">
-        <p>En <b>Generar</b>, cambia a <b>Creada por mi</b> para componer la sesion a mano: <b>+ Anadir</b> abre un buscador de ejercicios por bloque (A/B/C). Busca por <b>nombre o por tag</b>: patron ("cadera", "tiron"), dinamica ("balistico", "metabolico"), tier ("fundamental"), "agarre", "pliometrico", carga ("pesada")… y combina terminos ("tiron balistico"). Cada fila lleva sus series, repeticiones y <b>kg</b> (parte de la sugerencia del motor, en gris, y al tocarla queda fijada como tu pesa). Marca <b>⇄</b> en un ejercicio para hacerlo en superserie con el anterior.</p>
-        <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuacion (0–100), un veredicto y la lista de objeciones encontradas. Debajo, cuando hay algo que corregir, aparecen <b>sugerencias</b> (→): arreglos concretos con ejercicios de tu pool — con que emparejar una superserie rota, por que cambiar un ejercicio que pasa el presupuesto de SNC o de agarre, que variante usar en vez de repetir, y que anadir para equilibrar los patrones.</p>
-        <p class="gloss"><b>Objetivo de la rutina.</b> Puedes <b>declararlo</b> (Fuerza, Metabolico, Resistencia, Potencia) o dejarlo en <b>Auto</b>. Declarado: el buscador <b>recomienda (★)</b> y ordena primero los ejercicios que encajan con ese objetivo en cada bloque, las filas nuevas traen las <b>series x reps de su plantilla</b>, el escrutinio audita con <b>sus presupuestos de fatiga</b> y ademas <b>avisa si tu composicion se parece mas a otro objetivo</b> del que declaraste. El objetivo solo aconseja: colocar ejercicios por ti sigue siendo trabajo del generador.</p>
-        <p class="gloss"><b>Perfil detectado (Auto).</b> Sin objetivo declarado, el escrutinio <b>identifica que tipo de sesion</b> construiste comparando dinamicas, rangos de repeticiones y bloques con las plantillas del motor (EMOM/AMRAP son protocolos de ejecucion y quedan fuera). Si hay un perfil claro, la audita con los presupuestos de ese objetivo y la sesion se guarda etiquetada ("Creada por mi · Fuerza"); si no, la trata como mixta.</p>
-        <p class="gloss"><b>Para &lt;objetivo&gt; (evaluacion contra tu meta).</b> Con un objetivo (declarado o detectado), el escrutinio anade una seccion que dice <b>que ya sirve</b> a esa meta (✓: bloques con la dinamica y el rango de repeticiones correctos) y <b>que ajustes globales</b> la acercarian (↗): bajar repeticiones y subir peso para Fuerza, cambiar trabajo controlado por balistico para Potencia, anadir el bloque que falta, quitar el que sobra, o evitar carga ligera en el principal de fuerza.</p>
-        <p class="gloss"><b>Completar con el generador.</b> Si solo tienes clara una parte, este boton <b>fija tus ejercicios</b> (con su bloque) y deja que el <b>generador</b> rellene el resto segun el objetivo. Es el puente entre ambos modos: tu decides el nucleo, el motor completa.</p>
-        <p class="gloss"><b>Que revisa:</b> superseries invalidas o mejorables (mismo patron, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tiron y cadera/rodilla, y el orden (lo exigente al principio, lo metabolico al final).</p>
-        <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (valido pero mejorable).</p>
-        <p>La rutina creada se guarda en el <b>Historial</b> como cualquier otra y puedes entrenarla con el temporizador. Al abrir el detalle de cualquier sesion guardada veras el boton <b>Escrutinio</b> para auditarla mas tarde, tambien las generadas.</p>
+        <p>En <b>Generar</b>, cambia a <b>Creada por mí</b> para componer la sesión a mano: <b>+ Añadir</b> abre un buscador de ejercicios por bloque (A/B/C). Busca por <b>nombre o por tag</b>: patrón ("cadera", "tirón"), dinámica ("balístico", "metabólico"), tier ("fundamental"), "agarre", "pliométrico", carga ("pesada")… y combina términos ("tirón balístico"). Cada fila lleva sus series, repeticiones y <b>kg</b> (parte de la sugerencia del motor, en gris, y al tocarla queda fijada como tu pesa). Marca <b>⇄</b> en un ejercicio para hacerlo en superserie con el anterior.</p>
+        <p><b>Evaluar mi rutina</b> la pasa por el mismo motor de reglas que usa el generador y devuelve un <b>escrutinio</b>: una puntuación (0–100), un veredicto y la lista de objeciones encontradas. Debajo, cuando hay algo que corregir, aparecen <b>sugerencias</b> (→): arreglos concretos con ejercicios de tu pool — con qué emparejar una superserie rota, por qué cambiar un ejercicio que pasa el presupuesto de SNC o de agarre, qué variante usar en vez de repetir, y qué añadir para equilibrar los patrones.</p>
+        <p class="gloss"><b>Objetivo de la rutina.</b> Puedes <b>declararlo</b> (Fuerza, Metabólico, Resistencia, Potencia) o dejarlo en <b>Auto</b>. Declarado: el buscador <b>recomienda (★)</b> y ordena primero los ejercicios que encajan con ese objetivo en cada bloque, las filas nuevas traen las <b>series x reps de su plantilla</b>, el escrutinio audita con <b>sus presupuestos de fatiga</b> y además <b>avisa si tu composición se parece más a otro objetivo</b> del que declaraste. El objetivo solo aconseja: colocar ejercicios por ti sigue siendo trabajo del generador.</p>
+        <p class="gloss"><b>Perfil detectado (Auto).</b> Sin objetivo declarado, el escrutinio <b>identifica qué tipo de sesión</b> construiste comparando dinámicas, rangos de repeticiones y bloques con las plantillas del motor (EMOM/AMRAP son protocolos de ejecución y quedan fuera). Si hay un perfil claro, la audita con los presupuestos de ese objetivo y la sesión se guarda etiquetada ("Creada por mí · Fuerza"); si no, la trata como mixta.</p>
+        <p class="gloss"><b>Para &lt;objetivo&gt; (evaluación contra tu meta).</b> Con un objetivo (declarado o detectado), el escrutinio añade una sección que dice <b>qué ya sirve</b> a esa meta (✓: bloques con la dinámica y el rango de repeticiones correctos) y <b>qué ajustes globales</b> la acercarían (↗): bajar repeticiones y subir peso para Fuerza, cambiar trabajo controlado por balístico para Potencia, añadir el bloque que falta, quitar el que sobra, o evitar carga ligera en el principal de fuerza.</p>
+        <p class="gloss"><b>Completar con el generador.</b> Si solo tienes clara una parte, este botón <b>fija tus ejercicios</b> (con su bloque) y deja que el <b>generador</b> rellene el resto según el objetivo. Es el puente entre ambos modos: tú decides el núcleo, el motor completa.</p>
+        <p class="gloss"><b>Qué revisa:</b> superseries inválidas o mejorables (mismo patrón, dos de SNC alta, interferencia de rangos), el presupuesto de fatiga (SNC alta y agarre), ejercicios repetidos, el balance empuje/tirón y cadera/rodilla, y el orden (lo exigente al principio, lo metabólico al final).</p>
+        <p class="gloss"><b>Niveles:</b> <b>✕</b> rompe una regla dura · <b>!</b> riesgo de presupuesto o balance · <b>·</b> consejo (válido pero mejorable).</p>
+        <p>La rutina creada se guarda en el <b>Historial</b> como cualquier otra y puedes entrenarla con el temporizador. Al abrir el detalle de cualquier sesión guardada verás el botón <b>Escrutinio</b> para auditarla más tarde, también las generadas.</p>
       </div>
     </details>
 
     <details class="acc">
-      <summary>Ciencia y bibliografia</summary>
+      <summary>Ciencia y bibliografía</summary>
       <div class="acc-body">
-        <p>FORJA es una herramienta <b>educativa</b>, no consejo medico. Sus numeros son <b>heuristicas practicas</b> inspiradas en principios de la ciencia del entrenamiento (no la salida directa de un unico estudio). Ajusta segun tu experiencia y, ante dudas o lesiones, consulta a un profesional.</p>
-        <p>Cada decision del motor se apoya en literatura reconocida:</p>
+        <p>FORJA es una herramienta <b>educativa</b>, no consejo médico. Sus números son <b>heurísticas prácticas</b> inspiradas en principios de la ciencia del entrenamiento (no la salida directa de un único estudio). Ajusta según tu experiencia y, ante dudas o lesiones, consulta a un profesional.</p>
+        <p>Cada decisión del motor se apoya en literatura reconocida:</p>
 
         <p class="gloss"><b>Orden de ejercicios — lo exigente primero (bloque A).</b><br>
         <span class="ref">Simao R, et al. Exercise order in resistance training. <i>Sports Med.</i> 2012;42(3):251–265.</span></p>
 
-        <p class="gloss"><b>Progresion y prescripcion (doble progresion, volumen, descansos).</b><br>
+        <p class="gloss"><b>Progresión y prescripción (doble progresión, volumen, descansos).</b><br>
         <span class="ref">American College of Sports Medicine. Progression models in resistance training for healthy adults. <i>Med Sci Sports Exerc.</i> 2009;41(3):687–708.<br>
         Kraemer WJ, Ratamess NA. Fundamentals of resistance training: progression and exercise prescription. <i>Med Sci Sports Exerc.</i> 2004;36(4):674–688.</span></p>
 
@@ -546,15 +546,15 @@
         <p class="gloss"><b>Superseries antagonistas (par opuesto que recupera).</b><br>
         <span class="ref">Robbins DW, Young WB, Behm DG, Payne WR. Agonist–antagonist paired set resistance training: a brief review. <i>J Strength Cond Res.</i> 2010;24(10):2873–2882.</span></p>
 
-        <p class="gloss"><b>Autorregulacion por RPE/RIR (Facil / OK / Duro).</b><br>
+        <p class="gloss"><b>Autorregulación por RPE/RIR (Fácil / OK / Duro).</b><br>
         <span class="ref">Helms ER, Cronin J, Storey A, Zourdos MC. Application of the repetitions-in-reserve-based RPE scale for resistance training. <i>Strength Cond J.</i> 2016;38(4):42–49.<br>
         Zourdos MC, et al. Novel resistance training–specific RPE scale measuring repetitions in reserve. <i>J Strength Cond Res.</i> 2016;30(1):267–275.</span></p>
 
-        <p class="gloss"><b>Estado del dia / disposicion subjetiva (energia, sueño, dolor).</b><br>
+        <p class="gloss"><b>Estado del día / disposición subjetiva (energía, sueño, dolor).</b><br>
         <span class="ref">Saw AE, Main LC, Gastin PB. Monitoring the athlete training response: subjective self-reported measures trump commonly used objective measures: a systematic review. <i>Br J Sports Med.</i> 2016;50(5):281–291.<br>
         Greig L, et al. Autoregulation in resistance training: a review. <i>Sports Med.</i> 2020;50(11):1873–1887.</span></p>
 
-        <p class="gloss"><b>1RM estimado (e1RM) a partir de series submaximas.</b><br>
+        <p class="gloss"><b>1RM estimado (e1RM) a partir de series submáximas.</b><br>
         <span class="ref">Epley B. Poundage chart. <i>Boyd Epley Workout.</i> Lincoln, NE: Body Enterprises; 1985.<br>
         LeSuer DA, McCormick JH, Mayhew JL, Wasserstein RL, Arnold MD. The accuracy of prediction equations for estimating 1-RM performance in the bench press, squat, and deadlift. <i>J Strength Cond Res.</i> 1997;11(4):211–213.</span></p>
 
@@ -562,12 +562,12 @@
         <span class="ref">Lake JP, Lauder MA. Mechanical demands of kettlebell swing exercise. <i>J Strength Cond Res.</i> 2012;26(12):3209–3216.<br>
         Beardsley C, Contreras B. The role of kettlebells in strength and conditioning: a review. <i>Strength Cond J.</i> 2014;36(3):64–70.</span></p>
 
-        <p class="gloss"><b>Fundamentos, fatiga y periodizacion.</b><br>
+        <p class="gloss"><b>Fundamentos, fatiga y periodización.</b><br>
         <span class="ref">Zatsiorsky VM, Kraemer WJ. <i>Science and Practice of Strength Training.</i> 2nd ed. Human Kinetics; 2006.<br>
         Haff GG, Triplett NT (eds). <i>NSCA's Essentials of Strength Training and Conditioning.</i> 4th ed. Human Kinetics; 2016.<br>
         Verkhoshansky Y, Siff M. <i>Supertraining.</i> 6th ed.; 2009.</span></p>
 
-        <p class="gloss"><b>Metodologia kettlebell (practica).</b><br>
+        <p class="gloss"><b>Metodología kettlebell (práctica).</b><br>
         <span class="ref">Tsatsouline P. <i>Enter the Kettlebell!</i> Dragon Door; 2006.</span></p>
       </div>
     </details>
@@ -580,7 +580,7 @@
   <button data-view="gen" aria-current="true"><span class="ico">⚙</span>Generar</button>
   <button data-view="hist" aria-current="false"><span class="ico">▤</span>Historial</button>
   <button data-view="pool" aria-current="false"><span class="ico">≡</span>Pool</button>
-  <button data-view="guia" aria-current="false"><span class="ico">?</span>Guia</button>
+  <button data-view="guia" aria-current="false"><span class="ico">?</span>Guía</button>
 </nav>
 
 <!-- Rules engine (no DOM) -> defines window.FORJA -->
