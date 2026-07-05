@@ -1011,7 +1011,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     ISO:"Isometrico/Transporte", METABOLIC:"Metabolico" };
   const LOAD_LABEL = { 1:"Ligera", 2:"Media", 3:"Pesada" };
 
-  // --- Base catalog (39) -------------------------------------------------
+  // --- Base catalog (40) -------------------------------------------------
   // Naming convention: Spanish structure with international kettlebell terms
   // kept untranslated (Swing, Clean, Press, Snatch, Get-Up, Windmill...).
   // Singular for loaded lifts; usual plural for bodyweight rep drills
@@ -1065,6 +1065,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     exercise("High Pull", PAT.HYBRID, DIN.BALLISTIC, SIM.UNILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
     exercise("Floor Press", PAT.PUSH_H, DIN.STRENGTH, SIM.UNILATERAL, CNS.MEDIUM, [EQ.KB, EQ.FLOOR], false, LOAD_TIER.HEAVY),
     exercise("Wrist Curl", PAT.PULL_H, DIN.STRENGTH, SIM.BILATERAL, CNS.LOW, [EQ.KB], true, LOAD_TIER.LIGHT),
+    exercise("Clean + Sentadilla Goblet + Press", PAT.HYBRID, DIN.BALLISTIC, SIM.BILATERAL, CNS.HIGH, [EQ.KB], true, LOAD_TIER.MEDIUM),
   ];
 
   // Old catalog name -> curated name. Two old names mapping to the same new
@@ -1114,7 +1115,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // Tier: fundamental exercises (compound, multi-joint, high value) and optional ones.
   const _CORE_EXERCISES = new Set([
     "Peso Muerto Rumano", "Swing (dos manos)", "Sentadilla Goblet",
-    "Clean + Sentadilla Goblet", "Clean + Press",
+    "Clean + Sentadilla Goblet", "Clean + Sentadilla Goblet + Press", "Clean + Press",
     "Thruster", "Snatch", "Turkish Get-Up",
   ]);
   const _OPTIONAL_EXERCISES = new Set([
@@ -1130,7 +1131,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // novices to simpler movements, and these stay out of fatigued finishers.
   const _SKILL_EXERCISES = new Set([
     "Snatch", "Turkish Get-Up", "Windmill", "Clean (una mano)", "Clean + Press",
-    "Clean + Sentadilla Goblet", "High Pull", "Push Press", "Press Bottoms-Up",
+    "Clean + Sentadilla Goblet", "Clean + Sentadilla Goblet + Press",
+    "High Pull", "Push Press", "Press Bottoms-Up",
   ]);
   // Arm emphasis: exercises where elbow flexion (biceps: curls, rows,
   // chin-ups) or extension (triceps: presses, close-grip push-ups) does a

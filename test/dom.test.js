@@ -280,27 +280,27 @@ setTimeout(() => {
   firstFilter.click(); // reset
 
   d.querySelector('.nav button[data-view="pool"]').click();
-  ok("pool shows 39 exercises", d.querySelectorAll("#pool-list .card").length === 39);
+  ok("pool shows 40 exercises", d.querySelectorAll("#pool-list .card").length === 40);
   ok("pool shows a plyometric tag", /pliometrico/i.test(d.querySelector("#pool-list").textContent));
 
   // Pool search narrows the list by name; clearing restores it.
   const search = d.querySelector("#pool-search");
   search.value = "swing"; search.dispatchEvent(new window.Event("input"));
   const swingHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search narrows by name", swingHits > 0 && swingHits < 39);
+  ok("pool search narrows by name", swingHits > 0 && swingHits < 40);
   search.value = "cadera"; search.dispatchEvent(new window.Event("input"));
   const catHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search matches by category too", catHits > 0 && catHits < 39);
+  ok("pool search matches by category too", catHits > 0 && catHits < 40);
   search.value = "brazos"; search.dispatchEvent(new window.Event("input"));
   const armHits = d.querySelectorAll("#pool-list .card").length;
-  ok("pool search matches the arms tag", armHits > 0 && armHits < 39);
+  ok("pool search matches the arms tag", armHits > 0 && armHits < 40);
   search.value = ""; search.dispatchEvent(new window.Event("input"));
-  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 39);
+  ok("clearing pool search restores the list", d.querySelectorAll("#pool-list .card").length === 40);
   // A tag filter narrows the pool too.
   const pf = d.querySelector("#pool-filters .filter-chip");
   ok("pool exposes tag filters", !!pf);
   pf.click();
-  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 39);
+  ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 40);
   pf.click(); // reset
 
   // Pause an exercise: it leaves selection (generator, picker, pins) but

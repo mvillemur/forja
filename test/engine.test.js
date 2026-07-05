@@ -11,7 +11,7 @@ function ok(name, cond) {
 }
 
 // Catalog
-ok("base catalog has 39 exercises", F.BASE_CATALOG.length === 39);
+ok("base catalog has 40 exercises", F.BASE_CATALOG.length === 40);
 ok("no duplicate names in catalog", new Set(F.BASE_CATALOG.map(e => e.name)).size === F.BASE_CATALOG.length);
 ok("every ISO exercise has a hold duration", F.BASE_CATALOG.filter(e => e.dynamics === "ISO").every(e => e.holdSec > 0));
 
@@ -46,7 +46,7 @@ const plyoEl = { prescriptions: [{ exercise: jump, sets: 1, reps: 3 }], isSupers
 const ballEl = { prescriptions: [{ exercise: swingP, sets: 1, reps: 3 }], isSuperset: false };
 ok("plyo forces full recovery (>= same-rep ballistic)", F.elementTimeSec(plyoEl) >= F.elementTimeSec(ballEl));
 ok("newExercise carries plyo flag", F.newExercise({ name: "X", pattern: "KNEE", dynamics: "BALLISTIC", symmetry: "BILATERAL", cns: "HIGH", equipment: ["FLOOR"], plyo: true }).plyo === true);
-ok("8 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 8);
+ok("9 fundamental exercises", F.BASE_CATALOG.filter(e => e.tier === "FUNDAMENTAL").length === 9);
 
 // RuleEngine: two high-CNS in block A -> invalid
 const swing = F.BASE_CATALOG.find(e => e.name === "Swing (dos manos)");
