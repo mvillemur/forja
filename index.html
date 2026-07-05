@@ -326,11 +326,16 @@
 
     <div class="card" style="margin-top:12px;">
       <div class="label" style="margin-bottom:10px;">Copia de seguridad</div>
-      <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">Exportar descarga un JSON con tu historial y pool. Importar reemplaza los datos actuales.</div>
+      <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">Todos tus datos (historial, pool, pesos, progresion y ajustes) viven en este dispositivo. La copia es un unico JSON que guardas <b>donde tu decidas</b>: descargalo, compartelo a tus archivos/nube, o vincula un archivo para que se actualice solo con cada cambio. Importar reemplaza los datos actuales.</div>
+      <div id="backup-status" style="font-size:11.5px;color:var(--steel);margin-bottom:10px;"></div>
       <div class="btn-row">
-        <button class="btn btn-ghost" id="btn-export">Exportar datos</button>
-        <button class="btn btn-ghost" id="btn-import-trigger">Importar datos</button>
+        <button class="btn btn-ghost" id="btn-export">Descargar copia</button>
+        <button class="btn btn-ghost" id="btn-share-backup">Compartir…</button>
+        <button class="btn btn-ghost" id="btn-import-trigger">Importar</button>
       </div>
+      <button class="btn btn-ghost hidden" id="btn-link-backup" style="margin-top:10px;">Vincular archivo de copia automatica</button>
+      <button class="btn btn-ghost hidden" id="btn-relink-backup" style="margin-top:10px;">Reactivar copia automatica</button>
+      <button class="btn btn-ghost hidden" id="btn-unlink-backup" style="margin-top:10px;">Desvincular copia automatica</button>
       <input type="file" id="import-file" accept=".json" style="display:none">
     </div>
   </section>

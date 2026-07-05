@@ -303,6 +303,12 @@ setTimeout(() => {
   ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 39);
   pf.click(); // reset
 
+  // Backup card: status line renders; auto-backup controls only appear when
+  // the browser has the File System Access API (jsdom does not).
+  ok("backup card shows copy status", /Sin copias|Ultima copia/.test(d.querySelector("#backup-status").textContent));
+  ok("auto-backup link stays hidden without FS Access", d.querySelector("#btn-link-backup").classList.contains("hidden"));
+  ok("share button hidden without navigator.share", d.querySelector("#btn-share-backup").classList.contains("hidden"));
+
   d.querySelector('.nav button[data-view="guia"]').click();
   ok("guide has 16 sections", d.querySelectorAll("#view-guia .acc").length === 16);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);

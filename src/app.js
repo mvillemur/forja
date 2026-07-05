@@ -37,12 +37,16 @@
     }
     async function set(k, v) {
       try {
-        if (mode === "win") { await window.storage.set(k, v); return; }
-        if (mode === "local") { localStorage.setItem(k, v); return; }
-        mem[k] = v;
+        if (mode === "win") { await window.storage.set(k, v); }
+        else if (mode === "local") { localStorage.setItem(k, v); }
+        else mem[k] = v;
       } catch (e) { mem[k] = v; }
+      // Write hook: lets the backup layer mirror every change to the
+      // user-chosen backup file without each caller knowing about it.
+      try { if (api.onWrite) api.onWrite(k); } catch (e) {}
     }
-    return { get, set, get mode() { return mode; } };
+    const api = { get, set, get mode() { return mode; }, onWrite: null };
+    return api;
   })();
 
   const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog" };
@@ -1716,9 +1720,12 @@
   }
 
   // ---- Export / Import
-  function exportData() {
-    const payload = JSON.stringify({
-      version: 1,
+  // The backup is ONE self-contained JSON with everything the app persists —
+  // including cfg (settings, builder drafts, declared objective) since v2 —
+  // so restoring it on any device reproduces this one exactly.
+  function exportPayload() {
+    return {
+      version: 2,
       date: new Date().toISOString(),
       hist: state.hist,
       custom: state.custom,
@@ -1726,12 +1733,17 @@
       overrides: state.overrides,
       kg: state.kg,
       prog: state.prog,
-    }, null, 2);
+      cfg: state.cfg,
+    };
+  }
+  function exportData() {
+    const payload = JSON.stringify(exportPayload(), null, 2);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     a.download = "forja-backup-" + new Date().toISOString().slice(0, 10) + ".json";
     a.click();
     URL.revokeObjectURL(a.href);
+    markBackupDone("manual");
   }
 
   function importData(file) {
@@ -1746,20 +1758,154 @@
         state.overrides = (data.overrides && typeof data.overrides === "object") ? data.overrides : state.overrides;
         if (data.kg && typeof data.kg === "object") state.kg = data.kg;
         if (data.prog && typeof data.prog === "object") state.prog = data.prog;
+        if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
           Store.set(K.PROG, JSON.stringify(state.prog)),
+          Store.set(K.CFG, JSON.stringify(state.cfg)),
           savePoolState(),
         ]);
         computePool();
         renderPool();
         toast(`Importado: ${state.hist.length} sesiones, ${state.custom.length} ejercicios propios`);
+        // cfg touches every control on the Generate view; a reload re-inits
+        // the whole UI from storage instead of hand-patching each widget.
+        if (data.cfg) setTimeout(() => { try { location.reload(); } catch (e) {} }, 700);
       } catch (_) {
         toast("Error al importar: archivo no valido");
       }
     };
     reader.readAsText(file);
+  }
+
+  // ---- Backup file: the user decides where -----------------------------
+  // The WORKING copy always lives in the device store (a web app cannot run
+  // off a file). The BACKUP is a plain JSON snapshot in a file the user
+  // chooses. Where the File System Access API exists (Chrome / Android),
+  // the app links that file once and silently rewrites it after every
+  // change (debounced, via Store.onWrite). Elsewhere (iOS Safari...) the
+  // same snapshot goes out through the share sheet or a download.
+  let backupHandle = null;       // linked file, permission granted
+  let backupPending = null;      // linked file, needs a tap to re-grant
+  let backupTimer = null;
+  const fsSupported = () => typeof window.showSaveFilePicker === "function";
+
+  // Tiny IndexedDB store just for the file handle: handles are structured-
+  // cloneable but NOT serializable, so localStorage cannot hold them.
+  const BACKUP_DB = "forja-fs", BACKUP_OS = "handles";
+  function idbOpen() {
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open(BACKUP_DB, 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore(BACKUP_OS);
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((res, rej) => {
+      const rq = db.transaction(BACKUP_OS).objectStore(BACKUP_OS).get(key);
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+    });
+  }
+  async function idbSet(key, val) {
+    const db = await idbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(BACKUP_OS, "readwrite");
+      tx.objectStore(BACKUP_OS).put(val, key);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  }
+
+  function markBackupDone(kind) {
+    try { localStorage.setItem("forja:backupAt", JSON.stringify({ t: Date.now(), kind })); } catch (e) {}
+    renderBackupStatus();
+  }
+  async function writeBackup() {
+    if (!backupHandle) return;
+    const w = await backupHandle.createWritable();
+    await w.write(JSON.stringify(exportPayload(), null, 2));
+    await w.close();
+    markBackupDone("auto");
+  }
+  function scheduleBackup() {
+    if (!backupHandle) return;
+    clearTimeout(backupTimer);
+    backupTimer = setTimeout(() => { writeBackup().catch(() => {}); }, 1500);
+  }
+  async function linkBackupFile() {
+    try {
+      const h = await window.showSaveFilePicker({
+        suggestedName: "forja-backup.json",
+        types: [{ description: "Copia FORJA (JSON)", accept: { "application/json": [".json"] } }],
+      });
+      backupHandle = h; backupPending = null;
+      await idbSet("backup", h);
+      await writeBackup();   // first snapshot right away
+      toast("Copia automatica vinculada");
+    } catch (e) { /* picker cancelled */ }
+    renderBackupStatus();
+  }
+  async function relinkBackupFile() {
+    if (!backupPending) return;
+    try {
+      const perm = await backupPending.requestPermission({ mode: "readwrite" });
+      if (perm === "granted") {
+        backupHandle = backupPending; backupPending = null;
+        await writeBackup();
+        toast("Copia automatica reactivada");
+      }
+    } catch (e) {}
+    renderBackupStatus();
+  }
+  async function unlinkBackupFile() {
+    backupHandle = null; backupPending = null;
+    try { await idbSet("backup", null); } catch (e) {}
+    renderBackupStatus(); toast("Copia automatica desvinculada");
+  }
+  // Share sheet fallback (mobile: "save to Files / Drive"). Falls back to a
+  // classic download when files cannot be shared.
+  async function shareBackup() {
+    try {
+      const file = new File([JSON.stringify(exportPayload(), null, 2)],
+        "forja-backup-" + new Date().toISOString().slice(0, 10) + ".json", { type: "application/json" });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error("no-files");
+      await navigator.share({ files: [file], title: "Copia FORJA" });
+      markBackupDone("manual");
+    } catch (e) { if (e && e.name !== "AbortError") exportData(); }
+  }
+  function backupAgeText() {
+    try {
+      const j = JSON.parse(localStorage.getItem("forja:backupAt"));
+      if (!j) return "Sin copias todavia.";
+      const when = new Date(j.t).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      return "Ultima copia: " + when + (j.kind === "auto" ? " · automatica" : "");
+    } catch (e) { return "Sin copias todavia."; }
+  }
+  function renderBackupStatus() {
+    const st = $("#backup-status"); if (!st) return;
+    const bits = [backupAgeText()];
+    if (backupHandle) bits.push("Copia automatica activa → " + (backupHandle.name || "archivo vinculado") + ".");
+    else if (backupPending) bits.push("Archivo vinculado; reactivala para seguir copiando.");
+    st.textContent = bits.join(" ");
+    $("#btn-link-backup").classList.toggle("hidden", !fsSupported() || !!backupHandle || !!backupPending);
+    $("#btn-relink-backup").classList.toggle("hidden", !backupPending);
+    $("#btn-unlink-backup").classList.toggle("hidden", !backupHandle);
+    $("#btn-share-backup").classList.toggle("hidden", typeof navigator.share !== "function");
+  }
+  async function initBackup() {
+    Store.onWrite = k => { if (String(k).indexOf("forja:") === 0) scheduleBackup(); };
+    if (fsSupported() && typeof indexedDB !== "undefined") {
+      try {
+        const h = await idbGet("backup");
+        if (h) {
+          const perm = await h.queryPermission({ mode: "readwrite" });
+          if (perm === "granted") backupHandle = h; else backupPending = h;
+        }
+      } catch (e) {}
+    }
+    renderBackupStatus();
   }
 
   // ---- CSV / spreadsheet import of past sessions -----------------------
@@ -2058,6 +2204,11 @@
     $("#pool-filter-toggle").onclick = () => $("#pool-filters").classList.toggle("hidden");
 
     $("#btn-export").onclick = exportData;
+    $("#btn-share-backup").onclick = shareBackup;
+    $("#btn-link-backup").onclick = linkBackupFile;
+    $("#btn-relink-backup").onclick = relinkBackupFile;
+    $("#btn-unlink-backup").onclick = unlinkBackupFile;
+    initBackup();
     $("#btn-import-trigger").onclick = () => $("#import-file").click();
     $("#import-file").onchange = e => { if (e.target.files[0]) { importData(e.target.files[0]); e.target.value = ""; } };
 
