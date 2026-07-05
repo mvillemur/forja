@@ -3,11 +3,13 @@
    froze users on the first version they ever installed — new deploys never
    showed up. Network-first serves the freshest app whenever online and only
    falls back to the cached shell offline. */
-const CACHE = "forja-v3";
+const CACHE = "forja-v4";
 const ASSETS = [
   "./", "./index.html", "./styles.css",
   "./src/engine.js", "./src/app.js", "./src/pwa.js",
   "./manifest.webmanifest", "./assets/icon.svg",
+  "./assets/icon-192.png", "./assets/icon-512.png",
+  "./assets/icon-maskable-512.png", "./assets/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (e) => {

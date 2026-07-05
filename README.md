@@ -181,11 +181,16 @@ of exercises to approach the target duration.
 
 ## Roadmap (ideas)
 
-- PNG icons in addition to SVG for store-style installation.
+- Multi-week programming (see `docs/multi-week-programming.md`): schedule,
+  anchor lifts, periodization with deloads, "Entrenar hoy".
 - Contextual help (ⓘ icons next to each control linking to the Guide).
 - Edit the suggested default block for each exercise.
-- Export/import data (history and pool backup).
-- More objective templates (strength endurance, technique, EMOM/AMRAP).
+- Stable exercise ids (today every per-exercise store is keyed by the
+  mutable name, making catalog renames a migration hotspot).
+
+Done and shipped: export/import + linked auto-backup, CSV import, more
+objective templates (strength endurance, power, EMOM/AMRAP), PNG/maskable
+icons, guided timer with performance capture, resume-after-crash, wake lock.
 
 ---
 

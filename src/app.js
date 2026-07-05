@@ -122,6 +122,9 @@
   // CSV imports and shared backup files — never trust them as markup.
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Icon-only buttons show a glyph (✕ ✎ ▶ ...): screen readers need a real
+  // name, so the tooltip text doubles as the aria-label.
+  const a11y = (b, text) => { b.title = text; b.setAttribute("aria-label", text); return b; };
 
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
@@ -539,17 +542,17 @@
           if (editable) {
             const isPinned = pinnedIndex(name) >= 0;
             const pinBtn = el("button", "icon-btn pin-ex" + (isPinned ? " on" : ""), "★");
-            pinBtn.title = isPinned ? "Desfijar" : "Fijar para regenerar";
+            a11y(pinBtn, isPinned ? "Desfijar" : "Fijar para regenerar");
             pinBtn.onclick = () => {
               const idx = pinnedIndex(name);
               if (idx >= 0) {
                 state.cfg.pinned.splice(idx, 1);
                 pinBtn.className = "icon-btn pin-ex";
-                pinBtn.title = "Fijar para regenerar";
+                a11y(pinBtn, "Fijar para regenerar");
               } else {
                 state.cfg.pinned.push({ name, block: br.block });
                 pinBtn.className = "icon-btn pin-ex on";
-                pinBtn.title = "Desfijar";
+                a11y(pinBtn, "Desfijar");
               }
               updatePinnedCount();
               saveConfig();
@@ -658,7 +661,7 @@
     o.innerHTML =
       '<div class="timer-inner">' +
       '<div class="timer-top"><span id="t-step" class="timer-step"></span>' +
-      '<button id="t-close" class="timer-x" title="Cerrar">✕</button></div>' +
+      '<button id="t-close" class="timer-x" title="Cerrar" aria-label="Cerrar temporizador">✕</button></div>' +
       '<div id="t-kind" class="timer-kind"></div>' +
       '<div id="t-name" class="timer-name"></div>' +
       '<div id="t-sub" class="timer-sub"></div>' +
@@ -666,9 +669,9 @@
       '<div id="t-log" class="timer-log hidden">' +
       '<div class="t-log-title">Serie hecha: <span id="t-log-name"></span></div>' +
       '<div class="t-log-reps">' +
-      '<button id="t-log-dec" class="kg-adj">−</button>' +
+      '<button id="t-log-dec" class="kg-adj" aria-label="Una repeticion menos">−</button>' +
       '<span id="t-log-val"></span>' +
-      '<button id="t-log-inc" class="kg-adj">+</button></div>' +
+      '<button id="t-log-inc" class="kg-adj" aria-label="Una repeticion mas">+</button></div>' +
       '<div class="t-log-fb" id="t-log-fb">' +
       '<button data-fb="easy" class="prog-btn prog-easy">Facil</button>' +
       '<button data-fb="ok" class="prog-btn prog-ok">OK</button>' +
@@ -676,9 +679,9 @@
       '</div></div>' +
       '<div id="t-next" class="timer-next"></div>' +
       '<div class="timer-controls">' +
-      '<button id="t-prev" class="btn btn-ghost">‹</button>' +
+      '<button id="t-prev" class="btn btn-ghost" aria-label="Paso anterior">‹</button>' +
       '<button id="t-pause" class="btn btn-forge">Pausa</button>' +
-      '<button id="t-skip" class="btn btn-ghost">›</button>' +
+      '<button id="t-skip" class="btn btn-ghost" aria-label="Siguiente paso">›</button>' +
       '</div></div>';
     document.body.appendChild(o);
     return o;
@@ -986,7 +989,7 @@
           ctl.appendChild(pairBtn);
         }
         const rm = el("button", "icon-btn del mk-rm", "✕");
-        rm.title = "Quitar";
+        a11y(rm, "Quitar");
         rm.onclick = () => { items.splice(i, 1); saveConfig(); renderBuilder(); };
         ctl.appendChild(rm);
         row.appendChild(ctl);
@@ -1261,8 +1264,8 @@
         const row = el("div", "est-row");
         const left = el("div", "pin-asig-left");
         const ord = el("div", "pin-order");
-        const up = el("button", "kg-adj", "▲"); up.title = "Subir"; up.disabled = i === 0; up.onclick = () => move(i, -1);
-        const dn = el("button", "kg-adj", "▼"); dn.title = "Bajar"; dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
+        const up = el("button", "kg-adj", "▲"); a11y(up, "Subir"); up.disabled = i === 0; up.onclick = () => move(i, -1);
+        const dn = el("button", "kg-adj", "▼"); a11y(dn, "Bajar"); dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
         ord.appendChild(up); ord.appendChild(dn);
         left.appendChild(ord);
         left.appendChild(el("span", "pin-asig-name", esc(f.name)));
@@ -1335,18 +1338,18 @@
 
     const actions = el("div", "hist-actions");
     if (editing) {
-      const save = el("button", "icon-btn on", "✓"); save.title = "Guardar cambios";
+      const save = el("button", "icon-btn on", "✓"); a11y(save, "Guardar cambios");
       save.onclick = () => { manualEditId = null; saveHistory(); renderHistory(); toast("Registro actualizado"); };
       actions.appendChild(save);
     } else {
-      const edit = el("button", "icon-btn", "✎"); edit.title = "Editar registro";
+      const edit = el("button", "icon-btn", "✎"); a11y(edit, "Editar registro");
       edit.onclick = () => { manualEditId = h.id; renderHistory(); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
-      okBtn.title = "Marcar completada";
+      a11y(okBtn, "Marcar completada");
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       actions.appendChild(edit); actions.appendChild(okBtn);
     }
-    const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+    const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
     del.onclick = () => { manualEditId = null; state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
     actions.appendChild(del);
     row.appendChild(meta); row.appendChild(actions);
@@ -1606,7 +1609,7 @@
         const row = el("div", "hist-item");
         row.appendChild(el("div", "hist-meta", "Sesion ilegible (datos incompletos)"));
         const actions = el("div", "hist-actions");
-        const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+        const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
         del.onclick = () => { state.hist = state.hist.filter(x => x !== h); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
         actions.appendChild(del);
         row.appendChild(actions);
@@ -1668,14 +1671,14 @@
         else detail.classList.add("hidden");
       };
       const actions = el("div", "hist-actions");
-      const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
+      const trainBtn = el("button", "icon-btn", "▶"); a11y(trainBtn, "Entrenar con temporizador");
       trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
-      const editRt = el("button", "icon-btn", "✎"); editRt.title = "Editar rutina";
+      const editRt = el("button", "icon-btn", "✎"); a11y(editRt, "Editar rutina");
       editRt.onclick = () => { renderRoutineEditor(h, detail); detail.classList.remove("hidden"); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
-      okBtn.title = "Marcar completada";
+      a11y(okBtn, "Marcar completada");
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
-      const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+      const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
       del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
       actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
@@ -1784,10 +1787,10 @@
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
       const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
-      pauseBtn.title = isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)";
+      a11y(pauseBtn, isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)");
       pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
       row.appendChild(pauseBtn);
-      const del = el("button", "icon-btn del", "✕"); del.title = "Quitar del pool";
+      const del = el("button", "icon-btn del", "✕"); a11y(del, "Quitar del pool");
       del.onclick = (ev) => {
         ev.stopPropagation();
         if (isBaseExercise(e.name)) { if (!state.removed.includes(e.name)) state.removed.push(e.name); }

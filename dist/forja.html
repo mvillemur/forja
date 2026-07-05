@@ -2,14 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14161a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FORJA">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%2314161a%22%2F%3E%3Cpath%20d%3D%22M256%20120c-39%200-71%2032-71%2071%200%2014%204%2027%2011%2038-33%2020-55%2056-55%20100v23c0%2018%2014%2032%2032%2032h166c18%200%2032-14%2032-32v-23c0-44-22-80-55-100%207-11%2011-24%2011-38%200-39-32-71-71-71zm0%2036a35%2035%200%201%201%200%2070%2035%2035%200%200%201%200-70z%22%20fill%3D%22%23e8742c%22%2F%3E%3C%2Fsvg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%2314161a%22%2F%3E%3Cpath%20d%3D%22M256%20120c-39%200-71%2032-71%2071%200%2014%204%2027%2011%2038-33%2020-55%2056-55%20100v23c0%2018%2014%2032%2032%2032h166c18%200%2032-14%2032-32v-23c0-44-22-80-55-100%207-11%2011-24%2011-38%200-39-32-71-71-71zm0%2036a35%2035%200%201%201%200%2070%2035%2035%200%200%201%200-70z%22%20fill%3D%22%23e8742c%22%2F%3E%3C%2Fsvg%3E">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FORJA%20%E2%80%94%20Rutinas%20Kettlebell%22%2C%22short_name%22%3A%22FORJA%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2314161a%22%2C%22theme_color%22%3A%22%2314161a%22%2C%22description%22%3A%22Motor%20de%20rutinas%20de%20kettlebell%20con%20una%20sola%20pesa.%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2522%2520viewBox%253D%25220%25200%2520512%2520512%2522%253E%253Crect%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520rx%253D%252296%2522%2520fill%253D%2522%252314161a%2522%252F%253E%253Cpath%2520d%253D%2522M256%2520120c-39%25200-71%252032-71%252071%25200%252014%25204%252027%252011%252038-33%252020-55%252056-55%2520100v23c0%252018%252014%252032%252032%252032h166c18%25200%252032-14%252032-32v-23c0-44-22-80-55-100%25207-11%252011-24%252011-38%25200-39-32-71-71-71zm0%252036a35%252035%25200%25201%25201%25200%252070%252035%252035%25200%25200%25201%25200-70z%2522%2520fill%253D%2522%2523e8742c%2522%252F%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FORJA%20%E2%80%94%20Rutinas%20Kettlebell%22%2C%22short_name%22%3A%22FORJA%22%2C%22id%22%3A%22.%2F%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22lang%22%3A%22es%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%2314161a%22%2C%22theme_color%22%3A%22%2314161a%22%2C%22description%22%3A%22Motor%20de%20rutinas%20de%20kettlebell%20con%20una%20sola%20pesa.%22%2C%22categories%22%3A%5B%22fitness%22%2C%22health%22%2C%22sports%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2522%2520viewBox%253D%25220%25200%2520512%2520512%2522%253E%253Crect%2520width%253D%2522512%2522%2520height%253D%2522512%2522%2520rx%253D%252296%2522%2520fill%253D%2522%252314161a%2522%252F%253E%253Cpath%2520d%253D%2522M256%2520120c-39%25200-71%252032-71%252071%25200%252014%25204%252027%252011%252038-33%252020-55%252056-55%2520100v23c0%252018%252014%252032%252032%252032h166c18%25200%252032-14%252032-32v-23c0-44-22-80-55-100%25207-11%252011-24%252011-38%25200-39-32-71-71-71zm0%252036a35%252035%25200%25201%25201%25200%252070%252035%252035%25200%25200%25201%25200-70z%2522%2520fill%253D%2522%2523e8742c%2522%252F%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
 <style>
 /* FORJA — Estilos
  * Estetica "consola de hierro": base graphite + acento ambar de forja, con
@@ -2611,6 +2612,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // CSV imports and shared backup files — never trust them as markup.
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Icon-only buttons show a glyph (✕ ✎ ▶ ...): screen readers need a real
+  // name, so the tooltip text doubles as the aria-label.
+  const a11y = (b, text) => { b.title = text; b.setAttribute("aria-label", text); return b; };
 
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
@@ -3028,17 +3032,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           if (editable) {
             const isPinned = pinnedIndex(name) >= 0;
             const pinBtn = el("button", "icon-btn pin-ex" + (isPinned ? " on" : ""), "★");
-            pinBtn.title = isPinned ? "Desfijar" : "Fijar para regenerar";
+            a11y(pinBtn, isPinned ? "Desfijar" : "Fijar para regenerar");
             pinBtn.onclick = () => {
               const idx = pinnedIndex(name);
               if (idx >= 0) {
                 state.cfg.pinned.splice(idx, 1);
                 pinBtn.className = "icon-btn pin-ex";
-                pinBtn.title = "Fijar para regenerar";
+                a11y(pinBtn, "Fijar para regenerar");
               } else {
                 state.cfg.pinned.push({ name, block: br.block });
                 pinBtn.className = "icon-btn pin-ex on";
-                pinBtn.title = "Desfijar";
+                a11y(pinBtn, "Desfijar");
               }
               updatePinnedCount();
               saveConfig();
@@ -3147,7 +3151,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     o.innerHTML =
       '<div class="timer-inner">' +
       '<div class="timer-top"><span id="t-step" class="timer-step"></span>' +
-      '<button id="t-close" class="timer-x" title="Cerrar">✕</button></div>' +
+      '<button id="t-close" class="timer-x" title="Cerrar" aria-label="Cerrar temporizador">✕</button></div>' +
       '<div id="t-kind" class="timer-kind"></div>' +
       '<div id="t-name" class="timer-name"></div>' +
       '<div id="t-sub" class="timer-sub"></div>' +
@@ -3155,9 +3159,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       '<div id="t-log" class="timer-log hidden">' +
       '<div class="t-log-title">Serie hecha: <span id="t-log-name"></span></div>' +
       '<div class="t-log-reps">' +
-      '<button id="t-log-dec" class="kg-adj">−</button>' +
+      '<button id="t-log-dec" class="kg-adj" aria-label="Una repeticion menos">−</button>' +
       '<span id="t-log-val"></span>' +
-      '<button id="t-log-inc" class="kg-adj">+</button></div>' +
+      '<button id="t-log-inc" class="kg-adj" aria-label="Una repeticion mas">+</button></div>' +
       '<div class="t-log-fb" id="t-log-fb">' +
       '<button data-fb="easy" class="prog-btn prog-easy">Facil</button>' +
       '<button data-fb="ok" class="prog-btn prog-ok">OK</button>' +
@@ -3165,9 +3169,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       '</div></div>' +
       '<div id="t-next" class="timer-next"></div>' +
       '<div class="timer-controls">' +
-      '<button id="t-prev" class="btn btn-ghost">‹</button>' +
+      '<button id="t-prev" class="btn btn-ghost" aria-label="Paso anterior">‹</button>' +
       '<button id="t-pause" class="btn btn-forge">Pausa</button>' +
-      '<button id="t-skip" class="btn btn-ghost">›</button>' +
+      '<button id="t-skip" class="btn btn-ghost" aria-label="Siguiente paso">›</button>' +
       '</div></div>';
     document.body.appendChild(o);
     return o;
@@ -3475,7 +3479,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           ctl.appendChild(pairBtn);
         }
         const rm = el("button", "icon-btn del mk-rm", "✕");
-        rm.title = "Quitar";
+        a11y(rm, "Quitar");
         rm.onclick = () => { items.splice(i, 1); saveConfig(); renderBuilder(); };
         ctl.appendChild(rm);
         row.appendChild(ctl);
@@ -3750,8 +3754,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         const row = el("div", "est-row");
         const left = el("div", "pin-asig-left");
         const ord = el("div", "pin-order");
-        const up = el("button", "kg-adj", "▲"); up.title = "Subir"; up.disabled = i === 0; up.onclick = () => move(i, -1);
-        const dn = el("button", "kg-adj", "▼"); dn.title = "Bajar"; dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
+        const up = el("button", "kg-adj", "▲"); a11y(up, "Subir"); up.disabled = i === 0; up.onclick = () => move(i, -1);
+        const dn = el("button", "kg-adj", "▼"); a11y(dn, "Bajar"); dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
         ord.appendChild(up); ord.appendChild(dn);
         left.appendChild(ord);
         left.appendChild(el("span", "pin-asig-name", esc(f.name)));
@@ -3824,18 +3828,18 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
     const actions = el("div", "hist-actions");
     if (editing) {
-      const save = el("button", "icon-btn on", "✓"); save.title = "Guardar cambios";
+      const save = el("button", "icon-btn on", "✓"); a11y(save, "Guardar cambios");
       save.onclick = () => { manualEditId = null; saveHistory(); renderHistory(); toast("Registro actualizado"); };
       actions.appendChild(save);
     } else {
-      const edit = el("button", "icon-btn", "✎"); edit.title = "Editar registro";
+      const edit = el("button", "icon-btn", "✎"); a11y(edit, "Editar registro");
       edit.onclick = () => { manualEditId = h.id; renderHistory(); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
-      okBtn.title = "Marcar completada";
+      a11y(okBtn, "Marcar completada");
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       actions.appendChild(edit); actions.appendChild(okBtn);
     }
-    const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+    const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
     del.onclick = () => { manualEditId = null; state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
     actions.appendChild(del);
     row.appendChild(meta); row.appendChild(actions);
@@ -4095,7 +4099,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         const row = el("div", "hist-item");
         row.appendChild(el("div", "hist-meta", "Sesion ilegible (datos incompletos)"));
         const actions = el("div", "hist-actions");
-        const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+        const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
         del.onclick = () => { state.hist = state.hist.filter(x => x !== h); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
         actions.appendChild(del);
         row.appendChild(actions);
@@ -4157,14 +4161,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         else detail.classList.add("hidden");
       };
       const actions = el("div", "hist-actions");
-      const trainBtn = el("button", "icon-btn", "▶"); trainBtn.title = "Entrenar con temporizador";
+      const trainBtn = el("button", "icon-btn", "▶"); a11y(trainBtn, "Entrenar con temporizador");
       trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
-      const editRt = el("button", "icon-btn", "✎"); editRt.title = "Editar rutina";
+      const editRt = el("button", "icon-btn", "✎"); a11y(editRt, "Editar rutina");
       editRt.onclick = () => { renderRoutineEditor(h, detail); detail.classList.remove("hidden"); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
-      okBtn.title = "Marcar completada";
+      a11y(okBtn, "Marcar completada");
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
-      const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+      const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
       del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
       actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
@@ -4273,10 +4277,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
       const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
-      pauseBtn.title = isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)";
+      a11y(pauseBtn, isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)");
       pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
       row.appendChild(pauseBtn);
-      const del = el("button", "icon-btn del", "✕"); del.title = "Quitar del pool";
+      const del = el("button", "icon-btn del", "✕"); a11y(del, "Quitar del pool");
       del.onclick = (ev) => {
         ev.stopPropagation();
         if (isBaseExercise(e.name)) { if (!state.removed.includes(e.name)) state.removed.push(e.name); }
@@ -4954,7 +4958,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 </script>
 <!-- Service worker registration (PWA offline) -->
 <script>
-(function(){try{if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){var b=new Blob(["/* FORJA — Service Worker. Pre-caches the \"app shell\" for offline use.\n   Strategy: network-first with cache fallback. Cache-first (the old strategy)\n   froze users on the first version they ever installed — new deploys never\n   showed up. Network-first serves the freshest app whenever online and only\n   falls back to the cached shell offline. */\nconst CACHE = \"forja-v3\";\nconst ASSETS = [\n  \"./\", \"./index.html\", \"./styles.css\",\n  \"./src/engine.js\", \"./src/app.js\", \"./src/pwa.js\",\n  \"./manifest.webmanifest\", \"./assets/icon.svg\",\n];\n\nself.addEventListener(\"install\", (e) => {\n  self.skipWaiting();\n  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).catch(() => {}));\n});\n\nself.addEventListener(\"activate\", (e) => {\n  e.waitUntil(\n    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))\n      .then(() => self.clients.claim())\n  );\n});\n\nself.addEventListener(\"fetch\", (e) => {\n  if (e.request.method !== \"GET\") return;\n  e.respondWith(\n    fetch(e.request).then((resp) => {\n      // Only cache good same-origin responses: a transient 404/500 written\n      // into the cache would keep being served as the offline fallback.\n      if (resp.ok && resp.type === \"basic\") {\n        const copy = resp.clone();\n        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});\n      }\n      return resp;\n    }).catch(() =>\n      caches.match(e.request).then((hit) => {\n        if (hit) return hit;\n        // The app-shell fallback only makes sense for page navigations;\n        // serving HTML for a missed script/image corrupts the consumer.\n        if (e.request.mode === \"navigate\") return caches.match(\"./index.html\");\n        return Response.error();\n      })\n    )\n  );\n});\n"],{type:"text/javascript"});navigator.serviceWorker.register(URL.createObjectURL(b)).catch(function(){});}}catch(e){}})();
+(function(){try{if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){var b=new Blob(["/* FORJA — Service Worker. Pre-caches the \"app shell\" for offline use.\n   Strategy: network-first with cache fallback. Cache-first (the old strategy)\n   froze users on the first version they ever installed — new deploys never\n   showed up. Network-first serves the freshest app whenever online and only\n   falls back to the cached shell offline. */\nconst CACHE = \"forja-v4\";\nconst ASSETS = [\n  \"./\", \"./index.html\", \"./styles.css\",\n  \"./src/engine.js\", \"./src/app.js\", \"./src/pwa.js\",\n  \"./manifest.webmanifest\", \"./assets/icon.svg\",\n  \"./assets/icon-192.png\", \"./assets/icon-512.png\",\n  \"./assets/icon-maskable-512.png\", \"./assets/apple-touch-icon.png\",\n];\n\nself.addEventListener(\"install\", (e) => {\n  self.skipWaiting();\n  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).catch(() => {}));\n});\n\nself.addEventListener(\"activate\", (e) => {\n  e.waitUntil(\n    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))\n      .then(() => self.clients.claim())\n  );\n});\n\nself.addEventListener(\"fetch\", (e) => {\n  if (e.request.method !== \"GET\") return;\n  e.respondWith(\n    fetch(e.request).then((resp) => {\n      // Only cache good same-origin responses: a transient 404/500 written\n      // into the cache would keep being served as the offline fallback.\n      if (resp.ok && resp.type === \"basic\") {\n        const copy = resp.clone();\n        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});\n      }\n      return resp;\n    }).catch(() =>\n      caches.match(e.request).then((hit) => {\n        if (hit) return hit;\n        // The app-shell fallback only makes sense for page navigations;\n        // serving HTML for a missed script/image corrupts the consumer.\n        if (e.request.mode === \"navigate\") return caches.match(\"./index.html\");\n        return Response.error();\n      })\n    )\n  );\n});\n"],{type:"text/javascript"});navigator.serviceWorker.register(URL.createObjectURL(b)).catch(function(){});}}catch(e){}})();
 </script>
 </body>
 </html>
