@@ -2547,7 +2547,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -3079,6 +3079,36 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // the double-progression at the end — so history records what was actually
   // done, not just the plan.
   let timer = null;
+
+  // ---- Session resilience ----------------------------------------------
+  // Two failure modes killed in-progress workouts: the screen locking mid-set
+  // (missed transitions) and a refresh / OS killing the PWA (all captured
+  // sets lost). The timer holds a screen wake lock while open and
+  // checkpoints itself to K.TIMER — excluded from the auto-backup mirror —
+  // so init can offer to resume exactly where it stopped.
+  let wakeLock = null;
+  async function acquireWakeLock() {
+    try {
+      if (navigator.wakeLock && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      }
+    } catch (e) { /* unsupported or denied: the timer still runs */ }
+  }
+  function releaseWakeLock() {
+    try { if (wakeLock) wakeLock.release(); } catch (e) {}
+    wakeLock = null;
+  }
+  document.addEventListener("visibilitychange", () => {
+    // The browser auto-releases the lock when the tab hides; re-arm on return.
+    if (document.visibilityState === "visible" && timer) acquireWakeLock();
+  });
+  const clearTimerState = () => Store.set(K.TIMER, "null");
+  // Android back button: close the timer overlay instead of exiting the PWA.
+  window.addEventListener("popstate", () => {
+    if (timer && timer.closeFromPop) timer.closeFromPop();
+  });
+
   function timerDose(p) {
     if (p.exercise.dynamics === F.DIN.ISO) return `~${p.exercise.holdSec || 35}s` + symSuffix(p.exercise);
     // Hand-edited saved sessions: the trainee's numbers rule over the live
@@ -3163,7 +3193,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     });
     return out;
   }
-  function startTimer(routine, histEntry) {
+  function startTimer(routine, histEntry, resume) {
     if (!routine || !routine.blocks) return;
     const steps = buildTimerSteps(routine);
     if (!steps.length) { toast("Rutina vacia"); return; }
@@ -3171,6 +3201,31 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const o = ensureTimerOverlay(); o.classList.remove("hidden");
     const T = timer = { i: 0, remaining: 0, paused: false, tick: null,
       done: [], logged: {}, fb: {}, lastEntry: null };
+    // Restore a checkpointed session: done[] entries and logged{} share
+    // identity in the live timer, so rebuild logged from the index map.
+    if (resume) {
+      T.done = (resume.done || []).map(en => ({ name: en.name, kg: en.kg, reps: en.reps, p: en.p || undefined }));
+      Object.keys(resume.loggedIdx || {}).forEach(i => { T.logged[i] = T.done[resume.loggedIdx[i]]; });
+      Object.keys(resume.isoLogged || {}).forEach(i => { T.logged[i] = { name: resume.isoLogged[i] }; });
+      T.fb = resume.fb || {};
+    }
+    acquireWakeLock();
+    try { history.pushState({ forjaTimer: true }, ""); } catch (e) {}
+    // Checkpoint the live state so a refresh or the OS killing the app can
+    // resume instead of losing the workout.
+    function checkpoint() {
+      const loggedIdx = {}, isoLogged = {};
+      Object.keys(T.logged).forEach(i => {
+        const en = T.logged[i]; const di = T.done.indexOf(en);
+        if (di >= 0) loggedIdx[i] = di; else isoLogged[i] = en.name;
+      });
+      Store.set(K.TIMER, JSON.stringify({
+        routine, histId: histEntry ? histEntry.id : state.lastSavedId,
+        i: T.i, remaining: T.remaining, fb: T.fb,
+        done: T.done.map(en => ({ name: en.name, kg: en.kg, reps: en.reps, p: en.p || null })),
+        loggedIdx, isoLogged, savedAt: Date.now(),
+      }));
+    }
     const fmt = sec => Math.floor(sec / 60) + ":" + String(Math.max(0, sec) % 60).padStart(2, "0");
     // Log a work step the moment the trainee moves past it. Warm-up and ISO
     // phases are not logged (no meaningful rep count); re-visiting a step via
@@ -3217,7 +3272,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       $("#t-count").textContent = fmt(T.remaining);
       renderLog();
     }
-    function load(i) { T.i = Math.max(0, Math.min(steps.length - 1, i)); T.remaining = steps[T.i].sec; render(); }
+    function load(i) { T.i = Math.max(0, Math.min(steps.length - 1, i)); T.remaining = steps[T.i].sec; render(); checkpoint(); }
     // Persist what actually happened. Completed=finished the whole flow; an
     // early close keeps the partial log (if the session lives in history)
     // without marking it complete.
@@ -3250,7 +3305,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       toast(saved ? "Entrenamiento completado y registrado" : "Entrenamiento completado");
       stop();
     }
-    function stop() { clearInterval(T.tick); o.classList.add("hidden"); timer = null; }
+    function stop() {
+      clearInterval(T.tick); o.classList.add("hidden"); timer = null;
+      releaseWakeLock(); clearTimerState();
+      // Consume the history entry pushed on open (a popstate-close already
+      // popped it, and then history.state is no longer ours).
+      try { if (history.state && history.state.forjaTimer) history.back(); } catch (e) {}
+    }
+    T.closeFromPop = () => { persist(false); stop(); };
     function onTick() {
       if (T.paused) return;
       T.remaining--;
@@ -3261,8 +3323,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         load(T.i + 1); return;
       }
       $("#t-count").textContent = fmt(T.remaining);
+      if (T.remaining % 5 === 0) checkpoint();   // survive a mid-step kill
     }
-    $("#t-pause").onclick = () => { T.paused = !T.paused; $("#t-pause").textContent = T.paused ? "Reanudar" : "Pausa"; };
+    $("#t-pause").onclick = () => { T.paused = !T.paused; $("#t-pause").textContent = T.paused ? "Reanudar" : "Pausa"; checkpoint(); };
     $("#t-prev").onclick = () => load(T.i - 1);
     $("#t-skip").onclick = () => {
       if (T.i >= steps.length - 1) { finish(); return; }
@@ -3270,12 +3333,20 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       load(T.i + 1);
     };
     $("#t-close").onclick = () => { persist(false); stop(); };
-    $("#t-log-dec").onclick = () => { if (T.lastEntry && T.lastEntry.reps > 0) { T.lastEntry.reps--; renderLog(); } };
-    $("#t-log-inc").onclick = () => { if (T.lastEntry && T.lastEntry.reps < 50) { T.lastEntry.reps++; renderLog(); } };
+    $("#t-log-dec").onclick = () => { if (T.lastEntry && T.lastEntry.reps > 0) { T.lastEntry.reps--; renderLog(); checkpoint(); } };
+    $("#t-log-inc").onclick = () => { if (T.lastEntry && T.lastEntry.reps < 50) { T.lastEntry.reps++; renderLog(); checkpoint(); } };
     $("#t-log-fb").querySelectorAll("button").forEach(b => {
-      b.onclick = () => { if (T.lastEntry) { T.fb[T.lastEntry.name] = b.getAttribute("data-fb"); renderLog(); } };
+      b.onclick = () => { if (T.lastEntry) { T.fb[T.lastEntry.name] = b.getAttribute("data-fb"); renderLog(); checkpoint(); } };
     });
-    load(0);
+    load(resume ? Math.min(resume.i || 0, steps.length - 1) : 0);
+    if (resume) {
+      // Land on the checkpointed second, paused: the trainee decides when
+      // the countdown moves again.
+      if (typeof resume.remaining === "number" && resume.remaining > 0)
+        T.remaining = Math.min(steps[T.i].sec, resume.remaining);
+      T.paused = true; $("#t-pause").textContent = "Reanudar";
+      render();
+    }
     T.tick = setInterval(onTick, 1000);
   }
 
@@ -4511,7 +4582,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     $("#btn-share-backup").classList.toggle("hidden", typeof navigator.share !== "function");
   }
   async function initBackup() {
-    Store.onWrite = k => { if (String(k).indexOf("forja:") === 0) scheduleBackup(); };
+    // The timer checkpoint is volatile session state, not user data: it must
+    // not rewrite the backup file every few seconds during a workout.
+    Store.onWrite = k => { if (String(k).indexOf("forja:") === 0 && k !== K.TIMER) scheduleBackup(); };
     if (fsSupported() && typeof indexedDB !== "undefined") {
       try {
         const h = await idbGet("backup");
@@ -4850,6 +4923,28 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     document.querySelectorAll(".nav button").forEach(b => b.onclick = () => showView(b.dataset.view));
 
     showView("gen");
+
+    // A checkpointed workout means a refresh or the OS killed the app
+    // mid-session: offer to resume it exactly where it stopped.
+    const savedT = await loadJson(K.TIMER);
+    if (savedT && savedT.routine && savedT.routine.blocks) {
+      const h = savedT.histId != null ? state.hist.find(x => x.id === savedT.histId) : null;
+      if (window.confirm("Hay un entrenamiento a medias. ¿Reanudarlo donde quedo?")) {
+        if (!h) {
+          // The workout ran on a live unsaved routine: restore it as the
+          // current one so finishing can still save to history.
+          state.routine = savedT.routine;
+          renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+        }
+        startTimer(savedT.routine, h || null, savedT);
+      } else {
+        // Salvage what was already logged before discarding the checkpoint.
+        if (h && Array.isArray(savedT.done) && savedT.done.length) {
+          h.performed = groupPerformed(savedT.done); saveHistory(); renderHistory();
+        }
+        clearTimerState();
+      }
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

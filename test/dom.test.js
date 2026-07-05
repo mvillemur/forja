@@ -118,8 +118,13 @@ setTimeout(() => {
   ok("timer shows a countdown", /\d+:\d\d/.test(d.querySelector("#t-count").textContent));
   d.querySelector("#t-skip").click();
   ok("timer advances on skip", /Paso 2 \//.test(d.querySelector("#t-step").textContent));
+  // Resilience: the live session checkpoints itself (resume after a refresh
+  // or the OS killing the PWA) and clears the checkpoint on close.
+  const chk = JSON.parse(window.localStorage.getItem("forja:timer"));
+  ok("timer checkpoints its state while running", chk && chk.i === 1 && chk.routine && chk.routine.blocks.length > 0);
   d.querySelector("#t-close").click();
   ok("timer closes", d.querySelector("#timer-overlay").classList.contains("hidden"));
+  ok("closing the timer clears the checkpoint", JSON.parse(window.localStorage.getItem("forja:timer")) === null);
 
   // Timer performance capture: the flow starts with the warm-up, rest phases
   // offer the set-log strip, and driving the session to the end auto-marks it
