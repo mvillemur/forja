@@ -10,12 +10,15 @@
  *   - Interface events (segmented controls, steppers, chips, navigation).
  *
  * Pool data model (key to maintainability):
- *   - `state.custom`    : exercises added by the user.
- *   - `state.removed`   : names of hidden base exercises.
- *   - `state.overrides` : field overrides by name for base exercises.
+ *   - `state.custom`    : exercises added by the user (each with a stable id).
+ *   - `state.removed`   : ids of hidden base exercises.
+ *   - `state.overrides` : field overrides by id for base exercises.
  *   The effective pool (`state.pool`) is ALWAYS recomputed from the current
  *   base catalog (FORJA.BASE_CATALOG) applying those three layers. This way,
  *   expanding the base catalog makes new exercises appear without breaking user data.
+ *   Every per-exercise store is keyed by the exercise's STABLE id (engine
+ *   catalog ids / "c-<slug>" custom ids), so display renames never orphan
+ *   user data. The display name is only ever shown, never used as a key.
  *
  * Dependencies: window.FORJA (engine.js). No external libraries.
  */
@@ -80,20 +83,22 @@
            profile:{ bodyweight:null, sex:"", level:"INTER" },
            readiness:{ energy:3, sleep:"ok", sore:[] },
            mode:"auto",                        // "auto" (generator) | "manual" (builder)
-           manual:{ A:[], B:[], C:[] },        // builder draft: {name, sets, reps, pair, kg} per block
+           manual:{ A:[], B:[], C:[] },        // builder draft: {id, sets, reps, pair, kg} per block
            manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
-    custom: [],       // exercises added by the user
-    removed: [],      // names of hidden base exercises
-    paused: [],       // names temporarily out of selection (injury, no bar...)
-    overrides: {},    // name -> edited fields of base exercises
+    custom: [],       // exercises added by the user (each carries a stable id)
+    removed: [],      // ids of hidden base exercises
+    paused: [],       // ids temporarily out of selection (injury, no bar...)
+    overrides: {},    // id -> edited fields of base exercises
     pool: [],         // computed
+    byId: {},         // computed: id -> exercise of the effective pool
+    nameToId: {},     // computed: display name -> id of the effective pool
     hist: [],
     routine: null,
     routineSource: "auto",   // where state.routine came from: generator or manual builder
     lastSavedId: null, // history id of the live routine (timer updates it instead of duplicating)
-    editing: null,    // name of the exercise being edited, or null
-    kg: {},           // name -> last kg the user dialed in for that exercise (persisted)
-    prog: {},         // name -> current rep target (double progression, persisted)
+    editing: null,    // id of the exercise being edited, or null
+    kg: {},           // exercise id -> last dialed kg (plus "__sw:<block>" circuit keys; persisted)
+    prog: {},         // exercise id -> current rep target (double progression, persisted)
   };
   // UI-only filters for the pin panel (not persisted): tag -> selected values.
   const pinFilter = { pattern: [], dynamics: [], tier: [] };
@@ -106,14 +111,24 @@
   let _idSeq = 0;
   const nextId = () => { const t = Date.now(); _idSeq = Math.max(_idSeq + 1, t); return _idSeq; };
   const clone = e => Object.assign({}, e, { equipment: e.equipment.slice() });
-  const isBaseExercise = n => F.BASE_CATALOG.some(e => e.name === n);
+  const isBaseId = id => F.BASE_CATALOG.some(e => e.id === id);
   function computePool() {
-    const base = F.BASE_CATALOG.filter(e => !state.removed.includes(e.name)).map(e => {
-      const c = clone(e); const ov = state.overrides[e.name];
-      return ov ? Object.assign(c, ov, { name: e.name }) : c;
+    const base = F.BASE_CATALOG.filter(e => !state.removed.includes(e.id)).map(e => {
+      const c = clone(e); const ov = state.overrides[e.id];
+      // id and name are the identity: an override can never rewrite them.
+      return ov ? Object.assign(c, ov, { id: e.id, name: e.name }) : c;
     });
     state.pool = base.concat(state.custom.map(clone));
+    // Lookup maps for the effective pool: every store is id-keyed, but the
+    // engine and old embedded data still speak names.
+    state.byId = {}; state.nameToId = {};
+    state.pool.forEach(e => { state.byId[e.id] = e; state.nameToId[e.name] = e.id; });
   }
+  // Stable id of an exercise object. Routines embedded in history or the
+  // timer checkpoint before the id refactor carry no id: resolve through the
+  // current pool by name; an unknown exercise falls back to its raw name
+  // (which is exactly where its legacy store entries stayed).
+  const exId = e => e.id || state.nameToId[e.name] || e.name;
 
   const $ = s => document.querySelector(s);
   const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
@@ -211,6 +226,7 @@
     // Migration: pinned as strings -> objects {name, block}
     state.cfg.pinned = (state.cfg.pinned || []).map(f => typeof f === "string" ? { name: f, block: "AUTO" } : f);
     migrateRenamedExercises();
+    migrateToIds();
     computePool();
     // Seed the id sequence above any id already in history.
     state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
@@ -251,12 +267,13 @@
     state.kg = remapKeys(state.kg, (a, b) => (typeof a === "number" && typeof b === "number") ? Math.max(a, b) : a);
     state.prog = remapKeys(state.prog, (a, b) => (typeof a === "number" && typeof b === "number") ? Math.max(a, b) : a);
 
-    // Pins and manual builder drafts.
+    // Pins and manual builder drafts. Entries already in id form ({id})
+    // are untouched: renames never move ids, only display names.
     const seenPin = new Set();
     state.cfg.pinned = state.cfg.pinned
-      .map(f => Object.assign({}, f, { name: t(f.name) }))
-      .filter(f => !seenPin.has(f.name) && seenPin.add(f.name));
-    ["A", "B", "C"].forEach(k => (state.cfg.manual[k] || []).forEach(it => { it.name = t(it.name); }));
+      .map(f => f.name != null ? Object.assign({}, f, { name: t(f.name) }) : f)
+      .filter(f => { const k = f.id != null ? "i:" + f.id : "n:" + f.name; return !seenPin.has(k) && seenPin.add(k); });
+    ["A", "B", "C"].forEach(k => (state.cfg.manual[k] || []).forEach(it => { if (it.name != null) it.name = t(it.name); }));
 
     // History: manual logs ({exercises:[{name}]}) and embedded routines.
     state.hist.forEach(h => {
@@ -271,6 +288,60 @@
       savePoolState(); saveConfig(); saveKg(); saveProg(); saveHistory();
     }
   }
+
+  // Persistent id for a custom exercise: "c-" + slug of its name at creation
+  // ("c-" keeps the namespace clear of base-catalog ids), with a numeric
+  // suffix if it ever collides. Assigned once and NEVER changed afterwards.
+  function newCustomId(name) {
+    const base = "c-" + (F.slugId(name) || "ejercicio");
+    const taken = new Set(F.BASE_CATALOG.map(e => e.id));
+    state.custom.forEach(e => { if (e.id) taken.add(e.id); });
+    let id = base, n = 2;
+    while (taken.has(id)) id = base + "-" + (n++);
+    return id;
+  }
+
+  // ---- Name -> id migration (one-time)
+  // Per-exercise stores were historically keyed by the display name; the
+  // stable exercise id is the key now. Runs AFTER migrateRenamedExercises so
+  // legacy data follows the full chain old name -> curated name -> id.
+  // Detection is per-entry: a key that is not already a known id but matches
+  // a known name (base catalog or custom) is remapped; anything else —
+  // including the "__sw:<block>" circuit keys — is kept untouched under its
+  // original key, so no data is ever dropped.
+  function migrateToIds() {
+    let touched = false;
+    // Custom exercises minted before ids existed get their persistent id now.
+    state.custom.forEach(e => { if (!e.id) { e.id = newCustomId(e.name); touched = true; } });
+    const nameToId = {};
+    F.BASE_CATALOG.forEach(e => { nameToId[e.name] = e.id; });
+    state.custom.forEach(e => { nameToId[e.name] = e.id; });
+    const ids = new Set(Object.values(nameToId));
+    const toId = k => {
+      if (ids.has(k) || String(k).indexOf("__sw:") === 0) return k;   // already an id / circuit key
+      if (nameToId[k] != null) { touched = true; return nameToId[k]; }
+      return k;   // unknown string: keep it as-is (never lose data)
+    };
+    const remap = obj => {
+      const out = {};
+      Object.keys(obj).forEach(k => { const nk = toId(k); if (!(nk in out)) out[nk] = obj[k]; });
+      return out;
+    };
+    state.kg = remap(state.kg);
+    state.prog = remap(state.prog);
+    state.overrides = remap(state.overrides);
+    state.removed = [...new Set(state.removed.map(toId))];
+    state.paused = [...new Set(state.paused.map(toId))];
+    state.cfg.pinned = state.cfg.pinned.map(f => {
+      if (f.id != null) return f;
+      touched = true;
+      return { id: toId(f.name), block: f.block || "AUTO" };
+    });
+    ["A", "B", "C"].forEach(k => (state.cfg.manual[k] || []).forEach(it => {
+      if (it.id == null && it.name != null) { it.id = toId(it.name); delete it.name; touched = true; }
+    }));
+    if (touched) { savePoolState(); saveConfig(); saveKg(); saveProg(); savePaused(); }
+  }
   const saveHistory = () => Store.set(K.HIST, JSON.stringify(state.hist));
   const savePoolState = () => {
     Store.set(K.CUSTOM, JSON.stringify(state.custom));
@@ -283,10 +354,10 @@
   // the generator, the builder picker, the pin list and the routine-editor
   // swap all skip paused exercises, but nothing already using them (drafts,
   // pins, saved sessions) is touched — reactivating restores everything.
-  const isPaused = n => state.paused.includes(n);
-  function togglePause(name) {
-    const i = state.paused.indexOf(name);
-    if (i >= 0) state.paused.splice(i, 1); else state.paused.push(name);
+  const isPaused = id => state.paused.includes(id);
+  function togglePause(id) {
+    const i = state.paused.indexOf(id);
+    if (i >= 0) state.paused.splice(i, 1); else state.paused.push(id);
     savePaused(); renderPool();
     toast(i >= 0 ? "Reactivado: vuelve a la selección" : "Pausado: fuera de la selección");
   }
@@ -308,7 +379,7 @@
 
   // Current rep target for an exercise (double progression). Falls back to the
   // template's prescribed reps until the user records a first "cumplido".
-  const targetReps = p => (state.prog[p.exercise.name] != null ? state.prog[p.exercise.name] : p.reps);
+  const targetReps = p => { const id = exId(p.exercise); return state.prog[id] != null ? state.prog[id] : p.reps; };
   // Dose string using the progression target (for the live, editable routine).
   function doseTarget(p) {
     if (p.exercise.dynamics === F.DIN.ISO) return dose(p);
@@ -320,13 +391,13 @@
   // whole session's feedback in one pass at the end).
   function applyProgression(p, feedback, opts) {
     opts = opts || {};
-    const name = p.exercise.name;
+    const id = exId(p.exercise);
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
     // Use the same kg key the renderer uses: a shared circuit key in
     // same-weight mode, otherwise per-exercise. Keeps the bump visible.
     const sameW = !!state.cfg.sameWeight;
-    const kgKey = sameW ? ("__sw:" + p.block) : name;
+    const kgKey = sameW ? ("__sw:" + p.block) : id;
     let curKg = state.kg[kgKey];
     if (curKg == null) {
       if (sameW && state.routine) {
@@ -335,9 +406,9 @@
       }
       if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise, p.reps);
     }
-    const cur = { kg: curKg, reps: state.prog[name] != null ? state.prog[name] : p.reps };
+    const cur = { kg: curKg, reps: state.prog[id] != null ? state.prog[id] : p.reps };
     const next = F.nextTarget(cur, rng, feedback, { step: 2, min, max, startKg: curKg });
-    state.prog[name] = next.reps; saveProg();
+    state.prog[id] = next.reps; saveProg();
     const up = next.kg != null && next.kg > curKg;
     const down = next.kg != null && next.kg < curKg;
     if (next.kg != null) { state.kg[kgKey] = next.kg; saveKg(); }
@@ -357,17 +428,21 @@
   // Only grind/strength movements are tracked (e1rmEligible); ballistics and
   // ISO are progressed by reps/density/time, not a max. Each series is EMA-
   // smoothed so one noisy near-failure set can't spike the number.
-  function poolByName() {
-    const m = {};
-    state.pool.forEach(e => { m[e.name] = e; });
-    return m;
-  }
   // Minimum data points before an e1RM is trusted to drive a kg suggestion.
   const E1RM_MIN_POINTS = 2;
+  // Canonical series key for a logged entry: the id the timer recorded, else
+  // the current pool id for its (possibly legacy) name — F.RENAMED first, so
+  // CSV rows typed with a retired name still land on the right exercise.
+  // An exercise no longer in the pool keeps its raw name as the key.
+  const canonLogId = ex => ex.id || state.nameToId[(F.RENAMED && F.RENAMED[ex.name]) || ex.name] || ex.name;
   function computeE1rm() {
-    const pool = poolByName();
-    const series = {};                    // name -> [values, oldest first]
-    const push = (name, v) => { if (v != null) (series[name] || (series[name] = [])).push(v); };
+    const series = {};                    // id -> [values, oldest first]
+    const label = {};                     // id -> current display name
+    const push = (key, name, v) => {
+      if (v == null) return;
+      (series[key] || (series[key] = [])).push(v);
+      label[key] = name;
+    };
     // 1) Logged sets, oldest session first: manual logs AND the performance
     //    the guided timer captured for generated sessions (same shape).
     state.hist.slice().reverse().forEach(h => {
@@ -375,23 +450,24 @@
                  : Array.isArray(h.performed) ? h.performed : null;
       if (!logs) return;
       logs.forEach(ex => {
-        const def = pool[ex.name];
+        const key = canonLogId(ex);
+        const def = state.byId[key];
         if (!def || !F.e1rmEligible(def)) return;
-        push(ex.name, F.bestE1rm((ex.sets || []).map(r => ({ kg: ex.kg, reps: r }))));
+        push(key, def.name, F.bestE1rm((ex.sets || []).map(r => ({ kg: ex.kg, reps: r }))));
       });
     });
     // 2) Current working set (latest point) from the live progression state.
-    Object.keys(state.kg).forEach(name => {
-      if (name.indexOf("__sw:") === 0) return;     // circuit shared-weight key
-      const def = pool[name];
-      const reps = state.prog[name];
+    Object.keys(state.kg).forEach(id => {
+      if (id.indexOf("__sw:") === 0) return;     // circuit shared-weight key
+      const def = state.byId[id];
+      const reps = state.prog[id];
       if (!def || !F.e1rmEligible(def) || reps == null) return;
-      push(name, F.e1rm(state.kg[name], reps));
+      push(id, def.name, F.e1rm(state.kg[id], reps));
     });
     const out = {};
-    Object.keys(series).forEach(name => {
-      const v = series[name];
-      out[name] = { current: F.smoothE1rm(v), first: v[0], last: v[v.length - 1], n: v.length };
+    Object.keys(series).forEach(key => {
+      const v = series[key];
+      out[key] = { name: label[key], current: F.smoothE1rm(v), first: v[0], last: v[v.length - 1], n: v.length };
     });
     return out;
   }
@@ -464,6 +540,7 @@
         node.appendChild(tag);
         item.prescriptions.forEach((p, pi) => {
           const name = p.exercise.name;
+          const id = exId(p.exercise);
           const ctxFactor = F.combinationFactor({ isSuperset: item.isSuperset, secondInPair: pi === 1, quality: item.quality, cnsAccum: accumBefore });
           const ex = el("div", "exercise");
           const st = el("div", "stripe"); st.style.background = STRIPE[p.exercise.pattern] || "#6b7280";
@@ -484,7 +561,7 @@
             // Prefer the trainee's tracked strength (e1RM) once it has enough
             // data points: load = inverse-Epley at this exercise's rep target.
             // Otherwise fall back to the cold-start tier suggestion.
-            const est = e1map[name];
+            const est = e1map[id];
             const reps = editable ? targetReps(p) : p.reps;
             if (est && est.n >= E1RM_MIN_POINTS && F.e1rmEligible(p.exercise)) {
               baseKg = F.loadForReps(est.current, reps, { min: range.min, max: range.max });
@@ -502,7 +579,7 @@
           }
           if (baseKg != null) {
             // In same-weight mode the override is shared across the block.
-            const kgKey = sameW ? swKey : name;
+            const kgKey = sameW ? swKey : id;
             const savedKg = state.kg[kgKey];
             if (editable) {
               // Default to the kg the user last dialed in for this exercise
@@ -540,17 +617,17 @@
           }
           ex.appendChild(doseEl);
           if (editable) {
-            const isPinned = pinnedIndex(name) >= 0;
+            const isPinned = pinnedIndex(id) >= 0;
             const pinBtn = el("button", "icon-btn pin-ex" + (isPinned ? " on" : ""), "★");
             a11y(pinBtn, isPinned ? "Desfijar" : "Fijar para regenerar");
             pinBtn.onclick = () => {
-              const idx = pinnedIndex(name);
+              const idx = pinnedIndex(id);
               if (idx >= 0) {
                 state.cfg.pinned.splice(idx, 1);
                 pinBtn.className = "icon-btn pin-ex";
                 a11y(pinBtn, "Fijar para regenerar");
               } else {
-                state.cfg.pinned.push({ name, block: br.block });
+                state.cfg.pinned.push({ id, block: br.block });
                 pinBtn.className = "icon-btn pin-ex on";
                 a11y(pinBtn, "Desfijar");
               }
@@ -691,7 +768,7 @@
   function currentKgFor(p) {
     const sameW = !!state.cfg.sameWeight;
     if (sameW && state.kg["__sw:" + p.block] != null) return state.kg["__sw:" + p.block];
-    if (state.kg[p.exercise.name] != null) return state.kg[p.exercise.name];
+    if (state.kg[exId(p.exercise)] != null) return state.kg[exId(p.exercise)];
     return F.suggestKg(p.exercise.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, p.exercise, p.reps);
   }
   // Group the flat set log into per-exercise entries (same shape as manual
@@ -883,10 +960,15 @@
   function generateRoutine() {
     const c = state.cfg;
     const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
-      balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
-      sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile };
+      balance: c.balance, tolerance: c.tolerance, recent: calcRecent(), seed: null,
+      sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile,
+      // The engine resolves pins by display name; app pins are id-keyed.
+      pinned: c.pinned.map(f => {
+        const d = state.byId[f.id != null ? f.id : state.nameToId[f.name]];
+        return d ? { name: d.name, block: f.block } : null;
+      }).filter(Boolean) };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
-    const r = F.generate(state.pool.filter(e => !isPaused(e.name)), opts);
+    const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
     state.routine = r;
     state.routineSource = "auto";
     state.lastSavedId = null;   // a fresh routine is not yet in history
@@ -924,23 +1006,27 @@
   // memory for that exercise, else the engine's cold-start suggestion.
   function mkEffKg(it, e) {
     if (it.kg != null) return it.kg;
-    if (state.kg[it.name] != null) return state.kg[it.name];
+    if (state.kg[it.id] != null) return state.kg[it.id];
     const s = F.suggestKg(e.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, e, it.reps);
     return s == null ? state.cfg.weightMin : s;
   }
 
   function renderBuilder() {
     const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
-    const byName = {}; pool.forEach(e => { byName[e.name] = e; });
+    const inPool = {}; pool.forEach(e => { inPool[e.id] = e; });
     ["A", "B", "C"].forEach(k => {
       const host = $("#mk-" + k); if (!host) return;
       host.innerHTML = "";
-      // Drop rows whose exercise left the pool (equipment change / removal).
-      const kept = state.cfg.manual[k].filter(it => byName[it.name]);
+      // Normalize any legacy name-keyed rows, then drop rows whose exercise
+      // left the pool (equipment change / removal).
+      state.cfg.manual[k].forEach(it => {
+        if (it.id == null && it.name != null) { it.id = state.nameToId[it.name]; delete it.name; }
+      });
+      const kept = state.cfg.manual[k].filter(it => inPool[it.id]);
       if (kept.length !== state.cfg.manual[k].length) { state.cfg.manual[k] = kept; saveConfig(); }
       const items = state.cfg.manual[k];
       items.forEach((it, i) => {
-        const ex = byName[it.name];
+        const ex = inPool[it.id];
         // Un-pair rows whose previous row is itself paired (an element only
         // holds two exercises).
         if (it.pair && (i === 0 || items[i - 1].pair)) it.pair = false;
@@ -950,10 +1036,10 @@
         sel.className = "mk-select";
         pool.forEach(e => {
           const op = document.createElement("option");
-          op.value = e.name; op.textContent = e.name; op.selected = e.name === it.name;
+          op.value = e.id; op.textContent = e.name; op.selected = e.id === it.id;
           sel.appendChild(op);
         });
-        sel.onchange = () => { it.name = sel.value; it.kg = null; saveConfig(); renderBuilder(); };
+        sel.onchange = () => { it.id = sel.value; it.kg = null; saveConfig(); renderBuilder(); };
         row.appendChild(sel);
         const ctl = el("div", "mk-ctl");
         const stepper = (label, get, set, min, max, step, cls) => {
@@ -1017,7 +1103,7 @@
     const wrap = el("div", "chips mk-pick-chips");
     const fill = () => {
       wrap.innerHTML = "";
-      const hits = pool.filter(e => !isPaused(e.name) && matchesQuery(e, mkPicker.text));
+      const hits = pool.filter(e => !isPaused(e.id) && matchesQuery(e, mkPicker.text));
       if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
       // Declared objective: exercises fitting this block's template schema
       // are recommended (★) and ranked first; the rest stay available.
@@ -1030,7 +1116,7 @@
         if (isRec) c.title = "Encaja con el objetivo declarado";
         c.onclick = () => {
           const d = mkDefaults(k);
-          state.cfg.manual[k].push({ name: e.name, sets: d.sets, reps: d.reps, pair: false, kg: null });
+          state.cfg.manual[k].push({ id: e.id, sets: d.sets, reps: d.reps, pair: false, kg: null });
           mkPicker.block = null; mkPicker.text = "";
           saveConfig(); renderBuilder();
         };
@@ -1045,10 +1131,9 @@
   }
 
   function composeManual() {
-    const pool = poolByName();
     const entries = [];
     ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => {
-      const e = pool[it.name];
+      const e = state.byId[it.id != null ? it.id : state.nameToId[it.name]];
       if (e) entries.push({ exercise: e, block: k, sets: it.sets, reps: it.reps, pair: it.pair });
     }));
     if (!entries.length) { toast("Añade al menos un ejercicio a la rutina"); return; }
@@ -1056,7 +1141,7 @@
     // so the rendered routine, the timer and the progression all use them.
     let kgTouched = false;
     ["A", "B", "C"].forEach(k => state.cfg.manual[k].forEach(it => {
-      if (it.kg != null && pool[it.name]) { state.kg[it.name] = it.kg; kgTouched = true; }
+      if (it.kg != null && state.byId[it.id]) { state.kg[it.id] = it.kg; kgTouched = true; }
     }));
     if (kgTouched) saveKg();
     const r = F.composeRoutine(entries);
@@ -1193,14 +1278,14 @@
     $("#pin-count").textContent = n ? "(" + n + ")" : "";
   }
   function prunePinned() {
-    const valid = new Set(filteredPool().map(e => e.name));
-    state.cfg.pinned = state.cfg.pinned.filter(f => valid.has(f.name));
+    const valid = new Set(filteredPool().map(e => e.id));
+    state.cfg.pinned = state.cfg.pinned.filter(f => valid.has(f.id));
   }
-  const pinnedIndex = n => state.cfg.pinned.findIndex(f => f.name === n);
+  const pinnedIndex = id => state.cfg.pinned.findIndex(f => f.id === id);
   // Exercises matching the equipment AND the active tag filters.
   function pinPoolFiltered() {
     return filteredPool().filter(e =>
-      !isPaused(e.name) &&
+      !isPaused(e.id) &&
       (!pinFilter.pattern.length  || pinFilter.pattern.includes(e.pattern)) &&
       (!pinFilter.dynamics.length || pinFilter.dynamics.includes(e.dynamics)) &&
       (!pinFilter.tier.length     || pinFilter.tier.includes(e.tier)));
@@ -1241,10 +1326,10 @@
     if (!list.length) wrap.appendChild(el("div", "pin-empty", "Ningún ejercicio coincide con los filtros."));
     list.forEach(e => {
       const b = el("button", "chip fijado", esc(e.name));
-      b.setAttribute("aria-pressed", String(pinnedIndex(e.name) >= 0));
+      b.setAttribute("aria-pressed", String(pinnedIndex(e.id) >= 0));
       b.onclick = () => {
-        const i = pinnedIndex(e.name);
-        if (i >= 0) state.cfg.pinned.splice(i, 1); else state.cfg.pinned.push({ name: e.name, block: "AUTO" });
+        const i = pinnedIndex(e.id);
+        if (i >= 0) state.cfg.pinned.splice(i, 1); else state.cfg.pinned.push({ id: e.id, block: "AUTO" });
         updatePinnedCount(); saveConfig(); renderPinned();
       };
       wrap.appendChild(b);
@@ -1268,7 +1353,7 @@
         const dn = el("button", "kg-adj", "▼"); a11y(dn, "Bajar"); dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
         ord.appendChild(up); ord.appendChild(dn);
         left.appendChild(ord);
-        left.appendChild(el("span", "pin-asig-name", esc(f.name)));
+        left.appendChild(el("span", "pin-asig-name", esc((state.byId[f.id] || { name: f.name || f.id }).name)));
         row.appendChild(left);
         const sel = document.createElement("select");
         ["AUTO", "A", "B", "C"].forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o === "AUTO" ? "Auto" : "Bloque " + o; if (f.block === o) op.selected = true; sel.appendChild(op); });
@@ -1423,10 +1508,10 @@
     const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     let vol = 0;
     h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
-      const name = p.exercise.name;
+      const id = exId(p.exercise);
       // Prefer the per-exercise kg; fall back to a shared circuit weight
       // (same-weight mode), then to the engine suggestion.
-      const kg = state.kg[name] != null ? state.kg[name]
+      const kg = state.kg[id] != null ? state.kg[id]
         : state.kg["__sw:" + p.block] != null ? state.kg["__sw:" + p.block]
         : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, p.reps) || 0);
       vol += kg * p.sets * p.reps;
@@ -1446,12 +1531,13 @@
     card.appendChild(el("div", "e1rm-note",
       "Tu 1RM estimado (el peso que moverías una sola vez) por ejercicio, a partir de tus series. Es una estimación, no un máximo real."));
     const list = el("div", "e1rm-list");
-    names.forEach(name => {
-      const e = map[name];
+    names.forEach(key => {
+      const e = map[key];
       const cur = Math.round(e.current);
       const delta = Math.round(e.current - e.first);
       const row = el("div", "e1rm-row");
-      row.appendChild(el("span", "e1rm-name", esc(name)));
+      // Keys are exercise ids; e.name carries the current display name.
+      row.appendChild(el("span", "e1rm-name", esc(e.name || key)));
       const val = el("span", "e1rm-val", cur + " kg");
       if (e.n >= 2 && delta !== 0) {
         const up = delta > 0;
@@ -1516,7 +1602,7 @@
     // keeps every other pending edit.
     const paint = () => {
       host.innerHTML = "";
-      const pool = filteredPool().filter(e => !isPaused(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+      const pool = filteredPool().filter(e => !isPaused(e.id)).sort((a, b) => a.name.localeCompare(b.name));
       host.appendChild(el("div", "label", "Editar rutina · ejercicio, series, reps y kg"));
       draft.blocks.forEach(br => {
         host.appendChild(el("div", "label red-block", "Bloque " + br.block));
@@ -1566,7 +1652,7 @@
             ctl.appendChild(stepper("red-reps", " reps", () => p.reps, v => { p.reps = v; p.edited = true; }, 1, 30, 1));
           if (p.exercise.equipment.includes("KB")) {
             const effKg = () => p.kg != null ? p.kg
-              : state.kg[p.exercise.name] != null ? state.kg[p.exercise.name]
+              : state.kg[exId(p.exercise)] != null ? state.kg[exId(p.exercise)]
               : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || range.min);
             ctl.appendChild(stepper("red-kg", " kg", effKg, v => { p.kg = v; }, range.min, range.max, 2));
           }
@@ -1780,23 +1866,23 @@
       if (e.arms) tags.appendChild(el("span", "tag", "brazos"));
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
-      if (state.overrides[e.name]) tags.appendChild(el("span", "tag", "editado"));
-      if (isPaused(e.name)) { tags.appendChild(el("span", "tag tag-paused", "pausado")); row.classList.add("paused"); }
+      if (state.overrides[e.id]) tags.appendChild(el("span", "tag", "editado"));
+      if (isPaused(e.id)) { tags.appendChild(el("span", "tag tag-paused", "pausado")); row.classList.add("paused"); }
       body.appendChild(tags);
       row.appendChild(body);
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
-      const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
-      a11y(pauseBtn, isPaused(e.name) ? "Reactivar (vuelve a la selección)" : "Pausar temporalmente (fuera de la selección)");
-      pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
+      const pauseBtn = el("button", "icon-btn" + (isPaused(e.id) ? " on" : ""), isPaused(e.id) ? "▶" : "⏸");
+      a11y(pauseBtn, isPaused(e.id) ? "Reactivar (vuelve a la selección)" : "Pausar temporalmente (fuera de la selección)");
+      pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.id); };
       row.appendChild(pauseBtn);
       const del = el("button", "icon-btn del", "✕"); a11y(del, "Quitar del pool");
       del.onclick = (ev) => {
         ev.stopPropagation();
-        if (isBaseExercise(e.name)) { if (!state.removed.includes(e.name)) state.removed.push(e.name); }
-        else { state.custom = state.custom.filter(x => x.name !== e.name); }
-        state.cfg.pinned = state.cfg.pinned.filter(f => f.name !== e.name);
-        state.paused = state.paused.filter(n => n !== e.name);
+        if (isBaseId(e.id)) { if (!state.removed.includes(e.id)) state.removed.push(e.id); }
+        else { state.custom = state.custom.filter(x => x.id !== e.id); }
+        state.cfg.pinned = state.cfg.pinned.filter(f => f.id !== e.id);
+        state.paused = state.paused.filter(id => id !== e.id);
         computePool(); savePoolState(); savePaused(); saveConfig(); renderPool(); updatePinnedCount(); toast("Quitado del pool");
       };
       row.appendChild(del);
@@ -1851,7 +1937,7 @@
     $("#f-eq-kb").checked = true; $("#f-eq-barbell").checked = false; $("#f-eq-floor").checked = false;
   }
   function openForEdit(e) {
-    state.editing = e.name;
+    state.editing = e.id;
     fillForm(e);
     $("#f-name").disabled = true;   // name is the key; not renamed when editing
     $("#pool-form-title").textContent = "Editar: " + e.name;
@@ -1864,9 +1950,11 @@
     const fields = readForm();
     const lint = lintExercise(fields);
     if (state.editing) {
-      const name = state.editing;
-      if (isBaseExercise(name)) state.overrides[name] = fields;             // modification over the base
-      else state.custom = state.custom.map(x => x.name === name ? F.newExercise(Object.assign({ name }, fields)) : x);
+      const id = state.editing;
+      if (isBaseId(id)) state.overrides[id] = fields;                       // modification over the base
+      else state.custom = state.custom.map(x => x.id === id
+        ? Object.assign(F.newExercise(Object.assign({ name: x.name }, fields)), { id })
+        : x);
       computePool(); savePoolState(); renderPool();
       $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Cambios guardados");
       return;
@@ -1874,7 +1962,7 @@
     const name = $("#f-name").value.trim();
     if (!name) { toast("Ponle un nombre"); return; }
     if (state.pool.some(e => e.name.toLowerCase() === name.toLowerCase())) { toast("Ese nombre ya existe"); return; }
-    state.custom.push(F.newExercise(Object.assign({ name }, fields)));
+    state.custom.push(Object.assign(F.newExercise(Object.assign({ name }, fields)), { id: newCustomId(name) }));
     computePool(); savePoolState(); renderPool();
     $("#pool-form").classList.add("hidden"); resetForm(); toast(lint || "Ejercicio añadido");
   }

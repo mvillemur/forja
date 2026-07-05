@@ -357,8 +357,9 @@ setTimeout(() => {
   ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
   ok("guide documents daily readiness", /llegas hoy/i.test(d.querySelector("#view-guia").textContent));
 
-  // ---- Catalog rename migration: a fresh app load with OLD-name user data
-  // in storage must remap every name-keyed store to the curated names.
+  // ---- Storage migration: a fresh app load with OLD-name user data must
+  // remap every store through the full chain old name -> curated name -> id
+  // (ids are slugs of the curated names).
   const dom2 = new JSDOM(html, {
     runScripts: "dangerously", pretendToBeVisual: true, url: "https://forja.local/",
     beforeParse(w) {
@@ -375,15 +376,15 @@ setTimeout(() => {
   setTimeout(() => {
     const ls = dom2.window.localStorage;
     const kg = JSON.parse(ls.getItem("forja:kg"));
-    ok("migration: kg keys follow renames", kg["Swing (dos manos)"] === 24 && kg["Kettlebell Swings (Dos manos)"] == null);
-    ok("migration: merged kg keeps the heavier working weight", kg["Clean (una mano)"] === 20);
+    ok("migration: kg keys follow renames", kg["swing-dos-manos"] === 24 && kg["Kettlebell Swings (Dos manos)"] == null);
+    ok("migration: merged kg keeps the heavier working weight", kg["clean-una-mano"] === 20);
     const prog = JSON.parse(ls.getItem("forja:prog"));
-    ok("migration: rep targets follow renames", prog["Remo (dos manos)"] === 9);
+    ok("migration: rep targets follow renames", prog["remo-dos-manos"] === 9);
     const removed = JSON.parse(ls.getItem("forja:removed"));
-    ok("migration: removals follow renames", removed.includes("Remo Vertical"));
-    ok("migration: a half-removed merge stays available", !removed.includes("Clean (una mano)"));
+    ok("migration: removals follow renames", removed.includes("remo-vertical"));
+    ok("migration: a half-removed merge stays available", !removed.includes("clean-una-mano"));
     const cfg = JSON.parse(ls.getItem("forja:cfg"));
-    ok("migration: pins follow renames", cfg.pinned.some(f => f.name === "Remo (dos manos)"));
+    ok("migration: pins follow renames", cfg.pinned.some(f => f.id === "remo-dos-manos"));
 
     if (code) console.error("\n--- UI TEST FAILURES ---");
     else console.log("UI tests OK");
