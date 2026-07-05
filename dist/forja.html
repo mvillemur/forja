@@ -187,6 +187,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-dim); }
 .tag.snc-ALTA { color: var(--danger); } .tag.snc-MEDIA { color: var(--gold); } .tag.snc-BAJA { color: var(--ok); }
 .tag.tag-plyo { color: var(--steel); background: rgba(111,168,199,0.13); }
+.tag.tag-paused { color: var(--gold); background: rgba(230,180,80,0.13); }
+.pool-item.paused .ex-body, .pool-item.paused .stripe { opacity: 0.45; }
 
 /* --- Form --- */
 .field { margin-bottom: 13px; }
@@ -865,6 +867,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en principiantes y finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
+        <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la seleccion</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Util para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
       </div>
     </details>
@@ -2521,7 +2524,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -2547,6 +2550,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
            manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
+    paused: [],       // names temporarily out of selection (injury, no bar...)
     overrides: {},    // name -> edited fields of base exercises
     pool: [],         // computed
     hist: [],
@@ -2631,6 +2635,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       } catch (e) {}
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
+    try { const pz = await Store.get(K.PAUSED); if (pz) state.paused = JSON.parse(pz); } catch (e) {}
+    if (!Array.isArray(state.paused)) state.paused = [];
     try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
     try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
     // Migration: pinned as strings -> objects {name, block}
@@ -2703,6 +2709,18 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     Store.set(K.OVERRIDES, JSON.stringify(state.overrides));
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
+  const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
+  // Paused = temporarily out of SELECTION (injury, missing equipment...):
+  // the generator, the builder picker, the pin list and the routine-editor
+  // swap all skip paused exercises, but nothing already using them (drafts,
+  // pins, saved sessions) is touched — reactivating restores everything.
+  const isPaused = n => state.paused.includes(n);
+  function togglePause(name) {
+    const i = state.paused.indexOf(name);
+    if (i >= 0) state.paused.splice(i, 1); else state.paused.push(name);
+    savePaused(); renderPool();
+    toast(i >= 0 ? "Reactivado: vuelve a la seleccion" : "Pausado: fuera de la seleccion");
+  }
   const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
   const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
@@ -3226,7 +3244,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
       sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
-    const r = F.generate(state.pool, opts);
+    const r = F.generate(state.pool.filter(e => !isPaused(e.name)), opts);
     state.routine = r;
     state.routineSource = "auto";
     state.lastSavedId = null;   // a fresh routine is not yet in history
@@ -3357,7 +3375,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const wrap = el("div", "chips mk-pick-chips");
     const fill = () => {
       wrap.innerHTML = "";
-      const hits = pool.filter(e => matchesQuery(e, mkPicker.text));
+      const hits = pool.filter(e => !isPaused(e.name) && matchesQuery(e, mkPicker.text));
       if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
       // Declared objective: exercises fitting this block's template schema
       // are recommended (★) and ranked first; the rest stay available.
@@ -3540,6 +3558,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // Exercises matching the equipment AND the active tag filters.
   function pinPoolFiltered() {
     return filteredPool().filter(e =>
+      !isPaused(e.name) &&
       (!pinFilter.pattern.length  || pinFilter.pattern.includes(e.pattern)) &&
       (!pinFilter.dynamics.length || pinFilter.dynamics.includes(e.dynamics)) &&
       (!pinFilter.tier.length     || pinFilter.tier.includes(e.tier)));
@@ -3855,7 +3874,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // keeps every other pending edit.
     const paint = () => {
       host.innerHTML = "";
-      const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
+      const pool = filteredPool().filter(e => !isPaused(e.name)).sort((a, b) => a.name.localeCompare(b.name));
       host.appendChild(el("div", "label", "Editar rutina · ejercicio, series, reps y kg"));
       draft.blocks.forEach(br => {
         host.appendChild(el("div", "label red-block", "Bloque " + br.block));
@@ -4099,17 +4118,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
       if (state.overrides[e.name]) tags.appendChild(el("span", "tag", "editado"));
+      if (isPaused(e.name)) { tags.appendChild(el("span", "tag tag-paused", "pausado")); row.classList.add("paused"); }
       body.appendChild(tags);
       row.appendChild(body);
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
+      const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
+      pauseBtn.title = isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)";
+      pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
+      row.appendChild(pauseBtn);
       const del = el("button", "icon-btn del", "✕"); del.title = "Quitar del pool";
       del.onclick = (ev) => {
         ev.stopPropagation();
         if (isBaseExercise(e.name)) { if (!state.removed.includes(e.name)) state.removed.push(e.name); }
         else { state.custom = state.custom.filter(x => x.name !== e.name); }
         state.cfg.pinned = state.cfg.pinned.filter(f => f.name !== e.name);
-        computePool(); savePoolState(); saveConfig(); renderPool(); updatePinnedCount(); toast("Quitado del pool");
+        state.paused = state.paused.filter(n => n !== e.name);
+        computePool(); savePoolState(); savePaused(); saveConfig(); renderPool(); updatePinnedCount(); toast("Quitado del pool");
       };
       row.appendChild(del);
       card.appendChild(row); list.appendChild(card);
@@ -4206,6 +4231,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       kg: state.kg,
       prog: state.prog,
       cfg: state.cfg,
+      paused: state.paused,
     };
   }
   function exportData() {
@@ -4231,11 +4257,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         if (data.kg && typeof data.kg === "object") state.kg = data.kg;
         if (data.prog && typeof data.prog === "object") state.prog = data.prog;
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
+        if (Array.isArray(data.paused)) state.paused = data.paused;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
           Store.set(K.PROG, JSON.stringify(state.prog)),
           Store.set(K.CFG, JSON.stringify(state.cfg)),
+          savePaused(),
           savePoolState(),
         ]);
         computePool();

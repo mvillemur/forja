@@ -303,6 +303,32 @@ setTimeout(() => {
   ok("pool tag filter narrows the list", d.querySelectorAll("#pool-list .card").length < 39);
   pf.click(); // reset
 
+  // Pause an exercise: it leaves selection (generator, picker, pins) but
+  // stays in the pool, dimmed, and reactivates with everything intact.
+  const swingCard = [...d.querySelectorAll("#pool-list .pool-item")].find(r => /Swing \(dos manos\)/.test(r.textContent));
+  ok("pool card offers a pause button", !!swingCard && swingCard.querySelector(".icon-btn").textContent === "⏸");
+  swingCard.querySelector(".icon-btn").click();
+  const pausedCard = [...d.querySelectorAll("#pool-list .pool-item")].find(r => /Swing \(dos manos\)/.test(r.textContent));
+  ok("paused exercise stays listed with a 'pausado' tag", !!pausedCard && /pausado/.test(pausedCard.textContent) && pausedCard.classList.contains("paused"));
+  d.querySelector('.nav button[data-view="gen"]').click();
+  d.querySelector('#seg-mode button[data-val="auto"]').click();
+  d.querySelector("#btn-generar").click();
+  ok("paused exercise never enters a generated routine",
+    ![...d.querySelectorAll("#routine-out .ex-name")].some(n => /Swing \(dos manos\)/.test(n.textContent)));
+  d.querySelector('#seg-mode button[data-val="manual"]').click();
+  d.querySelector('.mk-add[data-block="A"]').click();
+  const pkSearch = d.querySelector("#mk-A .mk-pick-search");
+  pkSearch.value = "dos manos"; pkSearch.dispatchEvent(new window.Event("input"));
+  ok("paused exercise is missing from the builder picker",
+    ![...d.querySelectorAll("#mk-A .mk-pick-chips .chip")].some(c => /Swing \(dos manos\)/.test(c.textContent)));
+  d.querySelector('.mk-add[data-block="A"]').click();   // close picker
+  d.querySelector('#seg-mode button[data-val="auto"]').click();
+  d.querySelector('.nav button[data-view="pool"]').click();
+  const resumeCard = [...d.querySelectorAll("#pool-list .pool-item")].find(r => /Swing \(dos manos\)/.test(r.textContent));
+  resumeCard.querySelector(".icon-btn").click();   // ▶ reactivate
+  ok("reactivated exercise loses the paused state",
+    ![...d.querySelectorAll("#pool-list .pool-item")].find(r => /Swing \(dos manos\)/.test(r.textContent)).classList.contains("paused"));
+
   // Backup card: status line renders; auto-backup controls only appear when
   // the browser has the File System Access API (jsdom does not).
   ok("backup card shows copy status", /Sin copias|Ultima copia/.test(d.querySelector("#backup-status").textContent));

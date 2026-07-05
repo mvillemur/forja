@@ -49,7 +49,7 @@
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -75,6 +75,7 @@
            manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
     custom: [],       // exercises added by the user
     removed: [],      // names of hidden base exercises
+    paused: [],       // names temporarily out of selection (injury, no bar...)
     overrides: {},    // name -> edited fields of base exercises
     pool: [],         // computed
     hist: [],
@@ -159,6 +160,8 @@
       } catch (e) {}
     }
     try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
+    try { const pz = await Store.get(K.PAUSED); if (pz) state.paused = JSON.parse(pz); } catch (e) {}
+    if (!Array.isArray(state.paused)) state.paused = [];
     try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
     try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
     // Migration: pinned as strings -> objects {name, block}
@@ -231,6 +234,18 @@
     Store.set(K.OVERRIDES, JSON.stringify(state.overrides));
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
+  const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
+  // Paused = temporarily out of SELECTION (injury, missing equipment...):
+  // the generator, the builder picker, the pin list and the routine-editor
+  // swap all skip paused exercises, but nothing already using them (drafts,
+  // pins, saved sessions) is touched — reactivating restores everything.
+  const isPaused = n => state.paused.includes(n);
+  function togglePause(name) {
+    const i = state.paused.indexOf(name);
+    if (i >= 0) state.paused.splice(i, 1); else state.paused.push(name);
+    savePaused(); renderPool();
+    toast(i >= 0 ? "Reactivado: vuelve a la seleccion" : "Pausado: fuera de la seleccion");
+  }
   const saveKg = () => Store.set(K.KG, JSON.stringify(state.kg));
   const saveProg = () => Store.set(K.PROG, JSON.stringify(state.prog));
 
@@ -754,7 +769,7 @@
       balance: c.balance, tolerance: c.tolerance, pinned: c.pinned, recent: calcRecent(), seed: null,
       sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile };
     if (c.volumeMode === "structure") opts.structure = c.structure; else opts.minutes = c.minutes;
-    const r = F.generate(state.pool, opts);
+    const r = F.generate(state.pool.filter(e => !isPaused(e.name)), opts);
     state.routine = r;
     state.routineSource = "auto";
     state.lastSavedId = null;   // a fresh routine is not yet in history
@@ -885,7 +900,7 @@
     const wrap = el("div", "chips mk-pick-chips");
     const fill = () => {
       wrap.innerHTML = "";
-      const hits = pool.filter(e => matchesQuery(e, mkPicker.text));
+      const hits = pool.filter(e => !isPaused(e.name) && matchesQuery(e, mkPicker.text));
       if (!hits.length) { wrap.appendChild(el("div", "pin-empty", "Sin resultados.")); return; }
       // Declared objective: exercises fitting this block's template schema
       // are recommended (★) and ranked first; the rest stay available.
@@ -1068,6 +1083,7 @@
   // Exercises matching the equipment AND the active tag filters.
   function pinPoolFiltered() {
     return filteredPool().filter(e =>
+      !isPaused(e.name) &&
       (!pinFilter.pattern.length  || pinFilter.pattern.includes(e.pattern)) &&
       (!pinFilter.dynamics.length || pinFilter.dynamics.includes(e.dynamics)) &&
       (!pinFilter.tier.length     || pinFilter.tier.includes(e.tier)));
@@ -1383,7 +1399,7 @@
     // keeps every other pending edit.
     const paint = () => {
       host.innerHTML = "";
-      const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
+      const pool = filteredPool().filter(e => !isPaused(e.name)).sort((a, b) => a.name.localeCompare(b.name));
       host.appendChild(el("div", "label", "Editar rutina · ejercicio, series, reps y kg"));
       draft.blocks.forEach(br => {
         host.appendChild(el("div", "label red-block", "Bloque " + br.block));
@@ -1627,17 +1643,23 @@
       tags.appendChild(el("span", "tag", "carga " + F.LOAD_LABEL[e.load].toLowerCase()));
       tags.appendChild(el("span", "tag", e.equipment.join("+")));
       if (state.overrides[e.name]) tags.appendChild(el("span", "tag", "editado"));
+      if (isPaused(e.name)) { tags.appendChild(el("span", "tag tag-paused", "pausado")); row.classList.add("paused"); }
       body.appendChild(tags);
       row.appendChild(body);
       row.style.cursor = "pointer";
       row.onclick = () => openForEdit(e);
+      const pauseBtn = el("button", "icon-btn" + (isPaused(e.name) ? " on" : ""), isPaused(e.name) ? "▶" : "⏸");
+      pauseBtn.title = isPaused(e.name) ? "Reactivar (vuelve a la seleccion)" : "Pausar temporalmente (fuera de la seleccion)";
+      pauseBtn.onclick = (ev) => { ev.stopPropagation(); togglePause(e.name); };
+      row.appendChild(pauseBtn);
       const del = el("button", "icon-btn del", "✕"); del.title = "Quitar del pool";
       del.onclick = (ev) => {
         ev.stopPropagation();
         if (isBaseExercise(e.name)) { if (!state.removed.includes(e.name)) state.removed.push(e.name); }
         else { state.custom = state.custom.filter(x => x.name !== e.name); }
         state.cfg.pinned = state.cfg.pinned.filter(f => f.name !== e.name);
-        computePool(); savePoolState(); saveConfig(); renderPool(); updatePinnedCount(); toast("Quitado del pool");
+        state.paused = state.paused.filter(n => n !== e.name);
+        computePool(); savePoolState(); savePaused(); saveConfig(); renderPool(); updatePinnedCount(); toast("Quitado del pool");
       };
       row.appendChild(del);
       card.appendChild(row); list.appendChild(card);
@@ -1734,6 +1756,7 @@
       kg: state.kg,
       prog: state.prog,
       cfg: state.cfg,
+      paused: state.paused,
     };
   }
   function exportData() {
@@ -1759,11 +1782,13 @@
         if (data.kg && typeof data.kg === "object") state.kg = data.kg;
         if (data.prog && typeof data.prog === "object") state.prog = data.prog;
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
+        if (Array.isArray(data.paused)) state.paused = data.paused;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
           Store.set(K.PROG, JSON.stringify(state.prog)),
           Store.set(K.CFG, JSON.stringify(state.cfg)),
+          savePaused(),
           savePoolState(),
         ]);
         computePool();
