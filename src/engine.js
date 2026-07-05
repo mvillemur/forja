@@ -178,9 +178,9 @@
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
-  // High-skill lifts: the limiter is technique, not strength. A beginner's
-  // problem with a snatch is not solved by 2 kg less — selection steers
-  // novices to simpler movements, and these stay out of fatigued finishers.
+  // High-skill lifts: the limiter is technique, not strength. Technique is
+  // assumed learned (no beginner gating), but these stay out of fatigued
+  // finishers — precision work does not belong under peak fatigue.
   const _SKILL_EXERCISES = new Set([
     "Snatch", "Turkish Get-Up", "Windmill", "Clean (una mano)", "Clean + Press",
     "Clean + Sentadilla Goblet", "Clean + Sentadilla Goblet + Press",
@@ -638,7 +638,6 @@
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
-    if (bal.beginner && e.skill) s -= 4;                 // novices: technique-first selection
     if (sch.block === BLOCK.C && e.skill && e.dynamics === DIN.ISO) s -= 5; // no TGU/Windmill under finisher fatigue
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
@@ -844,21 +843,19 @@
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    // Prefer, in order: superset quality, then (for beginners) a partner that
-    // is not a high-skill lift, then (single-weight mode) a partner whose load
-    // matches the block anchor, then the balance bonus.
+    // Prefer, in order: superset quality, then (single-weight mode) a partner
+    // whose load matches the block anchor, then the balance bonus.
     // In single-weight mode the ranking flips: a shared load only works if the
     // pair sits on the same tier, so load proximity outranks the OPTIMAL vs
     // ACCEPTABLE preference (INVALID pairs are still rejected outright).
-    let best = null, key = [-Infinity, -Infinity, -Infinity, -Infinity];
+    let best = null, key = [-Infinity, -Infinity, -Infinity];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const skillOk = (bal.beginner && c.skill) ? 0 : 1;
       const k = bal.sameWeight
-        ? [-bal.loadPenalty(c), res.quality, skillOk, bal.bonus(c)]
-        : [res.quality, skillOk, -bal.loadPenalty(c), bal.bonus(c)];
+        ? [-bal.loadPenalty(c), res.quality, bal.bonus(c)]
+        : [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
       let better = false;
       for (let i = 0; i < k.length; i++) {
         if (k[i] > key[i]) { better = true; break; }
@@ -1020,7 +1017,6 @@
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
-    bal.beginner = !!template.__beginner; // steer novices away from high-skill lifts
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -1481,7 +1477,6 @@
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
-      tpl.__beginner = ((opts.person && opts.person.level) || "").toUpperCase() === "BEG";
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,

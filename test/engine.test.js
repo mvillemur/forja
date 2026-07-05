@@ -535,21 +535,24 @@ const cAntag = F.validateCombination(
   { exercise: F.BASE_CATALOG.find(e => e.name === "Remo Vertical"), block: "C", sets: 3, reps: 15 });
 ok("blockC: calm antagonist finisher pair stays OPTIMAL", cAntag.quality === F.QUALITY.OPTIMAL);
 
-// Skill gating: technical lifts flagged; beginners steered to simpler moves.
+// Skill tag: technical lifts flagged. Technique is assumed learned — the tag
+// no longer gates beginners; it only keeps precision lifts out of fatigued
+// finishers (Block C rules) and feeds the pool's "tecnica" label.
 ok("skill: snatch/TGU/windmill are flagged", snatch.skill === true && tgu.skill === true && windmill.skill === true);
 ok("skill: swing/goblet squat are not", swing.skill === false && goblet.skill === false);
 ok("newExercise carries the skill flag", F.newExercise({ name: "Z", pattern: "HYBRID", dynamics: "BALLISTIC",
   symmetry: "UNILATERAL", cns: "HIGH", equipment: ["KB"], skill: true }).skill === true);
-function countSkill(rt) {
-  return rt.blocks.reduce((a, b) => a + b.elements.reduce((x, e) =>
-    x + e.prescriptions.filter(p => p.exercise.skill).length, 0), 0);
-}
-let skillBeg = 0, skillAdv = 0;
-for (let s = 1; s <= 20; s++) {
-  skillBeg += countSkill(F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "BEG" } }));
-  skillAdv += countSkill(F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "ADV" } }));
-}
-ok("skill: beginners get fewer high-skill lifts than advanced", skillBeg < skillAdv);
+// Selection is level-blind: a beginner profile gets the same session as an
+// advanced one (only the cold-start kg seed differs).
+ok("skill: selection ignores training level", (() => {
+  const strip = rt => rt.blocks.map(b => b.elements.map(e => e.prescriptions.map(p => p.exercise.name))).flat(2).join("|");
+  for (let s = 1; s <= 10; s++) {
+    const beg = F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "BEG" } });
+    const adv = F.generate(null, { objective: "METABOLIC", equipment: ["KB"], minutes: 45, seed: s, person: { level: "ADV" } });
+    if (strip(beg) !== strip(adv)) return false;
+  }
+  return true;
+})());
 
 // EMOM runs on the minute; AMRAP flows on short transitions (protocol timing).
 const emom = F.generate(null, { objective: "EMOM", equipment: ["KB"], minutes: 20, seed: 6 });

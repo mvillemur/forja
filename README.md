@@ -46,10 +46,10 @@ No frameworks or runtime dependencies: plain HTML + CSS + JS.
 - **Rep-aware load suggestions**: the cold-start kg is shaded down at higher
   rep targets (no "heavy tier" kg at 15 reps), and e1RM-derived loads keep
   2 reps in reserve instead of prescribing your exact rep-max.
-- **Skill gating**: technical lifts (snatch, get-up, windmill, cleans…) are
-  tagged; beginners are steered toward simpler movements and high-skill ISO
-  lifts stay out of fatigued finishers. Grip-on-grip supersets are never
-  rated optimal.
+- **Skill tag**: technical lifts (snatch, get-up, windmill, cleans…) are
+  tagged. Technique is assumed learned — the tag does not gate any level;
+  it only keeps high-skill ISO lifts out of fatigued finishers. Grip-on-grip
+  supersets are never rated optimal.
 - **Per-exercise kg memory**: the weight you dial in is remembered and offered
   next time (the engine suggestion is the fallback).
 - **Reorderable pins**: order and per-block assignment of pinned exercises.

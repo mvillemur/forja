@@ -780,7 +780,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <summary>Perfil</summary>
       <div class="acc-body">
         <p>Opcional. Tu <b>peso corporal</b>, <b>sexo</b> y <b>nivel</b> (principiante / intermedio / avanzado) afinan los kg <b>sugeridos</b> para la primera vez que ves cada ejercicio: un principiante arranca mas ligero, un avanzado mas pesado, y los movimientos de tren superior se ajustan algo en mujeres.</p>
-        <p>El nivel tambien pesa en la <b>seleccion</b>: para un principiante, los ejercicios de <b>tecnica exigente</b> (snatch, get-up, windmill, cleans…) pierden prioridad frente a movimientos mas simples — el problema de un snatch para quien empieza es la tecnica, no 2 kg mas o menos.</p>
+        <p>El nivel <b>no</b> filtra ejercicios: la app asume que la tecnica ya esta aprendida y todo el catalogo entra en la seleccion sea cual sea tu nivel. La etiqueta de <b>tecnica exigente</b> (snatch, get-up, windmill, cleans…) solo dosifica esos lifts en el finalizador — precision bajo fatiga alta — y ayuda a encontrarlos en el Pool.</p>
         <p>Es solo el punto de partida: en cuanto ajustas la pesa de un ejercicio, ese valor se recuerda y manda sobre la sugerencia. Sin perfil, las sugerencias son las de siempre.</p>
       </div>
     </details>
@@ -865,7 +865,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <details class="acc">
       <summary>Anadir y editar ejercicios</summary>
       <div class="acc-body">
-        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en principiantes y finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
+        <p><b>Anadir:</b> en Pool toca <b>+ Anadir</b>, pon nombre y elige las 4 categorias, el tier, la carga, el equipamiento, si es de agarre intensivo, si tiene enfasis en brazos (para que entre en el foco Brazos) y si es de <b>tecnica exigente</b> (para que la seleccion lo dosifique en los finalizadores). Si las etiquetas se contradicen (p. ej. un pliometrico de SNC baja), la app te avisa al guardar — sin bloquearte.</p>
         <p><b>Editar:</b> toca cualquier ejercicio del Pool para cambiar sus categorias. En los de fabrica se guarda tu modificacion (veras el tag "editado") sin perder el original; el nombre no se cambia.</p>
         <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la seleccion</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Util para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
         <p><b>Quitar:</b> la ✕. Los de fabrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
@@ -1126,9 +1126,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const _PLYO_EXERCISES = new Set([
     "Sentadilla con Salto", "Tuck Jumps", "Burpees",
   ]);
-  // High-skill lifts: the limiter is technique, not strength. A beginner's
-  // problem with a snatch is not solved by 2 kg less — selection steers
-  // novices to simpler movements, and these stay out of fatigued finishers.
+  // High-skill lifts: the limiter is technique, not strength. Technique is
+  // assumed learned (no beginner gating), but these stay out of fatigued
+  // finishers — precision work does not belong under peak fatigue.
   const _SKILL_EXERCISES = new Set([
     "Snatch", "Turkish Get-Up", "Windmill", "Clean (una mano)", "Clean + Press",
     "Clean + Sentadilla Goblet", "Clean + Sentadilla Goblet + Press",
@@ -1586,7 +1586,6 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
-    if (bal.beginner && e.skill) s -= 4;                 // novices: technique-first selection
     if (sch.block === BLOCK.C && e.skill && e.dynamics === DIN.ISO) s -= 5; // no TGU/Windmill under finisher fatigue
     s -= 2.0 * bal.loadPenalty(e);                        // single-weight: cluster loads
     return s;
@@ -1792,21 +1791,19 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   function pickPartner(pa, cands, sch, budget, bal) {
-    // Prefer, in order: superset quality, then (for beginners) a partner that
-    // is not a high-skill lift, then (single-weight mode) a partner whose load
-    // matches the block anchor, then the balance bonus.
+    // Prefer, in order: superset quality, then (single-weight mode) a partner
+    // whose load matches the block anchor, then the balance bonus.
     // In single-weight mode the ranking flips: a shared load only works if the
     // pair sits on the same tier, so load proximity outranks the OPTIMAL vs
     // ACCEPTABLE preference (INVALID pairs are still rejected outright).
-    let best = null, key = [-Infinity, -Infinity, -Infinity, -Infinity];
+    let best = null, key = [-Infinity, -Infinity, -Infinity];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const skillOk = (bal.beginner && c.skill) ? 0 : 1;
       const k = bal.sameWeight
-        ? [-bal.loadPenalty(c), res.quality, skillOk, bal.bonus(c)]
-        : [res.quality, skillOk, -bal.loadPenalty(c), bal.bonus(c)];
+        ? [-bal.loadPenalty(c), res.quality, bal.bonus(c)]
+        : [res.quality, -bal.loadPenalty(c), bal.bonus(c)];
       let better = false;
       for (let i = 0; i < k.length; i++) {
         if (k[i] > key[i]) { better = true; break; }
@@ -1968,7 +1965,6 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
-    bal.beginner = !!template.__beginner; // steer novices away from high-skill lifts
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -2429,7 +2425,6 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
-      tpl.__beginner = ((opts.person && opts.person.level) || "").toUpperCase() === "BEG";
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
