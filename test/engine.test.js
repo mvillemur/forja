@@ -90,6 +90,12 @@ const notCleared = F.nextTarget({ kg: 16, reps: 11 }, RNG, false, { min: 12, max
 ok("prog: not cleared -> unchanged", notCleared.kg === 16 && notCleared.reps === 11);
 const atMax = F.nextTarget({ kg: 32, reps: 12 }, RNG, true, { min: 12, max: 32 });
 ok("prog: at max load keeps adding reps instead of kg", atMax.kg === 32 && atMax.reps === 13);
+// Bodyweight / untracked-kg lifts have no load lever: topping the range must
+// keep climbing reps, never reset to the bottom (that discarded progress).
+const bwTop = F.nextTarget({ kg: null, reps: 12 }, RNG, true, { min: 12, max: 32 });
+ok("prog: bodyweight (kg null) at top keeps adding reps, no reset", bwTop.kg === null && bwTop.reps === 13);
+const bwEasy = F.nextTarget({ kg: null, reps: 11 }, RNG, "easy", { min: 12, max: 32 });
+ok("prog: bodyweight 'easy' past top climbs by two", bwEasy.kg === null && bwEasy.reps === 13);
 
 // RPE autoregulation
 const easy = F.nextTarget({ kg: 16, reps: 9 }, RNG, "easy", { min: 12, max: 32 });
@@ -287,6 +293,16 @@ const ppPair = F.validateCombination(
   { exercise: row5, block: "A", sets: 4, reps: 5 });
 ok("gap4: push/pull in block A stays OPTIMAL", ppPair.quality === F.QUALITY.OPTIMAL);
 ok("gap4: areAntagonists(HIP,KNEE) still true (unchanged semantics)", F.areAntagonists("HIP", "KNEE"));
+// The downgrade applies to every block, not only A: the same hinge+squat pair
+// must not be sold as "antagonist recovery" in accessories or the finisher.
+const legPairB = F.validateCombination(
+  { exercise: rdl, block: "B", sets: 3, reps: 10 },
+  { exercise: goblet, block: "B", sets: 3, reps: 10 });
+ok("gap4: HIP+KNEE in block B is ACCEPTABLE (not OPTIMAL)", legPairB.valid && legPairB.quality === F.QUALITY.ACCEPTABLE);
+const legPairC = F.validateCombination(
+  { exercise: rdl, block: "C", sets: 2, reps: 15 },
+  { exercise: goblet, block: "C", sets: 2, reps: 15 });
+ok("gap4: HIP+KNEE in block C is ACCEPTABLE (not OPTIMAL)", legPairC.valid && legPairC.quality === F.QUALITY.ACCEPTABLE);
 
 // Gap 5: routine carries a warm-up with mobility items and a ramp-up ref.
 ok("gap5: routine has a warmup with items", r.warmup && r.warmup.items.length >= 2);

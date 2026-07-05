@@ -329,6 +329,17 @@ setTimeout(() => {
   ok("reactivated exercise loses the paused state",
     ![...d.querySelectorAll("#pool-list .pool-item")].find(r => /Swing \(dos manos\)/.test(r.textContent)).classList.contains("paused"));
 
+  // Stored XSS guard: a hostile exercise name (typed in the form, or arriving
+  // via CSV / a shared backup) must render as literal text, never as markup.
+  d.querySelector("#f-name").value = '<img src=x onerror="window.__pwned=1">';
+  d.querySelector("#btn-add").click();
+  ok("hostile exercise name renders as text, not markup",
+    !d.querySelector("#pool-list img") &&
+    [...d.querySelectorAll("#pool-list .ex-name")].some(n => n.textContent.includes("<img")));
+  const badCard = [...d.querySelectorAll("#pool-list .pool-item")].find(r => r.textContent.includes("<img"));
+  ok("hostile-name exercise was actually added (guard tested the render path)", !!badCard);
+  badCard.querySelector(".icon-btn.del").click();   // clean up for later counts
+
   // Backup card: status line renders; auto-backup controls only appear when
   // the browser has the File System Access API (jsdom does not).
   ok("backup card shows copy status", /Sin copias|Ultima copia/.test(d.querySelector("#backup-status").textContent));

@@ -391,6 +391,10 @@
       return makeResult(true, QUALITY.ACCEPTABLE, ["Riesgo de agarre; reduce reps o intercala core."]);
     if (ea.grip && eb.grip)
       return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
+    // Same call as Block A: hinge + squat is not a true antagonist recovery
+    // pair (both load the posterior chain), so it never rates OPTIMAL.
+    if (LEG_FAMILY.has(ea.pattern) && LEG_FAMILY.has(eb.pattern) && ea.pattern !== eb.pattern)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Cadera + rodilla: sin grupo en reposo real (ambos cargan cadena posterior)."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Par antagonista en accesorios: eficiente."]);
     if (ea.pattern === eb.pattern && new Set([repRange(a), repRange(b)]).has(REP_RANGE.HP))
@@ -409,6 +413,10 @@
       return makeResult(true, QUALITY.ACCEPTABLE, ["Ambos consumen agarre: el antebrazo no descansa entre ejercicios."]);
     if (ea.cns === CNS.HIGH && eb.cns === CNS.HIGH)
       return makeResult(true, QUALITY.ACCEPTABLE, ["Dos de SNC alta en el finalizador: dosifica el ritmo."]);
+    // Same call as Block A: hinge + squat is not a true antagonist recovery
+    // pair (both load the posterior chain), so it never rates OPTIMAL.
+    if (LEG_FAMILY.has(ea.pattern) && LEG_FAMILY.has(eb.pattern) && ea.pattern !== eb.pattern)
+      return makeResult(true, QUALITY.ACCEPTABLE, ["Cadera + rodilla: sin grupo en reposo real (ambos cargan cadena posterior)."]);
     if (areAntagonists(ea.pattern, eb.pattern))
       return makeResult(true, QUALITY.OPTIMAL, ["Finalizador antagonista: alterna sin freno."]);
     return makeResult(true, QUALITY.ACCEPTABLE, ["Finalizador: combinacion libre."]);
@@ -706,9 +714,12 @@
     // 'ok' (+1) or 'easy' (+2)
     const inc = fb === "easy" ? 2 : 1;
     if (reps + inc > hi) {
-      const nk = kg == null ? null : clamp(kg + step);
+      // No load to add (bodyweight lifts, untracked kg): reps ARE the load
+      // lever — keep climbing past the window instead of resetting to lo.
+      if (kg == null) return { kg: null, reps: reps + inc };
+      const nk = clamp(kg + step);
       // If load can't go higher (at max), keep climbing reps past the window.
-      if (kg != null && max != null && nk === kg) return { kg, reps: reps + inc };
+      if (max != null && nk === kg) return { kg, reps: reps + inc };
       return { kg: nk, reps: lo };
     }
     return { kg, reps: reps + inc };
@@ -834,12 +845,18 @@
     // Prefer, in order: superset quality, then (for beginners) a partner that
     // is not a high-skill lift, then (single-weight mode) a partner whose load
     // matches the block anchor, then the balance bonus.
-    let best = null, key = [-1, -1, 1, -1];
+    // In single-weight mode the ranking flips: a shared load only works if the
+    // pair sits on the same tier, so load proximity outranks the OPTIMAL vs
+    // ACCEPTABLE preference (INVALID pairs are still rejected outright).
+    let best = null, key = [-Infinity, -Infinity, -Infinity, -Infinity];
     for (const c of cands) {
       if (!budget.allows(c) || !bal.allows(c)) continue;
       const res = validateCombination(pa, prescribe(c, sch));
       if (!res.valid) continue;
-      const k = [res.quality, (bal.beginner && c.skill) ? 0 : 1, -bal.loadPenalty(c), bal.bonus(c)];
+      const skillOk = (bal.beginner && c.skill) ? 0 : 1;
+      const k = bal.sameWeight
+        ? [-bal.loadPenalty(c), res.quality, skillOk, bal.bonus(c)]
+        : [res.quality, skillOk, -bal.loadPenalty(c), bal.bonus(c)];
       let better = false;
       for (let i = 0; i < k.length; i++) {
         if (k[i] > key[i]) { better = true; break; }

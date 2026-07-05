@@ -31,21 +31,30 @@
     async function get(k) {
       try {
         if (mode === "win") { const r = await window.storage.get(k); return r ? r.value : null; }
-        if (mode === "local") return localStorage.getItem(k);
+        // A key parked in `mem` while in local mode means its last write
+        // failed to land in localStorage: the overlay holds the newest value.
+        if (mode === "local") return k in mem ? mem[k] : localStorage.getItem(k);
         return k in mem ? mem[k] : null;
       } catch (e) { return k in mem ? mem[k] : null; }
     }
     async function set(k, v) {
       try {
         if (mode === "win") { await window.storage.set(k, v); }
-        else if (mode === "local") { localStorage.setItem(k, v); }
+        else if (mode === "local") { localStorage.setItem(k, v); delete mem[k]; }
         else mem[k] = v;
-      } catch (e) { mem[k] = v; }
+      } catch (e) {
+        // Write failed (quota full, private mode...). Keep the value in the
+        // RAM overlay so the running session stays consistent, and report it:
+        // without this the user sees "Guardada" while nothing survives a reload.
+        mem[k] = v;
+        api.degraded = true;
+        try { if (api.onFail) api.onFail(k, e); } catch (_) {}
+      }
       // Write hook: lets the backup layer mirror every change to the
       // user-chosen backup file without each caller knowing about it.
       try { if (api.onWrite) api.onWrite(k); } catch (e) {}
     }
-    const api = { get, set, get mode() { return mode; }, onWrite: null };
+    const api = { get, set, get mode() { return mode; }, onWrite: null, onFail: null, degraded: false };
     return api;
   })();
 
@@ -108,16 +117,43 @@
 
   const $ = s => document.querySelector(s);
   const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+  // Escape user-controlled text (exercise names, CSV notes...) before it is
+  // interpolated into an innerHTML sink like el(). Names come from forms,
+  // CSV imports and shared backup files — never trust them as markup.
+  const esc = s => String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
     clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1900);
   }
 
+  // One warning per session when the device store rejects writes: the app
+  // keeps running on the RAM overlay, but nothing new survives a reload.
+  let warnedStoreFail = false;
+  Store.onFail = () => {
+    if (warnedStoreFail) return; warnedStoreFail = true;
+    toast("No se pudo guardar en el dispositivo (almacenamiento lleno o bloqueado). Exporta una copia: los cambios se perderan al recargar.");
+  };
+
   // ---- Persistence
+  // A corrupt stored blob is NOT discarded: it is parked under "<key>:corrupt"
+  // so the next save cannot destroy the only recoverable copy, and the key is
+  // recorded so init can warn the user (and the auto-backup can hold off).
+  const corruptKeys = [];
+  function parseStored(k, raw, fallback) {
+    if (raw == null) return fallback;
+    try { return JSON.parse(raw); } catch (e) {
+      corruptKeys.push(k);
+      try { Store.set(k + ":corrupt", raw); } catch (_) {}
+      return fallback;
+    }
+  }
+  async function loadJson(k, fallback) { return parseStored(k, await Store.get(k), fallback); }
+
   async function loadAll() {
-    try { const h = await Store.get(K.HIST); if (h) state.hist = JSON.parse(h); } catch (e) {}
-    try { const c = await Store.get(K.CFG); if (c) Object.assign(state.cfg, JSON.parse(c)); } catch (e) {}
+    const h = await loadJson(K.HIST); if (Array.isArray(h)) state.hist = h;
+    const c = await loadJson(K.CFG); if (c && typeof c === "object") Object.assign(state.cfg, c);
     // The "Suelo" chip is locked ON in the UI: floor space is always available.
     // Older stored configs only listed ["KB"(, "BARBELL")], which silently
     // excluded floor exercises (Burpees, pushups, Tuck Jumps) from generation.
@@ -139,18 +175,23 @@
     ["A", "B", "C"].forEach(k => { if (!Array.isArray(state.cfg.manual[k])) state.cfg.manual[k] = []; });
     if (state.cfg.manualObjective !== "AUTO" && !F.TEMPLATES[state.cfg.manualObjective]) state.cfg.manualObjective = "AUTO";
     let loaded = false;
-    try {
-      const cu = await Store.get(K.CUSTOM); const rm = await Store.get(K.REMOVED);
-      if (cu != null || rm != null) { state.custom = cu ? JSON.parse(cu) : []; state.removed = rm ? JSON.parse(rm) : []; loaded = true; }
-    } catch (e) {}
+    {
+      const cuRaw = await Store.get(K.CUSTOM); const rmRaw = await Store.get(K.REMOVED);
+      if (cuRaw != null || rmRaw != null) {
+        // Corrupt blobs fall back to [] but still mark this model as loaded,
+        // so the legacy-pool migration below cannot clobber modern data.
+        const cu = parseStored(K.CUSTOM, cuRaw, []); const rm = parseStored(K.REMOVED, rmRaw, []);
+        state.custom = Array.isArray(cu) ? cu : []; state.removed = Array.isArray(rm) ? rm : [];
+        loaded = true;
+      }
+    }
     if (!loaded) {
       // Migration from old model (full pool) -> custom + removed.
       // Only the original 24 can be marked as 'removed'; new base additions
       // (expanded catalog) should always appear after migration.
       try {
-        const old = await Store.get(K.POOL);
-        if (old) {
-          const arr = JSON.parse(old);
+        const arr = await loadJson(K.POOL);
+        if (Array.isArray(arr)) {
           const baseNames = new Set(F.BASE_CATALOG.map(e => e.name));
           const have = new Set(arr.map(e => e.name));
           state.custom = arr.filter(e => !baseNames.has(e.name));
@@ -159,11 +200,11 @@
         }
       } catch (e) {}
     }
-    try { const ov = await Store.get(K.OVERRIDES); if (ov) state.overrides = JSON.parse(ov); } catch (e) {}
-    try { const pz = await Store.get(K.PAUSED); if (pz) state.paused = JSON.parse(pz); } catch (e) {}
+    const ov = await loadJson(K.OVERRIDES); if (ov && typeof ov === "object") state.overrides = ov;
+    state.paused = await loadJson(K.PAUSED, []);
     if (!Array.isArray(state.paused)) state.paused = [];
-    try { const kg = await Store.get(K.KG); if (kg) state.kg = JSON.parse(kg); } catch (e) {}
-    try { const pr = await Store.get(K.PROG); if (pr) state.prog = JSON.parse(pr); } catch (e) {}
+    const kg = await loadJson(K.KG); if (kg && typeof kg === "object") state.kg = kg;
+    const pr = await loadJson(K.PROG); if (pr && typeof pr === "object") state.prog = pr;
     // Migration: pinned as strings -> objects {name, block}
     state.cfg.pinned = (state.cfg.pinned || []).map(f => typeof f === "string" ? { name: f, block: "AUTO" } : f);
     migrateRenamedExercises();
@@ -426,7 +467,7 @@
           ex.appendChild(st);
           const body = el("div", "ex-body");
           const star = p.exercise.tier === "FUNDAMENTAL" ? '<span class="star">★</span> ' : "";
-          body.appendChild(el("div", "ex-name", star + name));
+          body.appendChild(el("div", "ex-name", star + esc(name)));
           body.appendChild(el("div", "ex-meta", `${F.PAT_LABEL[p.exercise.pattern]} · SNC ${p.exercise.cns}`));
           ex.appendChild(body);
           const doseEl = el("div", "ex-dose");
@@ -651,7 +692,9 @@
       if (T.logged[i]) { T.lastEntry = T.logged[i].reps != null ? T.logged[i] : null; return; }
       const p = s.prescription;
       if (p.exercise.dynamics === F.DIN.ISO) { T.logged[i] = { name: p.exercise.name }; T.lastEntry = null; return; }
-      const entry = { name: p.exercise.name, kg: currentKgFor(p), reps: targetReps(p), p };
+      // Same rule as timerDose: a hand-edited saved session logs the
+      // trainee's numbers, not the live progression target.
+      const entry = { name: p.exercise.name, kg: currentKgFor(p), reps: p.edited ? p.reps : targetReps(p), p };
       T.logged[i] = entry; T.done.push(entry); T.lastEntry = entry;
     }
     function renderLog() {
@@ -909,7 +952,7 @@
       if (sch) hits.sort((a, b) => (rec(b) ? 1 : 0) - (rec(a) ? 1 : 0));
       hits.forEach(e => {
         const isRec = rec(e);
-        const c = el("button", "chip" + (isRec ? " mk-rec" : ""), (isRec ? "★ " : "") + e.name);
+        const c = el("button", "chip" + (isRec ? " mk-rec" : ""), (isRec ? "★ " : "") + esc(e.name));
         if (isRec) c.title = "Encaja con el objetivo declarado";
         c.onclick = () => {
           const d = mkDefaults(k);
@@ -987,9 +1030,9 @@
     if (profile !== undefined) {
       const inf = profile && profile.inferred;
       const txt = profile && profile.declared
-        ? "Objetivo declarado: <b>" + (OBJ_LABEL[profile.declared] || profile.declared) + "</b> · auditada con sus presupuestos"
+        ? "Objetivo declarado: <b>" + (OBJ_LABEL[profile.declared] || esc(profile.declared)) + "</b> · auditada con sus presupuestos"
         : inf && inf.objective
-        ? "Perfil detectado: <b>" + (OBJ_LABEL[inf.objective] || inf.objective) + "</b> (" +
+        ? "Perfil detectado: <b>" + (OBJ_LABEL[inf.objective] || esc(inf.objective)) + "</b> (" +
           Math.round(inf.score * 100) + "% coincidencia) · auditada con los presupuestos de ese objetivo"
         : "Perfil mixto: sin objetivo claro; auditada con presupuestos genericos.";
       card.appendChild(el("div", "audit-infer", txt));
@@ -1001,7 +1044,7 @@
       a.findings.forEach(f => {
         const row = el("div", "audit-item aud-" + f.level);
         row.appendChild(el("span", "audit-ico", AUDIT_ICON[f.level] || "·"));
-        row.appendChild(el("span", "audit-msg", (f.block ? "[" + f.block + "] " : "") + f.msg));
+        row.appendChild(el("span", "audit-msg", (f.block ? "[" + f.block + "] " : "") + esc(f.msg)));
         ul.appendChild(row);
       });
       card.appendChild(ul);
@@ -1014,7 +1057,7 @@
       a.suggestions.forEach(s => {
         const row = el("div", "audit-item aud-sug");
         row.appendChild(el("span", "audit-ico", "→"));
-        row.appendChild(el("span", "audit-msg", s));
+        row.appendChild(el("span", "audit-msg", esc(s)));
         ul.appendChild(row);
       });
       card.appendChild(ul);
@@ -1023,18 +1066,18 @@
     // global adjustments to steer it there (reps/weight/dynamics/blocks).
     if (profile && profile.assessment) {
       const as = profile.assessment;
-      card.appendChild(el("div", "label audit-sug-label", "Para " + (OBJ_LABEL[as.objective] || as.name)));
+      card.appendChild(el("div", "label audit-sug-label", "Para " + (OBJ_LABEL[as.objective] || esc(as.name))));
       const ul = el("div", "audit-list");
       as.strengths.forEach(s => {
         const row = el("div", "audit-item aud-good");
         row.appendChild(el("span", "audit-ico", "✓"));
-        row.appendChild(el("span", "audit-msg", s));
+        row.appendChild(el("span", "audit-msg", esc(s)));
         ul.appendChild(row);
       });
       as.adjustments.forEach(s => {
         const row = el("div", "audit-item aud-adj");
         row.appendChild(el("span", "audit-ico", "↗"));
-        row.appendChild(el("span", "audit-msg", s));
+        row.appendChild(el("span", "audit-msg", esc(s)));
         ul.appendChild(row);
       });
       card.appendChild(ul);
@@ -1123,7 +1166,7 @@
     const list = pinPoolFiltered().slice().sort((a, b) => a.name.localeCompare(b.name));
     if (!list.length) wrap.appendChild(el("div", "pin-empty", "Ningun ejercicio coincide con los filtros."));
     list.forEach(e => {
-      const b = el("button", "chip fijado", e.name);
+      const b = el("button", "chip fijado", esc(e.name));
       b.setAttribute("aria-pressed", String(pinnedIndex(e.name) >= 0));
       b.onclick = () => {
         const i = pinnedIndex(e.name);
@@ -1151,7 +1194,7 @@
         const dn = el("button", "kg-adj", "▼"); dn.title = "Bajar"; dn.disabled = i === state.cfg.pinned.length - 1; dn.onclick = () => move(i, 1);
         ord.appendChild(up); ord.appendChild(dn);
         left.appendChild(ord);
-        left.appendChild(el("span", "pin-asig-name", f.name));
+        left.appendChild(el("span", "pin-asig-name", esc(f.name)));
         row.appendChild(left);
         const sel = document.createElement("select");
         ["AUTO", "A", "B", "C"].forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o === "AUTO" ? "Auto" : "Bloque " + o; if (f.block === o) op.selected = true; sel.appendChild(op); });
@@ -1205,17 +1248,17 @@
     if (editing) detail.appendChild(renderManualEditor(h));
     else h.exercises.forEach((ex, i) => {
       if (i === 0 || ex.order !== h.exercises[i - 1].order) {
-        if (ex.order) detail.appendChild(el("div", "label", ex.order));
+        if (ex.order) detail.appendChild(el("div", "label", esc(ex.order)));
       }
       const item = el("div", "manual-ex");
       const top = el("div", "manual-ex-top");
-      top.appendChild(el("span", "manual-ex-name", ex.name));
+      top.appendChild(el("span", "manual-ex-name", esc(ex.name)));
       if (ex.kg != null) top.appendChild(el("span", "manual-ex-kg", ex.kg + " kg"));
       item.appendChild(top);
       const reps = ex.sets.reduce((a, n) => a + n, 0);
       const series = ex.sets.length ? ex.sets.join(" · ") : "—";
       item.appendChild(el("div", "manual-ex-sets", `Series: ${series}  ·  ${reps} reps  ·  ${Math.round(exVol(ex))} kg`));
-      if (ex.note) item.appendChild(el("div", "manual-ex-note", ex.note));
+      if (ex.note) item.appendChild(el("div", "manual-ex-note", esc(ex.note)));
       detail.appendChild(item);
     });
 
@@ -1334,7 +1377,7 @@
       const cur = Math.round(e.current);
       const delta = Math.round(e.current - e.first);
       const row = el("div", "e1rm-row");
-      row.appendChild(el("span", "e1rm-name", name));
+      row.appendChild(el("span", "e1rm-name", esc(name)));
       const val = el("span", "e1rm-val", cur + " kg");
       if (e.n >= 2 && delta !== 0) {
         const up = delta > 0;
@@ -1483,7 +1526,25 @@
       return;
     }
     state.hist.forEach(h => {
-      if (h.manual) { list.appendChild(renderManualCard(h)); return; }
+      // One malformed entry (old backup, hand-edited file, shape drift) must
+      // not blank the whole History view: render what loads, flag the rest.
+      try {
+        list.appendChild(h.manual ? renderManualCard(h) : renderGeneratedCard(h));
+      } catch (e) {
+        const card = el("div", "card");
+        const row = el("div", "hist-item");
+        row.appendChild(el("div", "hist-meta", "Sesion ilegible (datos incompletos)"));
+        const actions = el("div", "hist-actions");
+        const del = el("button", "icon-btn del", "✕"); del.title = "Eliminar";
+        del.onclick = () => { state.hist = state.hist.filter(x => x !== h); saveHistory(); renderHistory(); toast("Sesion eliminada"); };
+        actions.appendChild(del);
+        row.appendChild(actions);
+        card.appendChild(row); list.appendChild(card);
+      }
+    });
+  }
+
+  function renderGeneratedCard(h) {
       const card = el("div", "card");
       card.style.padding = "0";
       const row = el("div", "hist-item");
@@ -1497,8 +1558,12 @@
       const hKey = h.objective === "MANUAL" && h.routine
         ? (h.routine.declared || (h.routine.inferred && h.routine.inferred.objective)) : null;
       if (hKey) title += " · " + (OBJ_LABEL[hKey] || hKey);
-      meta.appendChild(el("div", "hist-title", title));
-      meta.appendChild(el("div", "hist-sub", `${dateStr} · ~${h.duration} min · balance ${h.balance.toLowerCase()}`));
+      meta.appendChild(el("div", "hist-title", esc(title)));
+      // Entries restored from older backups may lack duration/balance.
+      const subBits = [dateStr];
+      if (h.duration != null) subBits.push(`~${h.duration} min`);
+      if (h.balance) subBits.push("balance " + String(h.balance).toLowerCase());
+      meta.appendChild(el("div", "hist-sub", subBits.join(" · ")));
       meta.style.cursor = "pointer";
       const detail = el("div"); detail.style.padding = "0 14px 14px"; detail.classList.add("hidden");
       meta.onclick = () => {
@@ -1544,8 +1609,7 @@
       actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
       card.appendChild(row); card.appendChild(detail);
-      list.appendChild(card);
-    });
+      return card;
   }
 
   // Searchable text of an exercise: the name PLUS its tag/category labels
@@ -1630,7 +1694,7 @@
       const st = el("div", "stripe"); st.style.background = STRIPE[e.pattern] || "#6b7280"; st.style.minHeight = "42px";
       row.appendChild(st);
       const body = el("div", "ex-body");
-      body.appendChild(el("div", "ex-name", e.name));
+      body.appendChild(el("div", "ex-name", esc(e.name)));
       const tags = el("div", "pool-tags");
       tags.appendChild(el("span", "tag", F.PAT_LABEL[e.pattern]));
       tags.appendChild(el("span", "tag", F.DIN_LABEL[e.dynamics].split("/")[0]));
@@ -1775,6 +1839,17 @@
       try {
         const data = JSON.parse(e.target.result);
         if (!data || typeof data !== "object") throw new Error("invalid");
+        // Importing REPLACES the local data — make that explicit before
+        // touching anything (a mis-picked file was irreversible).
+        const nh = Array.isArray(data.hist) ? data.hist.length : 0;
+        const nc = Array.isArray(data.custom) ? data.custom.length : 0;
+        const ok = window.confirm(
+          "Restaurar copia: " + nh + " sesiones y " + nc + " ejercicios propios.\n" +
+          "Reemplaza los datos actuales (" + state.hist.length + " sesiones). ¿Continuar?");
+        if (!ok) { toast("Importacion cancelada"); return; }
+        // Drop entries that are not even objects (hand-edited/truncated
+        // files) so one bad row cannot break the History render.
+        if (Array.isArray(data.hist)) data.hist = data.hist.filter(x => x && typeof x === "object");
         state.hist = Array.isArray(data.hist) ? data.hist : state.hist;
         state.custom = Array.isArray(data.custom) ? data.custom : state.custom;
         state.removed = Array.isArray(data.removed) ? data.removed : state.removed;
@@ -1793,6 +1868,9 @@
         ]);
         computePool();
         renderPool();
+        // Re-seed the id sequence over the imported ids so a session saved
+        // right after the import cannot collide with a restored one.
+        state.hist.forEach(h => { if (typeof h.id === "number") _idSeq = Math.max(_idSeq, h.id); });
         toast(`Importado: ${state.hist.length} sesiones, ${state.custom.length} ejercicios propios`);
         // cfg touches every control on the Generate view; a reload re-inits
         // the whole UI from storage instead of hand-patching each widget.
@@ -1847,12 +1925,36 @@
     try { localStorage.setItem("forja:backupAt", JSON.stringify({ t: Date.now(), kind })); } catch (e) {}
     renderBackupStatus();
   }
+  let warnedBackupGuard = false;
   async function writeBackup() {
     if (!backupHandle) return;
+    // Never mirror a knowingly-bad load: if any stored blob failed to parse,
+    // the linked file may hold the only good copy of that data.
+    if (corruptKeys.length) return;
+    // Shrink guard: an empty in-memory history over a backup that has
+    // sessions means a fresh/failed load (or a re-link before importing) —
+    // overwriting would destroy the only copy. Import the file first.
+    if (!state.hist.length) {
+      try {
+        const f = await backupHandle.getFile();
+        if (f.size > 2) {
+          const prev = JSON.parse(await f.text());
+          if (prev && Array.isArray(prev.hist) && prev.hist.length > 0) {
+            if (!warnedBackupGuard) {
+              warnedBackupGuard = true;
+              toast("Copia automatica en pausa: el archivo vinculado tiene sesiones y la app ninguna. Importalo (o desvincula) antes de sobrescribir.");
+            }
+            renderBackupStatus();
+            return false;
+          }
+        }
+      } catch (e) { /* unreadable existing file: nothing to protect */ }
+    }
     const w = await backupHandle.createWritable();
     await w.write(JSON.stringify(exportPayload(), null, 2));
     await w.close();
     markBackupDone("auto");
+    return true;
   }
   function scheduleBackup() {
     if (!backupHandle) return;
@@ -1867,8 +1969,8 @@
       });
       backupHandle = h; backupPending = null;
       await idbSet("backup", h);
-      await writeBackup();   // first snapshot right away
-      toast("Copia automatica vinculada");
+      const wrote = await writeBackup();   // first snapshot right away
+      if (wrote) toast("Copia automatica vinculada");
     } catch (e) { /* picker cancelled */ }
     renderBackupStatus();
   }
@@ -1878,8 +1980,8 @@
       const perm = await backupPending.requestPermission({ mode: "readwrite" });
       if (perm === "granted") {
         backupHandle = backupPending; backupPending = null;
-        await writeBackup();
-        toast("Copia automatica reactivada");
+        const wrote = await writeBackup();
+        if (wrote) toast("Copia automatica reactivada");
       }
     } catch (e) {}
     renderBackupStatus();
@@ -2043,6 +2145,12 @@
   // ---- Init
   async function init() {
     await loadAll();
+    // Corrupt blobs were parked under "<key>:corrupt" by loadAll — tell the
+    // user instead of silently starting over (and see writeBackup's guard).
+    if (corruptKeys.length) {
+      setTimeout(() => toast("Aviso: datos guardados ilegibles (" + corruptKeys.join(", ") +
+        "). Se conservo una copia interna; restaura desde tu backup si algo falta."), 400);
+    }
     fillSelectOptions();
 
     // reflect cfg in controls
