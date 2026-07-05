@@ -1372,50 +1372,86 @@
   // target in the guided timer. Work happens on a deep clone so Cancelar
   // discards cleanly.
   function renderRoutineEditor(h, host) {
-    host.innerHTML = "";
     const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     const draft = JSON.parse(JSON.stringify(h.routine));
-    host.appendChild(el("div", "label", "Editar rutina · series, reps y kg"));
-    draft.blocks.forEach(br => {
-      host.appendChild(el("div", "label red-block", "Bloque " + br.block));
-      br.elements.forEach(elm => elm.prescriptions.forEach(p => {
-        const row = el("div", "red-row");
-        row.appendChild(el("div", "red-name", p.exercise.name));
-        const ctl = el("div", "mk-ctl");
-        const stepper = (cls, label, get, set, min, max, step) => {
-          const wrap = el("div", "mk-step " + cls);
-          const dec = el("button", "kg-adj", "−");
-          const val = el("span", "mk-val", get() + label);
-          const inc = el("button", "kg-adj", "+");
-          const upd = d2 => { set(Math.max(min, Math.min(max, get() + d2))); val.textContent = get() + label; };
-          dec.onclick = () => upd(-step); inc.onclick = () => upd(step);
-          wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
-          return wrap;
-        };
-        ctl.appendChild(stepper("red-sets", "x", () => p.sets, v => { p.sets = v; p.edited = true; }, 1, 8, 1));
-        if (p.exercise.dynamics !== F.DIN.ISO)
-          ctl.appendChild(stepper("red-reps", " reps", () => p.reps, v => { p.reps = v; p.edited = true; }, 1, 30, 1));
-        if (p.exercise.equipment.includes("KB")) {
-          const effKg = () => p.kg != null ? p.kg
-            : state.kg[p.exercise.name] != null ? state.kg[p.exercise.name]
-            : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || range.min);
-          ctl.appendChild(stepper("red-kg", " kg", effKg, v => { p.kg = v; }, range.min, range.max, 2));
-        }
-        row.appendChild(ctl);
-        host.appendChild(row);
-      }));
-    });
-    const btns = el("div", "btn-row"); btns.style.marginTop = "12px";
-    const cancel = el("button", "btn btn-ghost", "Cancelar");
-    cancel.onclick = () => renderHistory();
-    const save = el("button", "btn btn-forge", "Guardar cambios");
-    save.onclick = () => {
-      h.routine = draft;
-      h.duration = F.routineDurationMin(draft);
-      saveHistory(); renderHistory(); toast("Rutina actualizada");
+    // paint() redraws the whole editor from the SAME draft, so swapping an
+    // exercise (which can add/remove the reps stepper or the kg control)
+    // keeps every other pending edit.
+    const paint = () => {
+      host.innerHTML = "";
+      const pool = filteredPool().slice().sort((a, b) => a.name.localeCompare(b.name));
+      host.appendChild(el("div", "label", "Editar rutina · ejercicio, series, reps y kg"));
+      draft.blocks.forEach(br => {
+        host.appendChild(el("div", "label red-block", "Bloque " + br.block));
+        br.elements.forEach(elm => elm.prescriptions.forEach(p => {
+          const row = el("div", "red-row");
+          // Exercise swap: any pool exercise; the current one stays listed
+          // even if it has since left the pool.
+          const sel = document.createElement("select");
+          sel.className = "mk-select";
+          const names = pool.map(e => e.name);
+          if (names.indexOf(p.exercise.name) < 0) names.unshift(p.exercise.name);
+          names.forEach(n => {
+            const op = document.createElement("option");
+            op.value = n; op.textContent = n; op.selected = n === p.exercise.name;
+            sel.appendChild(op);
+          });
+          sel.onchange = () => {
+            const def = pool.find(e => e.name === sel.value);
+            if (!def) return;
+            p.exercise = clone(def);
+            p.kg = null;          // the old weight belongs to the old exercise
+            p.edited = true;
+            // The pairing verdict refers to the old exercise: re-judge it.
+            if (elm.prescriptions.length === 2) {
+              const res = F.validateCombination(elm.prescriptions[0], elm.prescriptions[1]);
+              elm.quality = res.quality;
+              elm.note = "Editada por ti · " + res.reasons.join(" | ");
+            } else {
+              elm.note = "Editada por ti.";
+            }
+            paint();
+          };
+          row.appendChild(sel);
+          const ctl = el("div", "mk-ctl");
+          const stepper = (cls, label, get, set, min, max, step) => {
+            const wrap = el("div", "mk-step " + cls);
+            const dec = el("button", "kg-adj", "−");
+            const val = el("span", "mk-val", get() + label);
+            const inc = el("button", "kg-adj", "+");
+            const upd = d2 => { set(Math.max(min, Math.min(max, get() + d2))); val.textContent = get() + label; };
+            dec.onclick = () => upd(-step); inc.onclick = () => upd(step);
+            wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
+            return wrap;
+          };
+          ctl.appendChild(stepper("red-sets", "x", () => p.sets, v => { p.sets = v; p.edited = true; }, 1, 8, 1));
+          if (p.exercise.dynamics !== F.DIN.ISO)
+            ctl.appendChild(stepper("red-reps", " reps", () => p.reps, v => { p.reps = v; p.edited = true; }, 1, 30, 1));
+          if (p.exercise.equipment.includes("KB")) {
+            const effKg = () => p.kg != null ? p.kg
+              : state.kg[p.exercise.name] != null ? state.kg[p.exercise.name]
+              : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || range.min);
+            ctl.appendChild(stepper("red-kg", " kg", effKg, v => { p.kg = v; }, range.min, range.max, 2));
+          }
+          row.appendChild(ctl);
+          host.appendChild(row);
+        }));
+      });
+      const btns = el("div", "btn-row"); btns.style.marginTop = "12px";
+      const cancel = el("button", "btn btn-ghost", "Cancelar");
+      cancel.onclick = () => renderHistory();
+      const save = el("button", "btn btn-forge", "Guardar cambios");
+      save.onclick = () => {
+        // Swaps may have changed the lead ballistic: refresh the warm-up.
+        draft.warmup = F.buildWarmup(draft.blocks);
+        h.routine = draft;
+        h.duration = F.routineDurationMin(draft);
+        saveHistory(); renderHistory(); toast("Rutina actualizada");
+      };
+      btns.appendChild(cancel); btns.appendChild(save);
+      host.appendChild(btns);
     };
-    btns.appendChild(cancel); btns.appendChild(save);
-    host.appendChild(btns);
+    paint();
   }
 
   // ---- Render: history

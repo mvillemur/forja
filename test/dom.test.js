@@ -87,14 +87,23 @@ setTimeout(() => {
   ok("saved routine has an edit button", !!rEdit);
   rEdit.click();
   ok("routine editor lists the prescriptions", d.querySelectorAll("#hist-list .red-row").length > 0);
+  ok("routine editor offers a kg stepper", !!d.querySelector("#hist-list .red-kg"));
+  // Swap the first slot's exercise; the editor repaints keeping the draft.
+  const edSel = d.querySelector("#hist-list .red-row .mk-select");
+  ok("routine editor lets you change the exercise", !!edSel && edSel.options.length > 1);
+  const newName = [...edSel.options].map(o => o.value).find(v => v !== edSel.value);
+  edSel.value = newName; edSel.dispatchEvent(new window.Event("change"));
+  ok("swap keeps the editor open on the same draft", d.querySelectorAll("#hist-list .red-row").length > 0);
+  // Then adjust kg and reps on the repainted editor.
   const edKg = d.querySelector("#hist-list .red-kg");
-  ok("routine editor offers a kg stepper", !!edKg);
   edKg.querySelector(".kg-adj:last-child").click();   // +2 kg
   const kgTxt = edKg.querySelector(".mk-val").textContent;
   const edReps = d.querySelector("#hist-list .red-reps");
   if (edReps) edReps.querySelector(".kg-adj:last-child").click();
   [...d.querySelectorAll("#hist-list .btn")].find(b => /Guardar cambios/.test(b.textContent)).click();
   d.querySelector("#hist-list .hist-meta").click();   // reopen detail, view mode
+  ok("swapped exercise persists on the saved session",
+    [...d.querySelectorAll("#hist-list .ex-name")].some(n => n.textContent.includes(newName)));
   ok("edited kg persists on the saved session",
     [...d.querySelectorAll("#hist-list .ex-kg")].some(n => n.textContent === kgTxt));
   d.querySelector("#hist-list .hist-meta").click();   // collapse for the rest

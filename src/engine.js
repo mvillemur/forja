@@ -1514,7 +1514,7 @@
     classifyVolume, elementTimeSec, elementTimeline, blockTimeline, routineDurationMin, blockDurationMin,
     CHANGEOVER_SEC,
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
-    composeRoutine, auditRoutine, inferObjective, assessObjective,
+    composeRoutine, auditRoutine, inferObjective, assessObjective, buildWarmup,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
