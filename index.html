@@ -56,6 +56,15 @@
         <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
         <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
         <button class="chip" data-val="ARMS" aria-pressed="false">Brazos</button>
+        <button class="chip" data-val="GRIP" aria-pressed="false">Agarre</button>
+      </div>
+      <div id="focus-mode-wrap" class="hidden" style="margin-top:12px;">
+        <div class="label" style="margin-bottom:6px;">Intensidad del foco</div>
+        <div class="seg" id="seg-focus-mode">
+          <button data-val="hard" aria-pressed="true">Solo esto</button>
+          <button data-val="soft" aria-pressed="false">Énfasis (más, no solo)</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-top:7px;">Solo esto = la sesión se limita a esas zonas. Énfasis = las prioriza pero sigue entrenando el resto y mantiene el balance.</div>
       </div>
     </div>
 
@@ -272,6 +281,14 @@
     <div id="hist-stats"></div>
     <div id="hist-filter" class="chips" style="margin:2px 2px 12px;"></div>
     <div id="hist-list"></div>
+  </section>
+
+  <!-- ===== PROGRAM ===== -->
+  <section id="view-prog" class="view">
+    <div class="card">
+      <div class="label">Programa · varias semanas</div>
+      <div id="program-body"></div>
+    </div>
   </section>
 
   <!-- ===== POOL ===== -->
@@ -498,7 +515,7 @@
     <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Foco:</b> concentra la sesión en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a propósito).</p>
+        <p class="gloss"><b>Foco:</b> concentra la sesión en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, agarre, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Con foco activo eliges la <b>intensidad</b>: <b>Solo esto</b> limita la sesión a esas zonas (desactiva el balance, desequilibra a propósito); <b>Énfasis</b> las prioriza pero sigue entrenando el resto y mantiene el balance ("más, no solo").</p>
         <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patrón de movimiento sino un tag muscular: prioriza los ejercicios donde bíceps (curls, remos, dominadas) o tríceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balísticos de cadera (clean, push press, high pull) quedan fuera: ahí el brazo solo transmite.</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tirón y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia máxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus últimas sesiones, así los ejercicios rotan.</p>
@@ -518,6 +535,16 @@
         <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la selección</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Útil para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
         <p><b>Pausar:</b> la ⏸ deja el ejercicio <b>temporalmente fuera de la seleccion</b> (no sale en rutinas nuevas, ni en el buscador del modo manual, ni en la lista de fijados) sin quitarlo del pool — util para una molestia o equipamiento que no tienes estos dias. Lo que ya lo usa (sesiones guardadas, borradores) no se toca. La ▶ lo reactiva.</p>
         <p><b>Quitar:</b> la ✕. Los de fábrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Programa (varias semanas)</summary>
+      <div class="acc-body">
+        <p>En <b>Programa</b> creas un plan de varias semanas. A diferencia de generar sueltas, el programa da tres cosas: <b>continuidad</b> (mantiene tus ejercicios base cada semana, para que la progresión y el e1RM se acumulen sobre los mismos lifts), un <b>calendario</b> (un objetivo por día) y <b>periodización</b> (sube el volumen unas semanas y luego una de <b>descarga</b>).</p>
+        <p class="gloss"><b>Cómo funciona.</b> Eliges días por semana y semanas por ciclo. Cada día tiene su objetivo (editable) y un <b>énfasis</b> suave opcional. <b>Entrenar hoy</b> genera la sesión del día <b>al momento</b>, con tus números más recientes, el volumen de la semana y tus anclas fijadas; la entrenas y la guardas como cualquier sesión (queda etiquetada "sem N"). Al guardar, el programa avanza al día siguiente.</p>
+        <p class="gloss"><b>Descarga.</b> La última semana de cada ciclo baja el volumen (~½) manteniendo el movimiento, para soltar fatiga. Es automática y se ve en la cinta de progreso.</p>
+        <p>La <b>disposición del día</b> (¿Cómo llegas hoy?) sigue mandando encima: una semana dura + un día roto igual afloja. El programa pone la intención de la semana; tú pones el día.</p>
       </div>
     </details>
 
@@ -588,6 +615,7 @@
 
 <nav class="nav">
   <button data-view="gen" aria-current="true"><span class="ico">⚙</span>Generar</button>
+  <button data-view="prog" aria-current="false"><span class="ico">▦</span>Programa</button>
   <button data-view="hist" aria-current="false"><span class="ico">▤</span>Historial</button>
   <button data-view="pool" aria-current="false"><span class="ico">≡</span>Pool</button>
   <button data-view="guia" aria-current="false"><span class="ico">?</span>Guía</button>

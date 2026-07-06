@@ -341,6 +341,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
 .mk-add { margin-top: 10px; padding: 10px; font-size: 13px; }
 
+/* --- Multi-week program --- */
+.prog-intro { font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
+.prog-ribbon { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.prog-week { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--forge-hi); }
+.prog-phase { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
+.prog-phase.accum { background: rgba(127,174,106,0.16); color: var(--ok); }
+.prog-phase.deload { background: rgba(111,168,199,0.16); color: var(--steel); }
+.prog-strip { display: flex; flex-wrap: wrap; gap: 7px; }
+.prog-day { border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink-dim); border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.prog-day.current { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
+.prog-edit { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.prog-edit summary { cursor: pointer; font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+.prog-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 0; border-top: 1px solid var(--line); }
+.prog-edit-row:first-of-type { border-top: 0; }
+.prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }
+.prog-edit-row .mk-select { flex: 1; }
+
 /* --- Mis rutinas (saved templates) --- */
 .tpl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .tpl-row:first-child { border-top: 0; }
@@ -425,6 +442,15 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <button class="chip" data-val="CHEST" aria-pressed="false">Pecho</button>
         <button class="chip" data-val="CORE" aria-pressed="false">Core</button>
         <button class="chip" data-val="ARMS" aria-pressed="false">Brazos</button>
+        <button class="chip" data-val="GRIP" aria-pressed="false">Agarre</button>
+      </div>
+      <div id="focus-mode-wrap" class="hidden" style="margin-top:12px;">
+        <div class="label" style="margin-bottom:6px;">Intensidad del foco</div>
+        <div class="seg" id="seg-focus-mode">
+          <button data-val="hard" aria-pressed="true">Solo esto</button>
+          <button data-val="soft" aria-pressed="false">Énfasis (más, no solo)</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-top:7px;">Solo esto = la sesión se limita a esas zonas. Énfasis = las prioriza pero sigue entrenando el resto y mantiene el balance.</div>
       </div>
     </div>
 
@@ -641,6 +667,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <div id="hist-stats"></div>
     <div id="hist-filter" class="chips" style="margin:2px 2px 12px;"></div>
     <div id="hist-list"></div>
+  </section>
+
+  <!-- ===== PROGRAM ===== -->
+  <section id="view-prog" class="view">
+    <div class="card">
+      <div class="label">Programa · varias semanas</div>
+      <div id="program-body"></div>
+    </div>
   </section>
 
   <!-- ===== POOL ===== -->
@@ -867,7 +901,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     <details class="acc">
       <summary>Opciones de Generar</summary>
       <div class="acc-body">
-        <p class="gloss"><b>Foco:</b> concentra la sesión en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Mientras hay foco activo se desactiva el balance (porque desequilibra a propósito).</p>
+        <p class="gloss"><b>Foco:</b> concentra la sesión en una o varias zonas (piernas, empuje, pull, hombros, pecho, core, brazos, agarre, o atajos tren superior/inferior). Puedes elegir varias a la vez; sin nada seleccionado es full-body. Con foco activo eliges la <b>intensidad</b>: <b>Solo esto</b> limita la sesión a esas zonas (desactiva el balance, desequilibra a propósito); <b>Énfasis</b> las prioriza pero sigue entrenando el resto y mantiene el balance ("más, no solo").</p>
         <p class="gloss"><b>Brazos:</b> a diferencia del resto, no es un patrón de movimiento sino un tag muscular: prioriza los ejercicios donde bíceps (curls, remos, dominadas) o tríceps (presses, flexiones de agarre cerrado) hacen una parte importante del trabajo. Llevan el tag "brazos" en el Pool y puedes buscarlos escribiendo "brazos". Los balísticos de cadera (clean, push press, high pull) quedan fuera: ahí el brazo solo transmite.</p>
         <p class="gloss"><b>Balance:</b> reparte los patrones. Ninguno (libre), Suave (empuja a equilibrar empuje/tirón y cadera/rodilla), Duro (cuota estricta; la tolerancia es la diferencia máxima permitida entre opuestos).</p>
         <p class="gloss"><b>Variar:</b> evita repetir lo de tus últimas sesiones, así los ejercicios rotan.</p>
@@ -887,6 +921,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p><b>Pausar (⏸):</b> deja el ejercicio <b>temporalmente fuera de la selección</b> — no sale en rutinas nuevas, ni en el buscador del modo manual, ni en los fijables — sin quitarlo del pool ni tocar lo que ya lo usa (sesiones guardadas, borradores, fijados). Útil para lesiones o equipamiento que no tienes esta temporada. <b>▶</b> lo reactiva tal cual estaba.</p>
         <p><b>Pausar:</b> la ⏸ deja el ejercicio <b>temporalmente fuera de la seleccion</b> (no sale en rutinas nuevas, ni en el buscador del modo manual, ni en la lista de fijados) sin quitarlo del pool — util para una molestia o equipamiento que no tienes estos dias. Lo que ya lo usa (sesiones guardadas, borradores) no se toca. La ▶ lo reactiva.</p>
         <p><b>Quitar:</b> la ✕. Los de fábrica solo se ocultan de tus rutinas; los tuyos se borran.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>Programa (varias semanas)</summary>
+      <div class="acc-body">
+        <p>En <b>Programa</b> creas un plan de varias semanas. A diferencia de generar sueltas, el programa da tres cosas: <b>continuidad</b> (mantiene tus ejercicios base cada semana, para que la progresión y el e1RM se acumulen sobre los mismos lifts), un <b>calendario</b> (un objetivo por día) y <b>periodización</b> (sube el volumen unas semanas y luego una de <b>descarga</b>).</p>
+        <p class="gloss"><b>Cómo funciona.</b> Eliges días por semana y semanas por ciclo. Cada día tiene su objetivo (editable) y un <b>énfasis</b> suave opcional. <b>Entrenar hoy</b> genera la sesión del día <b>al momento</b>, con tus números más recientes, el volumen de la semana y tus anclas fijadas; la entrenas y la guardas como cualquier sesión (queda etiquetada "sem N"). Al guardar, el programa avanza al día siguiente.</p>
+        <p class="gloss"><b>Descarga.</b> La última semana de cada ciclo baja el volumen (~½) manteniendo el movimiento, para soltar fatiga. Es automática y se ve en la cinta de progreso.</p>
+        <p>La <b>disposición del día</b> (¿Cómo llegas hoy?) sigue mandando encima: una semana dura + un día roto igual afloja. El programa pone la intención de la semana; tú pones el día.</p>
       </div>
     </details>
 
@@ -957,6 +1001,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
 <nav class="nav">
   <button data-view="gen" aria-current="true"><span class="ico">⚙</span>Generar</button>
+  <button data-view="prog" aria-current="false"><span class="ico">▦</span>Programa</button>
   <button data-view="hist" aria-current="false"><span class="ico">▤</span>Historial</button>
   <button data-view="pool" aria-current="false"><span class="ico">≡</span>Pool</button>
   <button data-view="guia" aria-current="false"><span class="ico">?</span>Guía</button>
@@ -1616,6 +1661,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     // Muscle focus dominates selection: by movement pattern, or by the arms
     // tag when the ARMS focus is active (arms are not a pattern).
     if (bal.focus && (bal.focus.has(e.pattern) || (bal.focus.has("ARMS") && e.arms))) s += 6;
+    // Soft emphasis: a gentle nudge toward chosen patterns/tags that does NOT
+    // exclude the rest and leaves balance active — "more of this, not only this".
+    if (bal.emphasis && matchesFocusSet(bal.emphasis, e)) s += 3;
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
@@ -1998,6 +2046,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
+    bal.emphasis = template.__emphasis || null;   // soft "focus more, not only"
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -2384,7 +2433,24 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     CHEST:     "Pecho",
     CORE:      "Core / abdomen",
     ARMS:      "Brazos",
+    GRIP:      "Agarre / antebrazo",
   };
+  // Resolve a list of focus keys (LEGS, PUSH, ARMS, GRIP...) into a set of
+  // pattern strings plus the tag tokens ARMS/GRIP, used by both the hard focus
+  // and the soft emphasis. Returns null for an empty/FULL selection.
+  function focusSet(keys) {
+    const up = (Array.isArray(keys) ? keys : [keys]).filter(Boolean).map(k => String(k).toUpperCase());
+    const pats = up.flatMap(k => FOCUS_PAT[k] || []);
+    if (up.indexOf("ARMS") >= 0) pats.push("ARMS");
+    if (up.indexOf("GRIP") >= 0) pats.push("GRIP");
+    return pats.length ? new Set(pats) : null;
+  }
+  // Does an exercise match a resolved focus/emphasis set? By movement pattern,
+  // or by the arms / grip muscle tags (which are not patterns).
+  function matchesFocusSet(set, e) {
+    if (!set) return false;
+    return set.has(e.pattern) || (set.has("ARMS") && e.arms) || (set.has("GRIP") && e.grip);
+  }
 
   // Rescale a (already scaled) template toward a time target. For circuit
   // templates that means more/fewer ROUNDS (sets, clamped 2..12); otherwise
@@ -2432,20 +2498,52 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return f;
   }
 
+  // --- Multi-week program (methodology: program-generation-methodology.md) --
+  // Default weekly schedule by training frequency: one slot per day, each an
+  // {objective, emphasis, label}. `emphasis` is SOFT (bias, not exclude), so a
+  // "torso" day still trains legs, just less. Fully editable by the user.
+  const PROGRAM_WEEK_DEFAULTS = {
+    2: [["STRENGTH", [], "Fuerza"], ["METABOLIC", [], "Metabólico"]],
+    3: [["STRENGTH", [], "Fuerza A"], ["METABOLIC", [], "Metabólico"], ["STRENGTH", [], "Fuerza B"]],
+    4: [["STRENGTH", ["LEGS"], "Fuerza · piernas"], ["METABOLIC", [], "Metabólico"],
+        ["STRENGTH", ["PUSH", "PULL"], "Fuerza · torso"], ["STRENGTH_ENDURANCE", [], "Resistencia"]],
+    5: [["STRENGTH", [], "Fuerza A"], ["METABOLIC", [], "Metabólico"], ["STRENGTH", [], "Fuerza B"],
+        ["STRENGTH_ENDURANCE", [], "Resistencia"], ["POWER", [], "Potencia"]],
+    6: [["STRENGTH", ["LEGS"], "Fuerza · piernas"], ["METABOLIC", [], "Metabólico A"],
+        ["STRENGTH", ["PUSH", "PULL"], "Fuerza · torso"], ["STRENGTH_ENDURANCE", [], "Resistencia"],
+        ["STRENGTH", [], "Fuerza C"], ["METABOLIC", [], "Metabólico B"]],
+  };
+  function programWeekDefaults(days) {
+    const d = Math.max(2, Math.min(6, days || 3));
+    return (PROGRAM_WEEK_DEFAULTS[d] || PROGRAM_WEEK_DEFAULTS[3])
+      .map(([objective, emphasis, label]) => ({ objective, emphasis: emphasis.slice(), label }));
+  }
+
+  // The mesocycle phase for a 1-based week number: accumulation weeks ramp
+  // volume + intensity mildly, the last week of each cycle deloads (volume
+  // ×0.5, intensity toward lighter reps). Neutral (1/0) when meso is absent.
+  function phaseFor(weekNumber, meso) {
+    if (!meso || !meso.deloadEveryWeeks) return { deload: false, volumeFactor: 1, intensityFactor: 0, weekInCycle: 1 };
+    const cyc = meso.deloadEveryWeeks;
+    const inCycle = ((Math.max(1, weekNumber) - 1) % cyc) + 1;   // 1..cyc
+    if (inCycle === cyc) return { deload: true, volumeFactor: 0.5, intensityFactor: -0.3, weekInCycle: inCycle };
+    const accLen = cyc - 1;                                       // accumulation weeks
+    const t = accLen > 1 ? (inCycle - 1) / (accLen - 1) : 0;      // 0..1
+    return { deload: false, volumeFactor: 1 + 0.15 * t, intensityFactor: 0.3 * t, weekInCycle: inCycle };
+  }
+
   function generate(pool, opts) {
     opts = opts || {};
     const obj = (opts.objective || "STRENGTH").toUpperCase();
     const base = TEMPLATES[obj] || TEMPLATES.STRENGTH;
     const poolRef = pool || BASE_CATALOG;
 
-    // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
-    const focusKeys = (Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"])
-      .map(k => String(k).toUpperCase());
-    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k] || []);
-    // ARMS is a muscle-tag focus, not a pattern list: it rides in the focus
-    // set as a token that priority() checks against each exercise's arms flag.
-    if (focusKeys.indexOf("ARMS") >= 0) allPats.push("ARMS");
-    const focus = allPats.length ? new Set(allPats) : null;
+    // opts.focus (hard) filters/dominates and disables balance; opts.emphasis
+    // (soft) only nudges selection and leaves balance active. Both accept a
+    // key or array of keys (LEGS, PUSH, ARMS, GRIP...); ARMS/GRIP ride as tag
+    // tokens that priority() checks against each exercise's flags.
+    const focus = focusSet(opts.focus || "FULL");
+    const emphasis = focusSet(opts.emphasis);
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
@@ -2458,11 +2556,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      tpl.__emphasis = emphasis;
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
-      rt.readiness = { loadFactor: rf.loadFactor, level: rf.level };
+      // loadBias (default 1) lets a program's mesocycle phase nudge the
+      // suggested load (heavier accumulation, lighter deload); it composes
+      // with the readiness loadFactor the app already applies.
+      const loadBias = opts.loadBias == null ? 1 : opts.loadBias;
+      rt.readiness = { loadFactor: rf.loadFactor * loadBias, level: rf.level };
       rt.protocol = base.protocol || null;   // EMOM/AMRAP run on protocol timing
       return rt;
     };
@@ -2513,6 +2616,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     slugId,
     composeRoutine, auditRoutine, inferObjective, assessObjective, buildWarmup,
+    programWeekDefaults, phaseFor,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };
@@ -2586,7 +2690,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer", ROUTINES: "forja:routines" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer", ROUTINES: "forja:routines", PROGRAM: "forja:program" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -2606,7 +2710,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" },
-           readiness:{ energy:3, sleep:"ok", sore:[] },
+           readiness:{ energy:3, sleep:"ok", sore:[] }, focusSoft:false,
            mode:"auto",                        // "auto" (generator) | "manual" (builder)
            manual:{ A:[], B:[], C:[] },        // builder draft: {id, sets, reps, pair, kg} per block
            manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
@@ -2614,6 +2718,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     removed: [],      // ids of hidden base exercises
     paused: [],       // ids temporarily out of selection (injury, no bar...)
     templates: [],    // saved reusable routines ("Mis rutinas")
+    program: null,    // active multi-week program (plan layer) or null
     overrides: {},    // id -> edited fields of base exercises
     pool: [],         // computed
     byId: {},         // computed: id -> exercise of the effective pool
@@ -2750,6 +2855,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     if (!Array.isArray(state.paused)) state.paused = [];
     state.templates = await loadJson(K.ROUTINES, []);
     if (!Array.isArray(state.templates)) state.templates = [];
+    state.program = await loadJson(K.PROGRAM, null);
+    if (state.program && typeof state.program !== "object") state.program = null;
     const kg = await loadJson(K.KG); if (kg && typeof kg === "object") state.kg = kg;
     const pr = await loadJson(K.PROG); if (pr && typeof pr === "object") state.prog = pr;
     // Migration: pinned as strings -> objects {name, block}
@@ -2880,6 +2987,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
   const saveTemplates = () => Store.set(K.ROUTINES, JSON.stringify(state.templates));
+  const saveProgram = () => Store.set(K.PROGRAM, JSON.stringify(state.program));
   // Paused = temporarily out of SELECTION (injury, missing equipment...):
   // the generator, the builder picker, the pin list and the routine-editor
   // swap all skip paused exercises, but nothing already using them (drafts,
@@ -3489,7 +3597,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
   function generateRoutine() {
     const c = state.cfg;
-    const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
+    // Focus chips act as a HARD filter (focus) or a SOFT emphasis depending on
+    // the mode toggle; soft keeps balance and full-body coverage.
+    const soft = c.focusSoft && c.focus.length;
+    const opts = { objective: c.objective,
+      focus: soft ? ["FULL"] : (c.focus.length ? c.focus : ["FULL"]),
+      emphasis: soft ? c.focus : undefined,
+      equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, recent: calcRecent(), seed: null,
       sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile,
       // The engine resolves pins by display name; app pins are id-keyed.
@@ -3502,6 +3616,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     state.routine = r;
     state.routineSource = "auto";
     state.loadedObjective = null;   // freshly generated: config objective applies
+    state.pendingProgram = null;    // a manual "Generar" is not a program day
     state.lastSavedId = null;   // a fresh routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#audit-out").innerHTML = "";
@@ -3520,6 +3635,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     state.routine = JSON.parse(JSON.stringify(routine));
     state.routineSource = source === "manual" ? "manual" : "auto";
     state.loadedObjective = objective || null;   // used by saveToHistory below
+    state.pendingProgram = null;   // repeat/template loads are not program days
     state.lastSavedId = null;
     state.cfg.mode = "auto"; setSeg("#seg-mode", "auto");
     if (typeof applyModeRef === "function") applyModeRef();
@@ -3567,6 +3683,157 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       row.appendChild(meta); row.appendChild(actions);
       host.appendChild(row);
     });
+  }
+
+  // ---- Multi-week program (plan layer over the generator) ----------------
+  // The program stores intent (schedule + mesocycle + anchors + cursor), not
+  // routines: each day is generated just-in-time from its objective, the
+  // week's phase (ramp/deload) and the trainee's live numbers, then saved to
+  // normal history tagged with the program slot. Methodology + parameters:
+  // docs/program-generation-methodology.md.
+  const PROG_EMPHASIS_CHOICES = [
+    ["", "—"], ["LEGS", "Piernas"], ["PUSH,PULL", "Torso"],
+    ["PUSH", "Empuje"], ["PULL", "Pull"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+  ];
+  // Default anchors: one fundamental per distinct pattern, up to 3 — the lifts
+  // kept every matching day so progression/e1RM compound (continuity).
+  function defaultAnchors() {
+    const picked = [], seen = new Set();
+    state.pool.filter(e => e.tier === "FUNDAMENTAL" && !isPaused(e.id))
+      .forEach(e => { if (!seen.has(e.pattern) && picked.length < 3) { picked.push(e.id); seen.add(e.pattern); } });
+    return picked;
+  }
+  function createProgram(days, mesoLen) {
+    const d = Math.max(2, Math.min(6, days || 3));
+    state.program = {
+      id: nextId(), name: "Mi programa", daysPerWeek: d,
+      week: F.programWeekDefaults(d),
+      mesocycle: { lengthWeeks: mesoLen || 4, deloadEveryWeeks: mesoLen || 4 },
+      anchors: defaultAnchors(),
+      cursor: { week: 1, dayIndex: 0 },
+      baseMinutes: state.cfg.minutes,
+    };
+    saveProgram(); renderProgram();
+  }
+  // Anchors that fit a given day's objective (an anchor whose dynamics appears
+  // in that objective's template), as generator pins.
+  function anchorsForDay(day) {
+    const tpl = F.TEMPLATES[day.objective];
+    if (!tpl) return [];
+    return (state.program.anchors || [])
+      .map(id => state.byId[id])
+      .filter(e => e && !isPaused(e.id) && tpl.blocks.some(b => [...b.dynamics].includes(e.dynamics)))
+      .map(e => ({ name: e.name, block: "AUTO" }));
+  }
+  function trainToday() {
+    const pg = state.program; if (!pg) return;
+    const day = pg.week[pg.cursor.dayIndex];
+    const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
+    const c = state.cfg;
+    const opts = {
+      objective: day.objective,
+      emphasis: (day.emphasis && day.emphasis.length) ? day.emphasis : undefined,
+      equipment: c.equipment, weightMin: c.weightMin, weightMax: c.weightMax, profile: c.profile,
+      readiness: c.readiness, vary: true, recent: calcRecent(), seed: null, sameWeight: c.sameWeight,
+      minutes: Math.max(10, Math.round((pg.baseMinutes || c.minutes) * phase.volumeFactor)),
+      loadBias: 1 + 0.1 * phase.intensityFactor,
+      pinned: anchorsForDay(day),
+    };
+    const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
+    loadRoutine(r, "auto", day.objective);   // clears pendingProgram, then:
+    state.pendingProgram = { programId: pg.id, week: pg.cursor.week, dayIndex: pg.cursor.dayIndex, label: day.label, deload: phase.deload };
+    toast(day.label + " · semana " + pg.cursor.week + (phase.deload ? " · deload" : ""));
+  }
+  function advanceProgram() {
+    const pg = state.program; if (!pg) return;
+    pg.cursor.dayIndex++;
+    if (pg.cursor.dayIndex >= pg.week.length) { pg.cursor.dayIndex = 0; pg.cursor.week++; }
+    saveProgram();
+  }
+  function renderProgram() {
+    const host = $("#program-body"); if (!host) return;
+    host.innerHTML = "";
+    const pg = state.program;
+    if (!pg) {
+      host.appendChild(el("div", "prog-intro",
+        "Un programa encadena semanas: mantiene tus ejercicios base (para que la progresión se acumule), reparte objetivos por día y sube el volumen antes de una semana de descarga. Cada día se genera al momento con tus números más recientes."));
+      const daysRow = el("div", "est-row");
+      daysRow.appendChild(el("span", null, "Días por semana"));
+      let days = 3;
+      const dStep = el("div", "stepper");
+      const dDec = el("button", null, "−"), dVal = el("span", "val", "3"), dInc = el("button", null, "+");
+      dDec.onclick = () => { days = Math.max(2, days - 1); dVal.textContent = days; };
+      dInc.onclick = () => { days = Math.min(6, days + 1); dVal.textContent = days; };
+      dStep.appendChild(dDec); dStep.appendChild(dVal); dStep.appendChild(dInc);
+      daysRow.appendChild(dStep);
+      host.appendChild(daysRow);
+      const mesoRow = el("div", "est-row");
+      mesoRow.appendChild(el("span", null, "Semanas por ciclo (descarga la última)"));
+      let meso = 4;
+      const mStep = el("div", "stepper");
+      const mDec = el("button", null, "−"), mVal = el("span", "val", "4"), mInc = el("button", null, "+");
+      mDec.onclick = () => { meso = Math.max(2, meso - 1); mVal.textContent = meso; };
+      mInc.onclick = () => { meso = Math.min(8, meso + 1); mVal.textContent = meso; };
+      mStep.appendChild(mDec); mStep.appendChild(mVal); mStep.appendChild(mInc);
+      mesoRow.appendChild(mStep);
+      host.appendChild(mesoRow);
+      const create = el("button", "btn btn-forge", "Crear programa");
+      create.style.marginTop = "12px";
+      create.onclick = () => { createProgram(days, meso); toast("Programa creado"); };
+      host.appendChild(create);
+      return;
+    }
+    // Active program: progress ribbon + week strip + editor + train button.
+    const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
+    const ribbon = el("div", "prog-ribbon");
+    ribbon.appendChild(el("span", "prog-week", "Semana " + pg.cursor.week));
+    ribbon.appendChild(el("span", "prog-phase " + (phase.deload ? "deload" : "accum"),
+      phase.deload ? "Descarga" : "Acumulación"));
+    host.appendChild(ribbon);
+
+    const strip = el("div", "prog-strip");
+    pg.week.forEach((day, i) => {
+      const chip = el("button", "prog-day" + (i === pg.cursor.dayIndex ? " current" : ""), esc(day.label));
+      a11y(chip, "Ir a este día");
+      chip.onclick = () => { pg.cursor.dayIndex = i; saveProgram(); renderProgram(); };
+      strip.appendChild(chip);
+    });
+    host.appendChild(strip);
+
+    const trainBtn = el("button", "btn btn-forge", "Entrenar hoy · " + esc(pg.week[pg.cursor.dayIndex].label));
+    trainBtn.style.marginTop = "12px";
+    trainBtn.onclick = trainToday;
+    host.appendChild(trainBtn);
+
+    // Per-day editor: objective + soft emphasis (open on demand).
+    const editWrap = el("details", "prog-edit");
+    const sum = document.createElement("summary"); sum.textContent = "Editar días y objetivos"; editWrap.appendChild(sum);
+    pg.week.forEach((day, i) => {
+      const row = el("div", "prog-edit-row");
+      row.appendChild(el("span", "prog-edit-lbl", esc(day.label)));
+      const objSel = document.createElement("select"); objSel.className = "mk-select";
+      ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER", "EMOM", "AMRAP"].forEach(o => {
+        const op = document.createElement("option"); op.value = o; op.textContent = OBJ_LABEL[o] || o;
+        if (day.objective === o) op.selected = true; objSel.appendChild(op);
+      });
+      objSel.onchange = () => { day.objective = objSel.value; saveProgram(); };
+      row.appendChild(objSel);
+      const emSel = document.createElement("select"); emSel.className = "mk-select";
+      const cur = (day.emphasis || []).join(",");
+      PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
+        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + label;
+        if (cur === v) op.selected = true; emSel.appendChild(op);
+      });
+      emSel.onchange = () => { day.emphasis = emSel.value ? emSel.value.split(",") : []; saveProgram(); };
+      row.appendChild(emSel);
+      editWrap.appendChild(row);
+    });
+    host.appendChild(editWrap);
+
+    const del = el("button", "btn btn-ghost", "Borrar programa");
+    del.style.marginTop = "12px";
+    del.onclick = () => { state.program = null; saveProgram(); renderProgram(); toast("Programa borrado"); };
+    host.appendChild(del);
   }
 
   // ---- Manual routine builder ("Creada por mi") --------------------------
@@ -3750,6 +4017,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     state.routine = r;
     state.routineSource = "manual";
     state.loadedObjective = null;
+    state.pendingProgram = null;
     state.lastSavedId = null;   // a freshly composed routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
     renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
@@ -3854,9 +4122,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
 
   function applyFocusUI() {
-    const off = state.cfg.focus.length > 0;
-    $("#card-balance").classList.toggle("disabled", off);
-    $("#balance-note").classList.toggle("hidden", !off);
+    const has = state.cfg.focus.length > 0;
+    // Soft emphasis keeps balance on; only a HARD focus disables it.
+    const hardOff = has && !state.cfg.focusSoft;
+    $("#card-balance").classList.toggle("disabled", hardOff);
+    $("#balance-note").classList.toggle("hidden", !hardOff);
+    const w = $("#focus-mode-wrap"); if (w) w.classList.toggle("hidden", !has);
   }
   function applyVolumeUI() {
     const isStructure = state.cfg.volumeMode === "structure";
@@ -3971,6 +4242,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
     }, extra || {});
+    // A program day: tag the session with its slot and advance the cursor
+    // (advance by sessions done, not calendar — see methodology §5).
+    if (state.pendingProgram) {
+      entry.program = state.pendingProgram;
+      advanceProgram();
+      state.pendingProgram = null;
+      renderProgram();
+    }
     state.hist.unshift(entry);
     state.lastSavedId = entry.id;
     saveHistory(); renderHistory();
@@ -4349,6 +4628,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       meta.appendChild(el("div", "hist-title", esc(title)));
       // Entries restored from older backups may lack duration/balance.
       const subBits = [dateStr];
+      if (h.program) subBits.push("sem " + h.program.week + (h.program.deload ? " · descarga" : ""));
       if (h.duration != null) subBits.push(`~${h.duration} min`);
       if (h.balance) subBits.push("balance " + String(h.balance).toLowerCase());
       meta.appendChild(el("div", "hist-sub", subBits.join(" · ")));
@@ -4619,6 +4899,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       cfg: state.cfg,
       paused: state.paused,
       templates: state.templates,
+      program: state.program,
     };
   }
   function exportData() {
@@ -4657,6 +4938,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
         if (Array.isArray(data.paused)) state.paused = data.paused;
         if (Array.isArray(data.templates)) state.templates = data.templates;
+        if (data.program && typeof data.program === "object") state.program = data.program;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
@@ -4664,6 +4946,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
           Store.set(K.CFG, JSON.stringify(state.cfg)),
           savePaused(),
           saveTemplates(),
+          saveProgram(),
           savePoolState(),
         ]);
         computePool();
@@ -4942,6 +5225,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     document.querySelectorAll(".nav button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === name)));
     if (name === "hist") renderHistory();
     if (name === "pool") renderPool();
+    if (name === "prog") renderProgram();
   }
 
   // ---- Init
@@ -5053,6 +5337,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();
     });
     wireSeg("#seg-vary", v => { state.cfg.vary = (v === "yes"); saveConfig(); });
+    setSeg("#seg-focus-mode", state.cfg.focusSoft ? "soft" : "hard");
+    wireSeg("#seg-focus-mode", v => { state.cfg.focusSoft = (v === "soft"); applyFocusUI(); saveConfig(); });
     wireSeg("#seg-sameweight", v => {
       state.cfg.sameWeight = (v === "yes"); saveConfig();
       if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);

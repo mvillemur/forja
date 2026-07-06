@@ -479,6 +479,40 @@ ok("ARMS focus loads the session with arm-emphasis work", armsPicked >= 3);
 ok("newExercise carries the arms flag", F.newExercise({ name: "Y", pattern: "PULL_H", dynamics: "STRENGTH",
   symmetry: "BILATERAL", cns: "LOW", equipment: ["KB"], arms: true }).arms === true);
 
+// Soft emphasis: biases selection toward a region WITHOUT excluding the rest
+// or disabling balance (unlike the hard focus).
+const legDom = e => e.pattern === "HIP" || e.pattern === "KNEE";
+const countLegs = r => r.blocks.reduce((a, b) => a + b.elements.reduce((x, elm) =>
+  x + elm.prescriptions.filter(p => legDom(p.exercise)).length, 0), 0);
+const countAll = r => r.blocks.reduce((a, b) => a + b.elements.reduce((x, elm) => x + elm.prescriptions.length, 0), 0);
+const plain = F.generate(null, { objective: "STRENGTH", equipment: ["KB", "FLOOR"], minutes: 40, seed: 11 });
+const emph = F.generate(null, { objective: "STRENGTH", equipment: ["KB", "FLOOR"], minutes: 40, seed: 11, emphasis: ["LEGS"] });
+ok("soft emphasis increases (or holds) the emphasized share vs plain", countLegs(emph) >= countLegs(plain));
+ok("soft emphasis does NOT exclude other patterns", countLegs(emph) < countAll(emph));
+// Contrast with the hard focus, which DOES exclude nearly everything else.
+const hardFocus = F.generate(null, { objective: "STRENGTH", equipment: ["KB", "FLOOR"], minutes: 40, seed: 11, focus: ["LEGS"] });
+ok("hard focus is more exclusive than soft emphasis", countLegs(hardFocus) / countAll(hardFocus) >= countLegs(emph) / countAll(emph));
+
+// GRIP is a tag-based emphasis (not a movement pattern).
+const gripEmph = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 40, seed: 3, emphasis: ["GRIP"] });
+ok("grip emphasis pulls in grip-intensive work", gripEmph.blocks.some(b => b.elements.some(elm => elm.prescriptions.some(p => p.exercise.grip))));
+
+// --- Multi-week program ---------------------------------------------------
+const wk3 = F.programWeekDefaults(3);
+ok("program week: 3 days -> 3 slots with objectives", wk3.length === 3 && wk3.every(d => d.objective && d.label));
+ok("program week: clamps out-of-range day counts", F.programWeekDefaults(9).length >= 2 && F.programWeekDefaults(1).length === 2);
+ok("program week: 4-day carries a soft emphasis day", F.programWeekDefaults(4).some(d => d.emphasis.length > 0));
+const meso = { lengthWeeks: 4, deloadEveryWeeks: 4 };
+ok("phase: accumulation week 1 is neutral-ish", (() => { const p = F.phaseFor(1, meso); return !p.deload && p.volumeFactor === 1 && p.intensityFactor === 0; })());
+ok("phase: accumulation ramps volume up by week 3", F.phaseFor(3, meso).volumeFactor > F.phaseFor(1, meso).volumeFactor);
+ok("phase: week 4 is a deload (less volume, lighter)", (() => { const p = F.phaseFor(4, meso); return p.deload && p.volumeFactor < 0.6 && p.intensityFactor < 0; })());
+ok("phase: cycles repeat (week 5 == week 1)", F.phaseFor(5, meso).volumeFactor === F.phaseFor(1, meso).volumeFactor);
+ok("phase: no meso -> neutral", (() => { const p = F.phaseFor(3, null); return p.volumeFactor === 1 && p.intensityFactor === 0; })());
+// loadBias flows into the routine's readiness loadFactor.
+const heavier = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 30, seed: 5, loadBias: 1.1 });
+const lighter = F.generate(null, { objective: "STRENGTH", equipment: ["KB"], minutes: 30, seed: 5, loadBias: 0.9 });
+ok("loadBias raises/lowers the routine load factor", heavier.readiness.loadFactor > lighter.readiness.loadFactor);
+
 // --- Trainer-review fixes -------------------------------------------------
 
 // Rep-aware cold start: the same tier suggests less kg at a high-rep target.

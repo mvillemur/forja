@@ -383,8 +383,42 @@ setTimeout(() => {
   ok("auto-backup link stays hidden without FS Access", d.querySelector("#btn-link-backup").classList.contains("hidden"));
   ok("share button hidden without navigator.share", d.querySelector("#btn-share-backup").classList.contains("hidden"));
 
+  // Soft focus emphasis: selecting a focus reveals the mode toggle; soft mode
+  // keeps balance enabled (unlike the hard focus).
+  d.querySelector('.nav button[data-view="gen"]').click();
+  const legFocus = d.querySelector('#focus-chips .chip[data-val="LEGS"]');
+  legFocus.click();
+  ok("focus mode toggle appears when a focus is picked", !d.querySelector("#focus-mode-wrap").classList.contains("hidden"));
+  ok("hard focus disables balance", d.querySelector("#card-balance").classList.contains("disabled"));
+  d.querySelector('#seg-focus-mode button[data-val="soft"]').click();
+  ok("soft emphasis keeps balance enabled", !d.querySelector("#card-balance").classList.contains("disabled"));
+  d.querySelector("#btn-generar").click();
+  ok("soft-emphasis routine still generates full-body", d.querySelectorAll("#routine-out .element").length > 0);
+  legFocus.click();   // clear focus for later
+
+  // Multi-week program: create, train today (loads a routine + tags it), save
+  // advances the cursor.
+  d.querySelector('.nav button[data-view="prog"]').click();
+  ok("program view offers a create button", [...d.querySelectorAll("#program-body .btn")].some(b => /Crear programa/.test(b.textContent)));
+  [...d.querySelectorAll("#program-body .btn")].find(b => /Crear programa/.test(b.textContent)).click();
+  ok("program shows a week strip after creation", d.querySelectorAll("#program-body .prog-day").length >= 2);
+  ok("program shows the accumulation phase", /Acumulación|Descarga/.test(d.querySelector("#program-body .prog-phase").textContent));
+  const trainToday = [...d.querySelectorAll("#program-body .btn")].find(b => /Entrenar hoy/.test(b.textContent));
+  ok("program has an Entrenar hoy button", !!trainToday);
+  trainToday.click();
+  ok("train today loads a routine on the generate view",
+    d.querySelector("#view-gen").classList.contains("active") && d.querySelectorAll("#routine-out .element").length > 0);
+  d.querySelector("#btn-guardar").click();
+  d.querySelector('.nav button[data-view="hist"]').click();
+  ok("program session is tagged with its week", /sem 1/.test(d.querySelector("#hist-list .hist-sub").textContent));
+  d.querySelector('.nav button[data-view="prog"]').click();
+  ok("cursor advanced to day 2 after saving",
+    [...d.querySelectorAll("#program-body .prog-day")][1].classList.contains("current"));
+  // Clean up: delete the program so later state is neutral.
+  [...d.querySelectorAll("#program-body .btn")].find(b => /Borrar programa/.test(b.textContent)).click();
+
   d.querySelector('.nav button[data-view="guia"]').click();
-  ok("guide has 16 sections", d.querySelectorAll("#view-guia .acc").length === 16);
+  ok("guide has 17 sections", d.querySelectorAll("#view-guia .acc").length === 17);
   ok("guide cites a bibliography", d.querySelectorAll("#view-guia .ref").length >= 5);
   ok("guide documents e1RM for users", /e1RM/.test(d.querySelector("#view-guia").textContent));
   ok("guide documents daily readiness", /llegas hoy/i.test(d.querySelector("#view-guia").textContent));

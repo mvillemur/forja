@@ -327,6 +327,23 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
 .mk-add { margin-top: 10px; padding: 10px; font-size: 13px; }
 
+/* --- Multi-week program --- */
+.prog-intro { font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
+.prog-ribbon { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.prog-week { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--forge-hi); }
+.prog-phase { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
+.prog-phase.accum { background: rgba(127,174,106,0.16); color: var(--ok); }
+.prog-phase.deload { background: rgba(111,168,199,0.16); color: var(--steel); }
+.prog-strip { display: flex; flex-wrap: wrap; gap: 7px; }
+.prog-day { border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink-dim); border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.prog-day.current { background: rgba(232,116,44,0.16); color: var(--forge-hi); border-color: rgba(232,116,44,0.5); }
+.prog-edit { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.prog-edit summary { cursor: pointer; font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+.prog-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 0; border-top: 1px solid var(--line); }
+.prog-edit-row:first-of-type { border-top: 0; }
+.prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }
+.prog-edit-row .mk-select { flex: 1; }
+
 /* --- Mis rutinas (saved templates) --- */
 .tpl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .tpl-row:first-child { border-top: 0; }

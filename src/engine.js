@@ -650,6 +650,9 @@
     // Muscle focus dominates selection: by movement pattern, or by the arms
     // tag when the ARMS focus is active (arms are not a pattern).
     if (bal.focus && (bal.focus.has(e.pattern) || (bal.focus.has("ARMS") && e.arms))) s += 6;
+    // Soft emphasis: a gentle nudge toward chosen patterns/tags that does NOT
+    // exclude the rest and leaves balance active — "more of this, not only this".
+    if (bal.emphasis && matchesFocusSet(bal.emphasis, e)) s += 3;
     s += TIER_BONUS[e.tier] || 0;                        // fundamentals up, optional down
     if (bal.recent) s -= (bal.recent[e.name] || 0);      // avoid repeating recent
     if (bal.sore && bal.sore.has(e.pattern)) s -= 3;     // readiness: ease off sore zones
@@ -1032,6 +1035,7 @@
     bal.weightKb = weightKb || null;
     bal.recent = recent || null;
     bal.sore = template.__sore || null;   // sore patterns to de-prioritize today
+    bal.emphasis = template.__emphasis || null;   // soft "focus more, not only"
     bal.sameWeight = !!sameWeight;
 
     // Resolve pinned exercises. Each can be a name (string) or {name, block}.
@@ -1418,7 +1422,24 @@
     CHEST:     "Pecho",
     CORE:      "Core / abdomen",
     ARMS:      "Brazos",
+    GRIP:      "Agarre / antebrazo",
   };
+  // Resolve a list of focus keys (LEGS, PUSH, ARMS, GRIP...) into a set of
+  // pattern strings plus the tag tokens ARMS/GRIP, used by both the hard focus
+  // and the soft emphasis. Returns null for an empty/FULL selection.
+  function focusSet(keys) {
+    const up = (Array.isArray(keys) ? keys : [keys]).filter(Boolean).map(k => String(k).toUpperCase());
+    const pats = up.flatMap(k => FOCUS_PAT[k] || []);
+    if (up.indexOf("ARMS") >= 0) pats.push("ARMS");
+    if (up.indexOf("GRIP") >= 0) pats.push("GRIP");
+    return pats.length ? new Set(pats) : null;
+  }
+  // Does an exercise match a resolved focus/emphasis set? By movement pattern,
+  // or by the arms / grip muscle tags (which are not patterns).
+  function matchesFocusSet(set, e) {
+    if (!set) return false;
+    return set.has(e.pattern) || (set.has("ARMS") && e.arms) || (set.has("GRIP") && e.grip);
+  }
 
   // Rescale a (already scaled) template toward a time target. For circuit
   // templates that means more/fewer ROUNDS (sets, clamped 2..12); otherwise
@@ -1466,20 +1487,52 @@
     return f;
   }
 
+  // --- Multi-week program (methodology: program-generation-methodology.md) --
+  // Default weekly schedule by training frequency: one slot per day, each an
+  // {objective, emphasis, label}. `emphasis` is SOFT (bias, not exclude), so a
+  // "torso" day still trains legs, just less. Fully editable by the user.
+  const PROGRAM_WEEK_DEFAULTS = {
+    2: [["STRENGTH", [], "Fuerza"], ["METABOLIC", [], "Metabólico"]],
+    3: [["STRENGTH", [], "Fuerza A"], ["METABOLIC", [], "Metabólico"], ["STRENGTH", [], "Fuerza B"]],
+    4: [["STRENGTH", ["LEGS"], "Fuerza · piernas"], ["METABOLIC", [], "Metabólico"],
+        ["STRENGTH", ["PUSH", "PULL"], "Fuerza · torso"], ["STRENGTH_ENDURANCE", [], "Resistencia"]],
+    5: [["STRENGTH", [], "Fuerza A"], ["METABOLIC", [], "Metabólico"], ["STRENGTH", [], "Fuerza B"],
+        ["STRENGTH_ENDURANCE", [], "Resistencia"], ["POWER", [], "Potencia"]],
+    6: [["STRENGTH", ["LEGS"], "Fuerza · piernas"], ["METABOLIC", [], "Metabólico A"],
+        ["STRENGTH", ["PUSH", "PULL"], "Fuerza · torso"], ["STRENGTH_ENDURANCE", [], "Resistencia"],
+        ["STRENGTH", [], "Fuerza C"], ["METABOLIC", [], "Metabólico B"]],
+  };
+  function programWeekDefaults(days) {
+    const d = Math.max(2, Math.min(6, days || 3));
+    return (PROGRAM_WEEK_DEFAULTS[d] || PROGRAM_WEEK_DEFAULTS[3])
+      .map(([objective, emphasis, label]) => ({ objective, emphasis: emphasis.slice(), label }));
+  }
+
+  // The mesocycle phase for a 1-based week number: accumulation weeks ramp
+  // volume + intensity mildly, the last week of each cycle deloads (volume
+  // ×0.5, intensity toward lighter reps). Neutral (1/0) when meso is absent.
+  function phaseFor(weekNumber, meso) {
+    if (!meso || !meso.deloadEveryWeeks) return { deload: false, volumeFactor: 1, intensityFactor: 0, weekInCycle: 1 };
+    const cyc = meso.deloadEveryWeeks;
+    const inCycle = ((Math.max(1, weekNumber) - 1) % cyc) + 1;   // 1..cyc
+    if (inCycle === cyc) return { deload: true, volumeFactor: 0.5, intensityFactor: -0.3, weekInCycle: inCycle };
+    const accLen = cyc - 1;                                       // accumulation weeks
+    const t = accLen > 1 ? (inCycle - 1) / (accLen - 1) : 0;      // 0..1
+    return { deload: false, volumeFactor: 1 + 0.15 * t, intensityFactor: 0.3 * t, weekInCycle: inCycle };
+  }
+
   function generate(pool, opts) {
     opts = opts || {};
     const obj = (opts.objective || "STRENGTH").toUpperCase();
     const base = TEMPLATES[obj] || TEMPLATES.STRENGTH;
     const poolRef = pool || BASE_CATALOG;
 
-    // opts.focus can be a string key, an array of keys, or empty/FULL = no filter.
-    const focusKeys = (Array.isArray(opts.focus) ? opts.focus : [opts.focus || "FULL"])
-      .map(k => String(k).toUpperCase());
-    const allPats = focusKeys.flatMap(k => FOCUS_PAT[k] || []);
-    // ARMS is a muscle-tag focus, not a pattern list: it rides in the focus
-    // set as a token that priority() checks against each exercise's arms flag.
-    if (focusKeys.indexOf("ARMS") >= 0) allPats.push("ARMS");
-    const focus = allPats.length ? new Set(allPats) : null;
+    // opts.focus (hard) filters/dominates and disables balance; opts.emphasis
+    // (soft) only nudges selection and leaves balance active. Both accept a
+    // key or array of keys (LEGS, PUSH, ARMS, GRIP...); ARMS/GRIP ride as tag
+    // tokens that priority() checks against each exercise's flags.
+    const focus = focusSet(opts.focus || "FULL");
+    const emphasis = focusSet(opts.emphasis);
     // Focus intentionally unbalances: it disables balance while active.
     const balance = focus ? "NONE" : (opts.balance || "NONE").toUpperCase();
 
@@ -1492,11 +1545,16 @@
     const build = tpl => {
       tpl.maxCns = cnsCap; tpl.maxGrip = base.maxGrip; tpl.__pool = poolRef;
       tpl.__sore = rf.sore && rf.sore.size ? rf.sore : null;
+      tpl.__emphasis = emphasis;
       const rt = buildRoutine(tpl, opts.equipment || [EQ.KB], opts.weightKb || null,
         opts.seed == null ? null : opts.seed, balance,
         opts.tolerance == null ? 1 : opts.tolerance, focus, opts.pinned || [], opts.recent || null,
         opts.sameWeight);
-      rt.readiness = { loadFactor: rf.loadFactor, level: rf.level };
+      // loadBias (default 1) lets a program's mesocycle phase nudge the
+      // suggested load (heavier accumulation, lighter deload); it composes
+      // with the readiness loadFactor the app already applies.
+      const loadBias = opts.loadBias == null ? 1 : opts.loadBias;
+      rt.readiness = { loadFactor: rf.loadFactor * loadBias, level: rf.level };
       rt.protocol = base.protocol || null;   // EMOM/AMRAP run on protocol timing
       return rt;
     };
@@ -1547,6 +1605,7 @@
     areAntagonists, validateCombination, generate, newExercise, filterByEquipment, loadWarning, suggestKg,
     slugId,
     composeRoutine, auditRoutine, inferObjective, assessObjective, buildWarmup,
+    programWeekDefaults, phaseFor,
     progressionRange, nextTarget, combinationFactor, snapKg, cnsWeight, unifiedKg,
     e1rm, e1rmEligible, bestE1rm, loadForReps, smoothE1rm, readinessFactors,
   };

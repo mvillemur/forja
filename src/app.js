@@ -61,7 +61,7 @@
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer", ROUTINES: "forja:routines" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer", ROUTINES: "forja:routines", PROGRAM: "forja:program" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -81,7 +81,7 @@
            volumeMode:"time", minutes:45, structure:{ A:4, B:4, C:2 },
            balance:"NONE", tolerance:1, pinned:[], vary:true, sameWeight:false,
            profile:{ bodyweight:null, sex:"", level:"INTER" },
-           readiness:{ energy:3, sleep:"ok", sore:[] },
+           readiness:{ energy:3, sleep:"ok", sore:[] }, focusSoft:false,
            mode:"auto",                        // "auto" (generator) | "manual" (builder)
            manual:{ A:[], B:[], C:[] },        // builder draft: {id, sets, reps, pair, kg} per block
            manualObjective:"AUTO" },           // declared objective of the manual routine (AUTO = infer)
@@ -89,6 +89,7 @@
     removed: [],      // ids of hidden base exercises
     paused: [],       // ids temporarily out of selection (injury, no bar...)
     templates: [],    // saved reusable routines ("Mis rutinas")
+    program: null,    // active multi-week program (plan layer) or null
     overrides: {},    // id -> edited fields of base exercises
     pool: [],         // computed
     byId: {},         // computed: id -> exercise of the effective pool
@@ -225,6 +226,8 @@
     if (!Array.isArray(state.paused)) state.paused = [];
     state.templates = await loadJson(K.ROUTINES, []);
     if (!Array.isArray(state.templates)) state.templates = [];
+    state.program = await loadJson(K.PROGRAM, null);
+    if (state.program && typeof state.program !== "object") state.program = null;
     const kg = await loadJson(K.KG); if (kg && typeof kg === "object") state.kg = kg;
     const pr = await loadJson(K.PROG); if (pr && typeof pr === "object") state.prog = pr;
     // Migration: pinned as strings -> objects {name, block}
@@ -355,6 +358,7 @@
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
   const saveTemplates = () => Store.set(K.ROUTINES, JSON.stringify(state.templates));
+  const saveProgram = () => Store.set(K.PROGRAM, JSON.stringify(state.program));
   // Paused = temporarily out of SELECTION (injury, missing equipment...):
   // the generator, the builder picker, the pin list and the routine-editor
   // swap all skip paused exercises, but nothing already using them (drafts,
@@ -964,7 +968,13 @@
 
   function generateRoutine() {
     const c = state.cfg;
-    const opts = { objective: c.objective, focus: c.focus.length ? c.focus : ["FULL"], equipment: c.equipment,
+    // Focus chips act as a HARD filter (focus) or a SOFT emphasis depending on
+    // the mode toggle; soft keeps balance and full-body coverage.
+    const soft = c.focusSoft && c.focus.length;
+    const opts = { objective: c.objective,
+      focus: soft ? ["FULL"] : (c.focus.length ? c.focus : ["FULL"]),
+      emphasis: soft ? c.focus : undefined,
+      equipment: c.equipment,
       balance: c.balance, tolerance: c.tolerance, recent: calcRecent(), seed: null,
       sameWeight: c.sameWeight, readiness: c.readiness, person: c.profile,
       // The engine resolves pins by display name; app pins are id-keyed.
@@ -977,6 +987,7 @@
     state.routine = r;
     state.routineSource = "auto";
     state.loadedObjective = null;   // freshly generated: config objective applies
+    state.pendingProgram = null;    // a manual "Generar" is not a program day
     state.lastSavedId = null;   // a fresh routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#audit-out").innerHTML = "";
@@ -995,6 +1006,7 @@
     state.routine = JSON.parse(JSON.stringify(routine));
     state.routineSource = source === "manual" ? "manual" : "auto";
     state.loadedObjective = objective || null;   // used by saveToHistory below
+    state.pendingProgram = null;   // repeat/template loads are not program days
     state.lastSavedId = null;
     state.cfg.mode = "auto"; setSeg("#seg-mode", "auto");
     if (typeof applyModeRef === "function") applyModeRef();
@@ -1042,6 +1054,157 @@
       row.appendChild(meta); row.appendChild(actions);
       host.appendChild(row);
     });
+  }
+
+  // ---- Multi-week program (plan layer over the generator) ----------------
+  // The program stores intent (schedule + mesocycle + anchors + cursor), not
+  // routines: each day is generated just-in-time from its objective, the
+  // week's phase (ramp/deload) and the trainee's live numbers, then saved to
+  // normal history tagged with the program slot. Methodology + parameters:
+  // docs/program-generation-methodology.md.
+  const PROG_EMPHASIS_CHOICES = [
+    ["", "—"], ["LEGS", "Piernas"], ["PUSH,PULL", "Torso"],
+    ["PUSH", "Empuje"], ["PULL", "Pull"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+  ];
+  // Default anchors: one fundamental per distinct pattern, up to 3 — the lifts
+  // kept every matching day so progression/e1RM compound (continuity).
+  function defaultAnchors() {
+    const picked = [], seen = new Set();
+    state.pool.filter(e => e.tier === "FUNDAMENTAL" && !isPaused(e.id))
+      .forEach(e => { if (!seen.has(e.pattern) && picked.length < 3) { picked.push(e.id); seen.add(e.pattern); } });
+    return picked;
+  }
+  function createProgram(days, mesoLen) {
+    const d = Math.max(2, Math.min(6, days || 3));
+    state.program = {
+      id: nextId(), name: "Mi programa", daysPerWeek: d,
+      week: F.programWeekDefaults(d),
+      mesocycle: { lengthWeeks: mesoLen || 4, deloadEveryWeeks: mesoLen || 4 },
+      anchors: defaultAnchors(),
+      cursor: { week: 1, dayIndex: 0 },
+      baseMinutes: state.cfg.minutes,
+    };
+    saveProgram(); renderProgram();
+  }
+  // Anchors that fit a given day's objective (an anchor whose dynamics appears
+  // in that objective's template), as generator pins.
+  function anchorsForDay(day) {
+    const tpl = F.TEMPLATES[day.objective];
+    if (!tpl) return [];
+    return (state.program.anchors || [])
+      .map(id => state.byId[id])
+      .filter(e => e && !isPaused(e.id) && tpl.blocks.some(b => [...b.dynamics].includes(e.dynamics)))
+      .map(e => ({ name: e.name, block: "AUTO" }));
+  }
+  function trainToday() {
+    const pg = state.program; if (!pg) return;
+    const day = pg.week[pg.cursor.dayIndex];
+    const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
+    const c = state.cfg;
+    const opts = {
+      objective: day.objective,
+      emphasis: (day.emphasis && day.emphasis.length) ? day.emphasis : undefined,
+      equipment: c.equipment, weightMin: c.weightMin, weightMax: c.weightMax, profile: c.profile,
+      readiness: c.readiness, vary: true, recent: calcRecent(), seed: null, sameWeight: c.sameWeight,
+      minutes: Math.max(10, Math.round((pg.baseMinutes || c.minutes) * phase.volumeFactor)),
+      loadBias: 1 + 0.1 * phase.intensityFactor,
+      pinned: anchorsForDay(day),
+    };
+    const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
+    loadRoutine(r, "auto", day.objective);   // clears pendingProgram, then:
+    state.pendingProgram = { programId: pg.id, week: pg.cursor.week, dayIndex: pg.cursor.dayIndex, label: day.label, deload: phase.deload };
+    toast(day.label + " · semana " + pg.cursor.week + (phase.deload ? " · deload" : ""));
+  }
+  function advanceProgram() {
+    const pg = state.program; if (!pg) return;
+    pg.cursor.dayIndex++;
+    if (pg.cursor.dayIndex >= pg.week.length) { pg.cursor.dayIndex = 0; pg.cursor.week++; }
+    saveProgram();
+  }
+  function renderProgram() {
+    const host = $("#program-body"); if (!host) return;
+    host.innerHTML = "";
+    const pg = state.program;
+    if (!pg) {
+      host.appendChild(el("div", "prog-intro",
+        "Un programa encadena semanas: mantiene tus ejercicios base (para que la progresión se acumule), reparte objetivos por día y sube el volumen antes de una semana de descarga. Cada día se genera al momento con tus números más recientes."));
+      const daysRow = el("div", "est-row");
+      daysRow.appendChild(el("span", null, "Días por semana"));
+      let days = 3;
+      const dStep = el("div", "stepper");
+      const dDec = el("button", null, "−"), dVal = el("span", "val", "3"), dInc = el("button", null, "+");
+      dDec.onclick = () => { days = Math.max(2, days - 1); dVal.textContent = days; };
+      dInc.onclick = () => { days = Math.min(6, days + 1); dVal.textContent = days; };
+      dStep.appendChild(dDec); dStep.appendChild(dVal); dStep.appendChild(dInc);
+      daysRow.appendChild(dStep);
+      host.appendChild(daysRow);
+      const mesoRow = el("div", "est-row");
+      mesoRow.appendChild(el("span", null, "Semanas por ciclo (descarga la última)"));
+      let meso = 4;
+      const mStep = el("div", "stepper");
+      const mDec = el("button", null, "−"), mVal = el("span", "val", "4"), mInc = el("button", null, "+");
+      mDec.onclick = () => { meso = Math.max(2, meso - 1); mVal.textContent = meso; };
+      mInc.onclick = () => { meso = Math.min(8, meso + 1); mVal.textContent = meso; };
+      mStep.appendChild(mDec); mStep.appendChild(mVal); mStep.appendChild(mInc);
+      mesoRow.appendChild(mStep);
+      host.appendChild(mesoRow);
+      const create = el("button", "btn btn-forge", "Crear programa");
+      create.style.marginTop = "12px";
+      create.onclick = () => { createProgram(days, meso); toast("Programa creado"); };
+      host.appendChild(create);
+      return;
+    }
+    // Active program: progress ribbon + week strip + editor + train button.
+    const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
+    const ribbon = el("div", "prog-ribbon");
+    ribbon.appendChild(el("span", "prog-week", "Semana " + pg.cursor.week));
+    ribbon.appendChild(el("span", "prog-phase " + (phase.deload ? "deload" : "accum"),
+      phase.deload ? "Descarga" : "Acumulación"));
+    host.appendChild(ribbon);
+
+    const strip = el("div", "prog-strip");
+    pg.week.forEach((day, i) => {
+      const chip = el("button", "prog-day" + (i === pg.cursor.dayIndex ? " current" : ""), esc(day.label));
+      a11y(chip, "Ir a este día");
+      chip.onclick = () => { pg.cursor.dayIndex = i; saveProgram(); renderProgram(); };
+      strip.appendChild(chip);
+    });
+    host.appendChild(strip);
+
+    const trainBtn = el("button", "btn btn-forge", "Entrenar hoy · " + esc(pg.week[pg.cursor.dayIndex].label));
+    trainBtn.style.marginTop = "12px";
+    trainBtn.onclick = trainToday;
+    host.appendChild(trainBtn);
+
+    // Per-day editor: objective + soft emphasis (open on demand).
+    const editWrap = el("details", "prog-edit");
+    const sum = document.createElement("summary"); sum.textContent = "Editar días y objetivos"; editWrap.appendChild(sum);
+    pg.week.forEach((day, i) => {
+      const row = el("div", "prog-edit-row");
+      row.appendChild(el("span", "prog-edit-lbl", esc(day.label)));
+      const objSel = document.createElement("select"); objSel.className = "mk-select";
+      ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER", "EMOM", "AMRAP"].forEach(o => {
+        const op = document.createElement("option"); op.value = o; op.textContent = OBJ_LABEL[o] || o;
+        if (day.objective === o) op.selected = true; objSel.appendChild(op);
+      });
+      objSel.onchange = () => { day.objective = objSel.value; saveProgram(); };
+      row.appendChild(objSel);
+      const emSel = document.createElement("select"); emSel.className = "mk-select";
+      const cur = (day.emphasis || []).join(",");
+      PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
+        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + label;
+        if (cur === v) op.selected = true; emSel.appendChild(op);
+      });
+      emSel.onchange = () => { day.emphasis = emSel.value ? emSel.value.split(",") : []; saveProgram(); };
+      row.appendChild(emSel);
+      editWrap.appendChild(row);
+    });
+    host.appendChild(editWrap);
+
+    const del = el("button", "btn btn-ghost", "Borrar programa");
+    del.style.marginTop = "12px";
+    del.onclick = () => { state.program = null; saveProgram(); renderProgram(); toast("Programa borrado"); };
+    host.appendChild(del);
   }
 
   // ---- Manual routine builder ("Creada por mi") --------------------------
@@ -1225,6 +1388,7 @@
     state.routine = r;
     state.routineSource = "manual";
     state.loadedObjective = null;
+    state.pendingProgram = null;
     state.lastSavedId = null;   // a freshly composed routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
     renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
@@ -1329,9 +1493,12 @@
   }
 
   function applyFocusUI() {
-    const off = state.cfg.focus.length > 0;
-    $("#card-balance").classList.toggle("disabled", off);
-    $("#balance-note").classList.toggle("hidden", !off);
+    const has = state.cfg.focus.length > 0;
+    // Soft emphasis keeps balance on; only a HARD focus disables it.
+    const hardOff = has && !state.cfg.focusSoft;
+    $("#card-balance").classList.toggle("disabled", hardOff);
+    $("#balance-note").classList.toggle("hidden", !hardOff);
+    const w = $("#focus-mode-wrap"); if (w) w.classList.toggle("hidden", !has);
   }
   function applyVolumeUI() {
     const isStructure = state.cfg.volumeMode === "structure";
@@ -1446,6 +1613,14 @@
       minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
     }, extra || {});
+    // A program day: tag the session with its slot and advance the cursor
+    // (advance by sessions done, not calendar — see methodology §5).
+    if (state.pendingProgram) {
+      entry.program = state.pendingProgram;
+      advanceProgram();
+      state.pendingProgram = null;
+      renderProgram();
+    }
     state.hist.unshift(entry);
     state.lastSavedId = entry.id;
     saveHistory(); renderHistory();
@@ -1824,6 +1999,7 @@
       meta.appendChild(el("div", "hist-title", esc(title)));
       // Entries restored from older backups may lack duration/balance.
       const subBits = [dateStr];
+      if (h.program) subBits.push("sem " + h.program.week + (h.program.deload ? " · descarga" : ""));
       if (h.duration != null) subBits.push(`~${h.duration} min`);
       if (h.balance) subBits.push("balance " + String(h.balance).toLowerCase());
       meta.appendChild(el("div", "hist-sub", subBits.join(" · ")));
@@ -2094,6 +2270,7 @@
       cfg: state.cfg,
       paused: state.paused,
       templates: state.templates,
+      program: state.program,
     };
   }
   function exportData() {
@@ -2132,6 +2309,7 @@
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
         if (Array.isArray(data.paused)) state.paused = data.paused;
         if (Array.isArray(data.templates)) state.templates = data.templates;
+        if (data.program && typeof data.program === "object") state.program = data.program;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
@@ -2139,6 +2317,7 @@
           Store.set(K.CFG, JSON.stringify(state.cfg)),
           savePaused(),
           saveTemplates(),
+          saveProgram(),
           savePoolState(),
         ]);
         computePool();
@@ -2417,6 +2596,7 @@
     document.querySelectorAll(".nav button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === name)));
     if (name === "hist") renderHistory();
     if (name === "pool") renderPool();
+    if (name === "prog") renderProgram();
   }
 
   // ---- Init
@@ -2528,6 +2708,8 @@
       state.cfg.balance = v; $("#tol-wrap").classList.toggle("hidden", v !== "HARD"); saveConfig();
     });
     wireSeg("#seg-vary", v => { state.cfg.vary = (v === "yes"); saveConfig(); });
+    setSeg("#seg-focus-mode", state.cfg.focusSoft ? "soft" : "hard");
+    wireSeg("#seg-focus-mode", v => { state.cfg.focusSoft = (v === "soft"); applyFocusUI(); saveConfig(); });
     wireSeg("#seg-sameweight", v => {
       state.cfg.sameWeight = (v === "yes"); saveConfig();
       if (state.routine) renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
