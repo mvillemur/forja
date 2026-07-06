@@ -327,6 +327,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
 .mk-add { margin-top: 10px; padding: 10px; font-size: 13px; }
 
+/* --- Program context banner on a generated day --- */
+.routine-prog { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--forge); border-radius: var(--radius); padding: 11px 13px; margin: 14px 0 6px; }
+.routine-prog-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.routine-prog-name { font-weight: 700; font-size: 14px; }
+.routine-prog-note { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); margin-top: 5px; }
+
 /* --- Multi-week program --- */
 .prog-switch { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
 .prog-tab { border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink-dim); border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; }

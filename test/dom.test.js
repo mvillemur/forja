@@ -418,6 +418,9 @@ setTimeout(() => {
   trainToday.click();
   ok("train today loads a routine on the generate view",
     d.querySelector("#view-gen").classList.contains("active") && d.querySelectorAll("#routine-out .element").length > 0);
+  ok("program day shows a program context banner",
+    !!d.querySelector("#routine-out .routine-prog") && /Sem 1/.test(d.querySelector("#routine-out .routine-prog").textContent));
+  ok("program banner reflects the cycle emphasis", /énfasis/.test(d.querySelector("#routine-out .routine-prog").textContent));
   d.querySelector("#btn-guardar").click();
   d.querySelector('.nav button[data-view="hist"]').click();
   ok("program session is tagged with its week", /sem 1/.test(d.querySelector("#hist-list .hist-sub").textContent));

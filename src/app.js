@@ -511,8 +511,28 @@
       back.onclick = scrollToTop;
       into.appendChild(back);
     }
+    // Program day: a banner making clear this routine came from a program —
+    // which program, week, phase, day and emphasis — instead of looking like
+    // a plain one-off generation.
+    if (r.programMeta) {
+      const pm = r.programMeta;
+      const banner = el("div", "routine-prog");
+      const line1 = el("div", "routine-prog-top");
+      line1.appendChild(el("span", "routine-prog-name", esc(pm.name || "Programa") + " · " + esc(pm.label || "")));
+      line1.appendChild(el("span", "prog-phase " + (pm.deload ? "deload" : "accum"),
+        "Sem " + pm.week + " · " + (pm.deload ? "Descarga" : "Acumulación")));
+      banner.appendChild(line1);
+      const notes = [];
+      if (pm.volumePct) notes.push((pm.volumePct > 0 ? "+" : "") + pm.volumePct + "% volumen");
+      if (pm.deload) notes.push("volumen reducido para soltar fatiga");
+      if (pm.emphasis && pm.emphasis.length)
+        notes.push("énfasis " + pm.emphasis.map(k => (F.FOCUS_LABEL[k] || k).toLowerCase()).join(" / "));
+      if (notes.length) banner.appendChild(el("div", "routine-prog-note", notes.join(" · ")));
+      into.appendChild(banner);
+    }
     const head = el("div", "routine-head");
-    head.appendChild(el("div", "routine-title", r.template));
+    const title = r.programMeta ? (OBJ_LABEL[r.programMeta.objective] || r.template) : r.template;
+    head.appendChild(el("div", "routine-title", esc(title)));
     head.appendChild(el("div", "routine-dur", `~${F.routineDurationMin(r)} min`));
     into.appendChild(head);
 
@@ -1087,7 +1107,7 @@
       .forEach(e => { if (!seen.has(e.pattern) && picked.length < 3) { picked.push(e.id); seen.add(e.pattern); } });
     return picked;
   }
-  function createProgram(days, mesoLen) {
+  function createProgram(days, mesoLen, minutes) {
     const d = Math.max(2, Math.min(6, days || 3));
     const pg = {
       id: nextId(), name: "Programa " + (state.programs.length + 1), daysPerWeek: d,
@@ -1095,7 +1115,7 @@
       mesocycle: { lengthWeeks: mesoLen || 4, deloadEveryWeeks: mesoLen || 4 },
       anchors: defaultAnchors(),
       cursor: { week: 1, dayIndex: 0 },
-      baseMinutes: state.cfg.minutes,
+      baseMinutes: minutes || state.cfg.minutes || 40,
       cycleEmphasis: [],        // global "bring up X this cycle" (soft)
       cycleDose: "medium",      // how many days lean toward it
     };
@@ -1151,6 +1171,13 @@
       pinned: anchorsForDay(pg, day),
     };
     const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
+    // Program context travels with the routine (banner + History), so the
+    // day never looks like a plain one-off generation.
+    r.programMeta = {
+      name: pg.name, label: day.label, objective: day.objective,
+      week: pg.cursor.week, deload: phase.deload,
+      emphasis: emph.slice(), volumePct: Math.round((phase.volumeFactor - 1) * 100),
+    };
     loadRoutine(r, "auto", day.objective);   // clears pendingProgram, then:
     state.pendingProgram = { programId: pg.id, week: pg.cursor.week, dayIndex: pg.cursor.dayIndex, label: day.label, deload: phase.deload };
     toast(day.label + " · semana " + pg.cursor.week + (phase.deload ? " · descarga" : ""));
@@ -1166,22 +1193,23 @@
   function renderProgramCreate(host) {
     host.appendChild(el("div", "prog-intro",
       "Un programa encadena semanas: mantiene tus ejercicios base (para que la progresión se acumule), reparte objetivos por día y sube el volumen antes de una semana de descarga. Cada día se genera al momento con tus números más recientes."));
-    let days = 3, meso = 4;
-    const stepRow = (label, get, set, min, max) => {
+    let days = 3, meso = 4, minutes = state.cfg.minutes || 40;
+    const stepRow = (label, get, set, min, max, step) => {
       const row = el("div", "est-row");
       row.appendChild(el("span", null, label));
-      const step = el("div", "stepper");
+      const wrap = el("div", "stepper");
       const dec = el("button", null, "−"), val = el("span", "val", String(get())), inc = el("button", null, "+");
-      dec.onclick = () => { set(Math.max(min, get() - 1)); val.textContent = get(); };
-      inc.onclick = () => { set(Math.min(max, get() + 1)); val.textContent = get(); };
-      step.appendChild(dec); step.appendChild(val); step.appendChild(inc);
-      row.appendChild(step); return row;
+      dec.onclick = () => { set(Math.max(min, get() - (step || 1))); val.textContent = get(); };
+      inc.onclick = () => { set(Math.min(max, get() + (step || 1))); val.textContent = get(); };
+      wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc);
+      row.appendChild(wrap); return row;
     };
     host.appendChild(stepRow("Días por semana", () => days, v => days = v, 2, 6));
     host.appendChild(stepRow("Semanas por ciclo (descarga la última)", () => meso, v => meso = v, 2, 8));
+    host.appendChild(stepRow("Duración por sesión (min)", () => minutes, v => minutes = v, 15, 75, 5));
     const create = el("button", "btn btn-forge", "Crear programa");
     create.style.marginTop = "12px";
-    create.onclick = () => { createProgram(days, meso); toast("Programa creado"); };
+    create.onclick = () => { createProgram(days, meso, minutes); toast("Programa creado"); };
     host.appendChild(create);
     if (state.programs.length) {
       const cancel = el("button", "btn btn-ghost", "Cancelar");
@@ -1284,6 +1312,19 @@
     mesoStep.appendChild(mDec); mesoStep.appendChild(mVal); mesoStep.appendChild(mInc);
     mesoRow.appendChild(mesoStep);
     editWrap.appendChild(mesoRow);
+
+    // Session duration: the main volume knob (fewer minutes = fewer exercises).
+    const minRow = el("div", "prog-edit-row");
+    const eff = Math.round((pg.baseMinutes || 40) * phase.volumeFactor);
+    minRow.appendChild(el("span", "prog-edit-lbl", "Duración por sesión (min) · esta semana ≈ " + eff + " min"));
+    const minStep = el("div", "stepper");
+    const nDec = el("button", null, "−"), nVal = el("span", "val", String(pg.baseMinutes || 40)), nInc = el("button", null, "+");
+    const setMin = v => { pg.baseMinutes = Math.max(15, Math.min(75, v)); nVal.textContent = pg.baseMinutes; saveProgram(); renderProgram(); };
+    nDec.onclick = () => setMin((pg.baseMinutes || 40) - 5);
+    nInc.onclick = () => setMin((pg.baseMinutes || 40) + 5);
+    minStep.appendChild(nDec); minStep.appendChild(nVal); minStep.appendChild(nInc);
+    minRow.appendChild(minStep);
+    editWrap.appendChild(minRow);
 
     // Per-day objective + optional manual emphasis override.
     editWrap.appendChild(el("div", "prog-edit-lbl", "Días (objetivo y énfasis manual opcional)"));
