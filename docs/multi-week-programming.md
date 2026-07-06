@@ -5,7 +5,11 @@ program** without throwing away anything it already does. This is a
 specification-level plan, not a patch. Companion to
 `load-rep-individualization.md` (load/reps per exercise) and
 `training-model-gaps.md` (time/fatigue model) — this doc is about *structure
-across weeks*.
+across weeks*. The sports-science grounding for the numbers below (periodization
+model, split templates, deload dose, ramp rates, anchor policy) is investigated
+and sourced in `program-generation-methodology.md`; where that doc refines a
+placeholder here (deload ×0.5 not ×0.6, gentler ramps), the methodology doc's
+values win.
 
 **Decision taken up front (just-in-time):** a program does **not** pre-generate
 every session. It stores a thin, persistent *plan layer* (schedule + cycle
