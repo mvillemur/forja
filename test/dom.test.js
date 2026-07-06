@@ -108,6 +108,38 @@ setTimeout(() => {
     [...d.querySelectorAll("#hist-list .ex-kg")].some(n => n.textContent === kgTxt));
   d.querySelector("#hist-list .hist-meta").click();   // collapse for the rest
 
+  // Relative timestamp on the card sub-line.
+  ok("history cards show a relative time", /hoy|ayer|hace/.test(d.querySelector("#hist-list .hist-sub").textContent));
+
+  // Repeat: load a saved session as today's routine on the Generate view.
+  const repBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "↻");
+  ok("saved session has a repeat button", !!repBtn);
+  repBtn.click();
+  ok("repeat loads the routine on the generate view",
+    d.querySelector("#view-gen").classList.contains("active") &&
+    !d.querySelector("#save-row").classList.contains("hidden") &&
+    d.querySelectorAll("#routine-out .element").length > 0);
+
+  // Mis rutinas: save the loaded routine as a template, then load it back.
+  window.prompt = () => "Plantilla test";
+  d.querySelector("#btn-save-template").click();
+  ok("template shelf appears with the saved routine",
+    !d.querySelector("#templates-card").classList.contains("hidden") &&
+    /Plantilla test/.test(d.querySelector("#templates-list").textContent));
+  d.querySelector("#templates-list .tpl-row .icon-btn").click();
+  ok("loading a template shows an editable routine",
+    d.querySelectorAll("#routine-out .element").length > 0 &&
+    !d.querySelector("#save-row").classList.contains("hidden"));
+
+  // History status filter.
+  d.querySelector('.nav button[data-view="hist"]').click();
+  const doneChip = [...d.querySelectorAll("#hist-filter .chip")].find(c => /Completadas/.test(c.textContent));
+  ok("history filter chips render", !!doneChip);
+  doneChip.click();
+  ok("completed filter hides an uncompleted session", /Nada aquí/.test(d.querySelector("#hist-list").textContent));
+  [...d.querySelectorAll("#hist-filter .chip")].find(c => /Todas/.test(c.textContent)).click();
+  ok("clearing the filter restores the session", d.querySelectorAll("#hist-list .card").length === 1);
+
   // Workout timer: training a saved session opens the overlay with phases.
   const trainBtn = [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.textContent === "▶");
   ok("saved session has a train button", !!trainBtn);

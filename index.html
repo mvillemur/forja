@@ -245,6 +245,12 @@
         <button class="btn btn-forge" id="btn-guardar">Guardar sesión</button>
       </div>
       <button class="btn btn-ghost" id="btn-train" style="margin-top:10px;">▶ Entrenar (temporizador)</button>
+      <button class="btn btn-ghost" id="btn-save-template" style="margin-top:10px;">★ Guardar en Mis rutinas</button>
+    </div>
+
+    <div class="card hidden" id="templates-card" style="margin-top:14px;">
+      <div class="label">Mis rutinas <span style="font-weight:400;color:var(--ink-faint)">(plantillas reutilizables)</span></div>
+      <div id="templates-list"></div>
     </div>
   </section>
 
@@ -264,6 +270,7 @@
       </details>
     </div>
     <div id="hist-stats"></div>
+    <div id="hist-filter" class="chips" style="margin:2px 2px 12px;"></div>
     <div id="hist-list"></div>
   </section>
 
@@ -353,6 +360,8 @@
         <p><b>3.</b> <b>Guardar sesión</b> la envía al <b>Historial</b>.</p>
         <p><b>4.</b> <b>Entrenar (▶)</b> abre el temporizador guiado: arranca con el calentamiento, te lleva serie a serie y <b>registra lo que haces de verdad</b> — en cada descanso puedes ajustar las repeticiones de la serie hecha y valorar el ejercicio (Fácil / OK / Duro). Al terminar, la sesión se marca <b>✓ completada</b> sola y lo registrado alimenta tu volumen, tu e1RM y la progresión.</p>
         <p><b>5.</b> En Historial, toca una sesión para ver el detalle; el ✓ también se puede marcar a mano. Con <b>✎</b> editas la rutina guardada — puedes <b>cambiar el ejercicio</b> de cada hueco y sus series, repeticiones y kg — y los cambios quedan en esa sesión (el temporizador los usa tal cual; al cambiar un ejercicio se reevalúa la superserie y el calentamiento).</p>
+        <p><b>6.</b> <b>↻ Repetir</b> vuelve a cargar esa sesión como la rutina de hoy (para ajustarla, entrenarla o guardarla de nuevo). Los filtros de arriba (Todas / Pendientes / Completadas) acotan la lista.</p>
+        <p><b>7.</b> <b>★ Guardar en Mis rutinas</b> (bajo una rutina generada o creada) la guarda como <b>plantilla reutilizable</b>. Tus plantillas aparecen en <b>Generar</b> para cargarlas cuando quieras — a diferencia del Historial, que es el registro de lo que ya hiciste.</p>
       </div>
     </details>
 

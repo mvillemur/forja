@@ -327,6 +327,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .mk-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
 .mk-add { margin-top: 10px; padding: 10px; font-size: 13px; }
 
+/* --- Mis rutinas (saved templates) --- */
+.tpl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.tpl-row:first-child { border-top: 0; }
+.tpl-meta { flex: 1; min-width: 0; }
+.tpl-name { font-weight: 600; font-size: 14px; }
+.tpl-sub { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
 /* --- Saved-routine editor --- */
 .red-block { margin: 12px 0 2px; }
 .red-row { padding: 8px 0; border-top: 1px solid var(--line); }

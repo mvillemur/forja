@@ -61,7 +61,7 @@
     return api;
   })();
 
-  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer" };
+  const K = { HIST: "forja:hist", POOL: "forja:pool", CUSTOM: "forja:custom", REMOVED: "forja:removed", OVERRIDES: "forja:overrides", CFG: "forja:cfg", KG: "forja:kg", PROG: "forja:prog", PAUSED: "forja:paused", TIMER: "forja:timer", ROUTINES: "forja:routines" };
   // Original catalog names (24): reference for migration without hiding new additions.
   const LEGACY_BASE = [
     "Peso Muerto Rumano / Fijo", "Kettlebell Swings (Dos manos)", "Alternating Swings", "Swing Cleans",
@@ -88,6 +88,7 @@
     custom: [],       // exercises added by the user (each carries a stable id)
     removed: [],      // ids of hidden base exercises
     paused: [],       // ids temporarily out of selection (injury, no bar...)
+    templates: [],    // saved reusable routines ("Mis rutinas")
     overrides: {},    // id -> edited fields of base exercises
     pool: [],         // computed
     byId: {},         // computed: id -> exercise of the effective pool
@@ -105,6 +106,7 @@
   // UI-only filters for the Pool view: free-text search + tag selections.
   const poolFilter = { text: "", pattern: [], dynamics: [], tier: [] };
   let manualEditId = null;   // id of the manual session currently being edited
+  let applyModeRef = null;   // init() assigns applyMode so module-scope loadRoutine can call it
   // Monotonic id generator: history/session ids must be unique even when two
   // are minted within the same millisecond (e.g. a save and a CSV import, or
   // several sessions in one import). Seeded above any existing id on load.
@@ -221,6 +223,8 @@
     const ov = await loadJson(K.OVERRIDES); if (ov && typeof ov === "object") state.overrides = ov;
     state.paused = await loadJson(K.PAUSED, []);
     if (!Array.isArray(state.paused)) state.paused = [];
+    state.templates = await loadJson(K.ROUTINES, []);
+    if (!Array.isArray(state.templates)) state.templates = [];
     const kg = await loadJson(K.KG); if (kg && typeof kg === "object") state.kg = kg;
     const pr = await loadJson(K.PROG); if (pr && typeof pr === "object") state.prog = pr;
     // Migration: pinned as strings -> objects {name, block}
@@ -350,6 +354,7 @@
   };
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
+  const saveTemplates = () => Store.set(K.ROUTINES, JSON.stringify(state.templates));
   // Paused = temporarily out of SELECTION (injury, missing equipment...):
   // the generator, the builder picker, the pin list and the routine-editor
   // swap all skip paused exercises, but nothing already using them (drafts,
@@ -971,6 +976,7 @@
     const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
     state.routine = r;
     state.routineSource = "auto";
+    state.loadedObjective = null;   // freshly generated: config objective applies
     state.lastSavedId = null;   // a fresh routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: c.weightMin, max: c.weightMax }, true);
     $("#audit-out").innerHTML = "";
@@ -978,6 +984,64 @@
     $("#save-row").classList.remove("hidden");
     saveConfig();
     scrollToRoutine();   // jump straight to the result, not the bottom of the form
+  }
+
+  // Put an EXISTING routine (a repeated session or a saved template) onto the
+  // Generate view as the live, editable routine — the shared tail of
+  // generateRoutine, minus generation. `source` marks manual vs auto so
+  // saving keeps the right objective; regeneration is hidden (there is no
+  // config behind this routine to regenerate from).
+  function loadRoutine(routine, source, objective) {
+    state.routine = JSON.parse(JSON.stringify(routine));
+    state.routineSource = source === "manual" ? "manual" : "auto";
+    state.loadedObjective = objective || null;   // used by saveToHistory below
+    state.lastSavedId = null;
+    state.cfg.mode = "auto"; setSeg("#seg-mode", "auto");
+    if (typeof applyModeRef === "function") applyModeRef();
+    showView("gen");
+    renderRoutine(state.routine, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
+    $("#audit-out").innerHTML = "";
+    $("#btn-regenerar").classList.add("hidden");
+    $("#save-row").classList.remove("hidden");
+    scrollToRoutine();
+  }
+
+  // ---- Mis rutinas: saved reusable routines -----------------------------
+  function saveCurrentAsTemplate() {
+    if (!state.routine) { toast("Genera o compón una rutina primero"); return; }
+    const def = (OBJ_LABEL[state.routineSource === "manual" ? "MANUAL" : state.cfg.objective] || "Rutina") +
+      " · " + new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+    let name = def;
+    try { const p = window.prompt("Nombre de la plantilla", def); if (p === null) return; if (p.trim()) name = p.trim(); } catch (e) {}
+    state.templates.unshift({
+      id: nextId(), name,
+      source: state.routineSource,
+      objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
+      routine: JSON.parse(JSON.stringify(state.routine)),
+    });
+    saveTemplates(); renderTemplates(); toast("Guardada en Mis rutinas");
+  }
+  function renderTemplates() {
+    const host = $("#templates-list"); if (!host) return;
+    host.innerHTML = "";
+    $("#templates-card").classList.toggle("hidden", !state.templates.length);
+    state.templates.forEach(t => {
+      const row = el("div", "tpl-row");
+      const meta = el("div", "tpl-meta");
+      meta.appendChild(el("div", "tpl-name", esc(t.name)));
+      const nEx = (t.routine.blocks || []).reduce((a, b) => a + b.elements.reduce((x, e2) => x + e2.prescriptions.length, 0), 0);
+      meta.appendChild(el("div", "tpl-sub", (OBJ_LABEL[t.objective] || t.objective || "") + " · " + nEx + " ejercicios"));
+      meta.style.cursor = "pointer";
+      meta.onclick = () => { loadRoutine(t.routine, t.source, t.objective); toast("Plantilla cargada · ajusta o entrena"); };
+      const load = el("button", "icon-btn", "▶"); a11y(load, "Cargar plantilla");
+      load.onclick = () => { loadRoutine(t.routine, t.source, t.objective); toast("Plantilla cargada · ajusta o entrena"); };
+      const del = el("button", "icon-btn del", "✕"); a11y(del, "Borrar plantilla");
+      del.onclick = () => { state.templates = state.templates.filter(x => x.id !== t.id); saveTemplates(); renderTemplates(); toast("Plantilla borrada"); };
+      const actions = el("div", "hist-actions");
+      actions.appendChild(load); actions.appendChild(del);
+      row.appendChild(meta); row.appendChild(actions);
+      host.appendChild(row);
+    });
   }
 
   // ---- Manual routine builder ("Creada por mi") --------------------------
@@ -1160,6 +1224,7 @@
     if (declared) opts.declared = declared;
     state.routine = r;
     state.routineSource = "manual";
+    state.loadedObjective = null;
     state.lastSavedId = null;   // a freshly composed routine is not yet in history
     renderRoutine(r, $("#routine-out"), { min: state.cfg.weightMin, max: state.cfg.weightMax }, true);
     renderAudit(F.auditRoutine(r, opts), $("#audit-out"),
@@ -1374,7 +1439,10 @@
     const entry = Object.assign({
       id: nextId(),
       date: new Date().toISOString(),
-      objective: state.routineSource === "manual" ? "MANUAL" : state.cfg.objective,
+      // A repeated session / loaded template records ITS objective, not the
+      // current config; a freshly generated one uses the config objective.
+      objective: state.routineSource === "manual" ? "MANUAL"
+        : (state.loadedObjective || state.cfg.objective),
       minutes: state.cfg.minutes, balance: state.cfg.balance,
       duration: F.routineDurationMin(r), routine: r, completed: false, range: { min: state.cfg.weightMin, max: state.cfg.weightMax },
     }, extra || {});
@@ -1678,14 +1746,50 @@
   }
 
   // ---- Render: history
+  // Relative age of a date in plain Spanish ("hoy", "ayer", "hace 3 días",
+  // "hace 2 sem", "hace 5 meses"). Purely cosmetic, paired with the date.
+  function relTime(d) {
+    const days = Math.floor((Date.now() - d.getTime()) / 864e5);
+    if (days <= 0) return "hoy";
+    if (days === 1) return "ayer";
+    if (days < 14) return "hace " + days + " días";
+    if (days < 60) return "hace " + Math.floor(days / 7) + " sem";
+    return "hace " + Math.floor(days / 30) + " meses";
+  }
+
+  // History status filter (UI-only, not persisted).
+  let histFilter = "all";   // all | done | pending
+  function histMatches(h) {
+    if (histFilter === "done") return !!h.completed;
+    if (histFilter === "pending") return !h.completed;
+    return true;
+  }
+  function renderHistFilter() {
+    const host = $("#hist-filter"); if (!host) return;
+    host.innerHTML = "";
+    [["all", "Todas"], ["pending", "Pendientes"], ["done", "Completadas"]].forEach(([v, label]) => {
+      const c = el("button", "chip filter-chip", label);
+      c.setAttribute("aria-pressed", String(histFilter === v));
+      c.onclick = () => { histFilter = v; renderHistory(); };
+      host.appendChild(c);
+    });
+  }
+
   function renderHistory() {
     renderStats();
+    renderTemplates();
+    renderHistFilter();
     const list = $("#hist-list"); list.innerHTML = "";
     if (!state.hist.length) {
       list.appendChild(el("div", "empty", "<b>Sin sesiones todavía</b>Genera una rutina y guárdala para llevar el registro."));
       return;
     }
-    state.hist.forEach(h => {
+    const shown = state.hist.filter(histMatches);
+    if (!shown.length) {
+      list.appendChild(el("div", "empty", "<b>Nada aquí</b>Ninguna sesión coincide con el filtro."));
+      return;
+    }
+    shown.forEach(h => {
       // One malformed entry (old backup, hand-edited file, shape drift) must
       // not blank the whole History view: render what loads, flag the rest.
       try {
@@ -1710,8 +1814,7 @@
       const row = el("div", "hist-item");
       const meta = el("div", "hist-meta");
       const d = new Date(h.date);
-      const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " " +
-        d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+      const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " · " + relTime(d);
       let title = OBJ_LABEL[h.objective] || h.objective;
       // Manual sessions carry their profile: declared by the trainee, else
       // the one the engine detected.
@@ -1759,6 +1862,13 @@
       const actions = el("div", "hist-actions");
       const trainBtn = el("button", "icon-btn", "▶"); a11y(trainBtn, "Entrenar con temporizador");
       trainBtn.onclick = () => startTimer(h.routine, h);   // timer logs into this entry
+      const repeatBtn = el("button", "icon-btn", "↻"); a11y(repeatBtn, "Repetir como rutina de hoy");
+      repeatBtn.onclick = () => {
+        const objective = h.objective === "MANUAL"
+          ? null : (F.TEMPLATES[h.objective] ? h.objective : null);
+        loadRoutine(h.routine, h.objective === "MANUAL" ? "manual" : "auto", objective);
+        toast("Rutina cargada · ajústala, entrénala o guárdala");
+      };
       const editRt = el("button", "icon-btn", "✎"); a11y(editRt, "Editar rutina");
       editRt.onclick = () => { renderRoutineEditor(h, detail); detail.classList.remove("hidden"); };
       const okBtn = el("button", "icon-btn" + (h.completed ? " on" : ""), "✓");
@@ -1766,7 +1876,7 @@
       okBtn.onclick = () => { h.completed = !h.completed; saveHistory(); renderHistory(); };
       const del = el("button", "icon-btn del", "✕"); a11y(del, "Eliminar");
       del.onclick = () => { state.hist = state.hist.filter(x => x.id !== h.id); saveHistory(); renderHistory(); toast("Sesión eliminada"); };
-      actions.appendChild(trainBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
+      actions.appendChild(trainBtn); actions.appendChild(repeatBtn); actions.appendChild(editRt); actions.appendChild(okBtn); actions.appendChild(del);
       row.appendChild(meta); row.appendChild(actions);
       card.appendChild(row); card.appendChild(detail);
       return card;
@@ -1983,6 +2093,7 @@
       prog: state.prog,
       cfg: state.cfg,
       paused: state.paused,
+      templates: state.templates,
     };
   }
   function exportData() {
@@ -2020,12 +2131,14 @@
         if (data.prog && typeof data.prog === "object") state.prog = data.prog;
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
         if (Array.isArray(data.paused)) state.paused = data.paused;
+        if (Array.isArray(data.templates)) state.templates = data.templates;
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),
           Store.set(K.PROG, JSON.stringify(state.prog)),
           Store.set(K.CFG, JSON.stringify(state.cfg)),
           savePaused(),
+          saveTemplates(),
           savePoolState(),
         ]);
         computePool();
@@ -2353,6 +2466,7 @@
       $("#mode-manual").classList.toggle("hidden", !manual);
       if (manual) renderBuilder();
     };
+    applyModeRef = applyMode;   // let loadRoutine (module scope) reach it
     setSeg("#seg-mode", state.cfg.mode);
     applyMode();
     wireSeg("#seg-mode", v => { state.cfg.mode = v; saveConfig(); applyMode(); });
@@ -2488,6 +2602,8 @@
     $("#btn-regenerar").onclick = generateRoutine;
     $("#btn-guardar").onclick = () => { if (saveToHistory()) toast("Guardada en el historial"); };
     $("#btn-train").onclick = () => startTimer(state.routine);
+    $("#btn-save-template").onclick = saveCurrentAsTemplate;
+    renderTemplates();
 
     $("#btn-add-toggle").onclick = () => {
       const panel = $("#pool-form"); const open = panel.classList.contains("hidden");
