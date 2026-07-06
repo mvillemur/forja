@@ -89,7 +89,8 @@
     removed: [],      // ids of hidden base exercises
     paused: [],       // ids temporarily out of selection (injury, no bar...)
     templates: [],    // saved reusable routines ("Mis rutinas")
-    program: null,    // active multi-week program (plan layer) or null
+    programs: [],     // multi-week programs (plan layer); may hold several
+    activeProgramId: null,   // which program "Entrenar hoy" runs
     overrides: {},    // id -> edited fields of base exercises
     pool: [],         // computed
     byId: {},         // computed: id -> exercise of the effective pool
@@ -226,8 +227,14 @@
     if (!Array.isArray(state.paused)) state.paused = [];
     state.templates = await loadJson(K.ROUTINES, []);
     if (!Array.isArray(state.templates)) state.templates = [];
-    state.program = await loadJson(K.PROGRAM, null);
-    if (state.program && typeof state.program !== "object") state.program = null;
+    // Program store: { programs:[...], activeId }. Migrate the old single-
+    // program shape (a bare object with an id) into a one-element list.
+    const pgStore = await loadJson(K.PROGRAM, null);
+    if (Array.isArray(pgStore)) { state.programs = pgStore; }
+    else if (pgStore && Array.isArray(pgStore.programs)) { state.programs = pgStore.programs; state.activeProgramId = pgStore.activeId || null; }
+    else if (pgStore && pgStore.id) { state.programs = [pgStore]; state.activeProgramId = pgStore.id; }
+    else state.programs = [];
+    if (!state.activeProgramId && state.programs[0]) state.activeProgramId = state.programs[0].id;
     const kg = await loadJson(K.KG); if (kg && typeof kg === "object") state.kg = kg;
     const pr = await loadJson(K.PROG); if (pr && typeof pr === "object") state.prog = pr;
     // Migration: pinned as strings -> objects {name, block}
@@ -358,7 +365,8 @@
   const saveConfig = () => Store.set(K.CFG, JSON.stringify(state.cfg));
   const savePaused = () => Store.set(K.PAUSED, JSON.stringify(state.paused));
   const saveTemplates = () => Store.set(K.ROUTINES, JSON.stringify(state.templates));
-  const saveProgram = () => Store.set(K.PROGRAM, JSON.stringify(state.program));
+  const saveProgram = () => Store.set(K.PROGRAM, JSON.stringify({ programs: state.programs, activeId: state.activeProgramId }));
+  const activeProgram = () => state.programs.find(p => p.id === state.activeProgramId) || null;
   // Paused = temporarily out of SELECTION (injury, missing equipment...):
   // the generator, the builder picker, the pin list and the routine-editor
   // swap all skip paused exercises, but nothing already using them (drafts,
@@ -1057,15 +1065,20 @@
   }
 
   // ---- Multi-week program (plan layer over the generator) ----------------
-  // The program stores intent (schedule + mesocycle + anchors + cursor), not
-  // routines: each day is generated just-in-time from its objective, the
-  // week's phase (ramp/deload) and the trainee's live numbers, then saved to
-  // normal history tagged with the program slot. Methodology + parameters:
-  // docs/program-generation-methodology.md.
+  // The program stores intent (schedule + mesocycle + anchors + cursor + a
+  // global cycle emphasis), not routines: each day is generated just-in-time
+  // from its objective, the week's phase (ramp/deload), the trainee's live
+  // numbers and the cycle emphasis distributed across the week, then saved to
+  // normal history tagged with the program slot. Several programs can coexist;
+  // one is active. Methodology: docs/program-generation-methodology.md.
   const PROG_EMPHASIS_CHOICES = [
     ["", "—"], ["LEGS", "Piernas"], ["PUSH,PULL", "Torso"],
     ["PUSH", "Empuje"], ["PULL", "Pull"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
   ];
+  const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
+  let progCreating = false;   // UI flag: show the create form even if programs exist
+  let progEditOpen = false;   // keep the editor <details> open across re-renders
+
   // Default anchors: one fundamental per distinct pattern, up to 3 — the lifts
   // kept every matching day so progression/e1RM compound (continuity).
   function defaultAnchors() {
@@ -1076,85 +1089,132 @@
   }
   function createProgram(days, mesoLen) {
     const d = Math.max(2, Math.min(6, days || 3));
-    state.program = {
-      id: nextId(), name: "Mi programa", daysPerWeek: d,
+    const pg = {
+      id: nextId(), name: "Programa " + (state.programs.length + 1), daysPerWeek: d,
       week: F.programWeekDefaults(d),
       mesocycle: { lengthWeeks: mesoLen || 4, deloadEveryWeeks: mesoLen || 4 },
       anchors: defaultAnchors(),
       cursor: { week: 1, dayIndex: 0 },
       baseMinutes: state.cfg.minutes,
+      cycleEmphasis: [],        // global "bring up X this cycle" (soft)
+      cycleDose: "medium",      // how many days lean toward it
     };
+    state.programs.push(pg);
+    state.activeProgramId = pg.id;
+    progCreating = false;
     saveProgram(); renderProgram();
+  }
+  // Which day indices carry the global cycle emphasis, spread across the week
+  // by dose: soft=1 day, medium≈half, strong=most (always leaving one general
+  // day so it stays "más, no solo").
+  function cycleEmphasisDays(pg) {
+    if (!pg.cycleEmphasis || !pg.cycleEmphasis.length) return new Set();
+    const n = pg.week.length;
+    const count = pg.cycleDose === "soft" ? 1
+      : pg.cycleDose === "strong" ? Math.max(1, n - 1)
+      : Math.max(1, Math.round(n / 2));
+    const set = new Set();
+    for (let i = 0; i < count; i++) set.add(Math.round((i * n) / count) % n);
+    return set;
+  }
+  // The effective soft emphasis for a day: a manual per-day override wins;
+  // otherwise the global cycle emphasis on the days it's distributed to.
+  function effectiveEmphasis(pg, dayIndex) {
+    const day = pg.week[dayIndex];
+    if (day.emphasis && day.emphasis.length) return day.emphasis;
+    if (cycleEmphasisDays(pg).has(dayIndex)) return pg.cycleEmphasis;
+    return [];
   }
   // Anchors that fit a given day's objective (an anchor whose dynamics appears
   // in that objective's template), as generator pins.
-  function anchorsForDay(day) {
+  function anchorsForDay(pg, day) {
     const tpl = F.TEMPLATES[day.objective];
     if (!tpl) return [];
-    return (state.program.anchors || [])
+    return (pg.anchors || [])
       .map(id => state.byId[id])
       .filter(e => e && !isPaused(e.id) && tpl.blocks.some(b => [...b.dynamics].includes(e.dynamics)))
       .map(e => ({ name: e.name, block: "AUTO" }));
   }
   function trainToday() {
-    const pg = state.program; if (!pg) return;
+    const pg = activeProgram(); if (!pg) return;
     const day = pg.week[pg.cursor.dayIndex];
     const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
+    const emph = effectiveEmphasis(pg, pg.cursor.dayIndex);
     const c = state.cfg;
     const opts = {
       objective: day.objective,
-      emphasis: (day.emphasis && day.emphasis.length) ? day.emphasis : undefined,
+      emphasis: emph.length ? emph : undefined,
       equipment: c.equipment, weightMin: c.weightMin, weightMax: c.weightMax, profile: c.profile,
       readiness: c.readiness, vary: true, recent: calcRecent(), seed: null, sameWeight: c.sameWeight,
       minutes: Math.max(10, Math.round((pg.baseMinutes || c.minutes) * phase.volumeFactor)),
       loadBias: 1 + 0.1 * phase.intensityFactor,
-      pinned: anchorsForDay(day),
+      pinned: anchorsForDay(pg, day),
     };
     const r = F.generate(state.pool.filter(e => !isPaused(e.id)), opts);
     loadRoutine(r, "auto", day.objective);   // clears pendingProgram, then:
     state.pendingProgram = { programId: pg.id, week: pg.cursor.week, dayIndex: pg.cursor.dayIndex, label: day.label, deload: phase.deload };
-    toast(day.label + " · semana " + pg.cursor.week + (phase.deload ? " · deload" : ""));
+    toast(day.label + " · semana " + pg.cursor.week + (phase.deload ? " · descarga" : ""));
   }
   function advanceProgram() {
-    const pg = state.program; if (!pg) return;
+    const pg = state.pendingProgram ? state.programs.find(p => p.id === state.pendingProgram.programId) : null;
+    if (!pg) return;
     pg.cursor.dayIndex++;
     if (pg.cursor.dayIndex >= pg.week.length) { pg.cursor.dayIndex = 0; pg.cursor.week++; }
     saveProgram();
   }
+
+  function renderProgramCreate(host) {
+    host.appendChild(el("div", "prog-intro",
+      "Un programa encadena semanas: mantiene tus ejercicios base (para que la progresión se acumule), reparte objetivos por día y sube el volumen antes de una semana de descarga. Cada día se genera al momento con tus números más recientes."));
+    let days = 3, meso = 4;
+    const stepRow = (label, get, set, min, max) => {
+      const row = el("div", "est-row");
+      row.appendChild(el("span", null, label));
+      const step = el("div", "stepper");
+      const dec = el("button", null, "−"), val = el("span", "val", String(get())), inc = el("button", null, "+");
+      dec.onclick = () => { set(Math.max(min, get() - 1)); val.textContent = get(); };
+      inc.onclick = () => { set(Math.min(max, get() + 1)); val.textContent = get(); };
+      step.appendChild(dec); step.appendChild(val); step.appendChild(inc);
+      row.appendChild(step); return row;
+    };
+    host.appendChild(stepRow("Días por semana", () => days, v => days = v, 2, 6));
+    host.appendChild(stepRow("Semanas por ciclo (descarga la última)", () => meso, v => meso = v, 2, 8));
+    const create = el("button", "btn btn-forge", "Crear programa");
+    create.style.marginTop = "12px";
+    create.onclick = () => { createProgram(days, meso); toast("Programa creado"); };
+    host.appendChild(create);
+    if (state.programs.length) {
+      const cancel = el("button", "btn btn-ghost", "Cancelar");
+      cancel.style.marginTop = "10px";
+      cancel.onclick = () => { progCreating = false; renderProgram(); };
+      host.appendChild(cancel);
+    }
+  }
+
   function renderProgram() {
     const host = $("#program-body"); if (!host) return;
     host.innerHTML = "";
-    const pg = state.program;
-    if (!pg) {
-      host.appendChild(el("div", "prog-intro",
-        "Un programa encadena semanas: mantiene tus ejercicios base (para que la progresión se acumule), reparte objetivos por día y sube el volumen antes de una semana de descarga. Cada día se genera al momento con tus números más recientes."));
-      const daysRow = el("div", "est-row");
-      daysRow.appendChild(el("span", null, "Días por semana"));
-      let days = 3;
-      const dStep = el("div", "stepper");
-      const dDec = el("button", null, "−"), dVal = el("span", "val", "3"), dInc = el("button", null, "+");
-      dDec.onclick = () => { days = Math.max(2, days - 1); dVal.textContent = days; };
-      dInc.onclick = () => { days = Math.min(6, days + 1); dVal.textContent = days; };
-      dStep.appendChild(dDec); dStep.appendChild(dVal); dStep.appendChild(dInc);
-      daysRow.appendChild(dStep);
-      host.appendChild(daysRow);
-      const mesoRow = el("div", "est-row");
-      mesoRow.appendChild(el("span", null, "Semanas por ciclo (descarga la última)"));
-      let meso = 4;
-      const mStep = el("div", "stepper");
-      const mDec = el("button", null, "−"), mVal = el("span", "val", "4"), mInc = el("button", null, "+");
-      mDec.onclick = () => { meso = Math.max(2, meso - 1); mVal.textContent = meso; };
-      mInc.onclick = () => { meso = Math.min(8, meso + 1); mVal.textContent = meso; };
-      mStep.appendChild(mDec); mStep.appendChild(mVal); mStep.appendChild(mInc);
-      mesoRow.appendChild(mStep);
-      host.appendChild(mesoRow);
-      const create = el("button", "btn btn-forge", "Crear programa");
-      create.style.marginTop = "12px";
-      create.onclick = () => { createProgram(days, meso); toast("Programa creado"); };
-      host.appendChild(create);
-      return;
+
+    // Program switcher: pick the active program or start a new one.
+    if (state.programs.length) {
+      const bar = el("div", "prog-switch");
+      state.programs.forEach(p => {
+        const chip = el("button", "prog-tab" + (p.id === state.activeProgramId ? " current" : ""), esc(p.name));
+        chip.onclick = () => { state.activeProgramId = p.id; progCreating = false; saveProgram(); renderProgram(); };
+        bar.appendChild(chip);
+      });
+      const add = el("button", "prog-tab prog-add", "+ Nuevo");
+      add.onclick = () => { progCreating = true; renderProgram(); };
+      bar.appendChild(add);
+      host.appendChild(bar);
     }
-    // Active program: progress ribbon + week strip + editor + train button.
+
+    if (progCreating || !state.programs.length) { renderProgramCreate(host); return; }
+
+    const pg = activeProgram();
+    if (!pg) { renderProgramCreate(host); return; }
+
+    // Progress ribbon + week strip + train button.
     const phase = F.phaseFor(pg.cursor.week, pg.mesocycle);
     const ribbon = el("div", "prog-ribbon");
     ribbon.appendChild(el("span", "prog-week", "Semana " + pg.cursor.week));
@@ -1162,9 +1222,11 @@
       phase.deload ? "Descarga" : "Acumulación"));
     host.appendChild(ribbon);
 
+    const emphDays = cycleEmphasisDays(pg);
     const strip = el("div", "prog-strip");
     pg.week.forEach((day, i) => {
-      const chip = el("button", "prog-day" + (i === pg.cursor.dayIndex ? " current" : ""), esc(day.label));
+      const lean = (day.emphasis && day.emphasis.length) || emphDays.has(i);
+      const chip = el("button", "prog-day" + (i === pg.cursor.dayIndex ? " current" : "") + (lean ? " leaning" : ""), esc(day.label));
       a11y(chip, "Ir a este día");
       chip.onclick = () => { pg.cursor.dayIndex = i; saveProgram(); renderProgram(); };
       strip.appendChild(chip);
@@ -1176,12 +1238,62 @@
     trainBtn.onclick = trainToday;
     host.appendChild(trainBtn);
 
-    // Per-day editor: objective + soft emphasis (open on demand).
+    // ---- Editor (open on demand): name, cycle emphasis, mesocycle, days.
     const editWrap = el("details", "prog-edit");
-    const sum = document.createElement("summary"); sum.textContent = "Editar días y objetivos"; editWrap.appendChild(sum);
-    pg.week.forEach((day, i) => {
+    editWrap.open = progEditOpen;
+    editWrap.addEventListener("toggle", () => { progEditOpen = editWrap.open; });
+    const sum = document.createElement("summary"); sum.textContent = "Editar programa"; editWrap.appendChild(sum);
+
+    const nameRow = el("div", "prog-edit-row");
+    nameRow.appendChild(el("span", "prog-edit-lbl", "Nombre"));
+    const nameInp = document.createElement("input");
+    nameInp.type = "text"; nameInp.className = "manual-input"; nameInp.value = pg.name;
+    nameInp.oninput = () => { pg.name = nameInp.value; saveProgram(); };
+    nameInp.onchange = () => renderProgram();
+    nameRow.appendChild(nameInp);
+    editWrap.appendChild(nameRow);
+
+    // Global cycle emphasis + dose: bring up a region across the whole cycle.
+    const emRow = el("div", "prog-edit-row");
+    emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (mejora una zona; se reparte en varios días)"));
+    const emSel = document.createElement("select"); emSel.className = "mk-select";
+    const curEm = (pg.cycleEmphasis || []).join(",");
+    PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
+      const op = document.createElement("option"); op.value = v; op.textContent = label;
+      if (curEm === v) op.selected = true; emSel.appendChild(op);
+    });
+    emSel.onchange = () => { pg.cycleEmphasis = emSel.value ? emSel.value.split(",") : []; saveProgram(); renderProgram(); };
+    emRow.appendChild(emSel);
+    const doseSel = document.createElement("select"); doseSel.className = "mk-select";
+    PROG_DOSE_CHOICES.forEach(([v, label]) => {
+      const op = document.createElement("option"); op.value = v; op.textContent = "Dosis: " + label;
+      if ((pg.cycleDose || "medium") === v) op.selected = true; doseSel.appendChild(op);
+    });
+    doseSel.onchange = () => { pg.cycleDose = doseSel.value; saveProgram(); renderProgram(); };
+    emRow.appendChild(doseSel);
+    editWrap.appendChild(emRow);
+
+    // Mesocycle length.
+    const mesoRow = el("div", "prog-edit-row");
+    mesoRow.appendChild(el("span", "prog-edit-lbl", "Semanas por ciclo"));
+    const mesoStep = el("div", "stepper");
+    const mDec = el("button", null, "−"), mVal = el("span", "val", String(pg.mesocycle.deloadEveryWeeks)), mInc = el("button", null, "+");
+    const setMeso = v => { const n = Math.max(2, Math.min(8, v)); pg.mesocycle.lengthWeeks = n; pg.mesocycle.deloadEveryWeeks = n; mVal.textContent = n; saveProgram(); renderProgram(); };
+    mDec.onclick = () => setMeso(pg.mesocycle.deloadEveryWeeks - 1);
+    mInc.onclick = () => setMeso(pg.mesocycle.deloadEveryWeeks + 1);
+    mesoStep.appendChild(mDec); mesoStep.appendChild(mVal); mesoStep.appendChild(mInc);
+    mesoRow.appendChild(mesoStep);
+    editWrap.appendChild(mesoRow);
+
+    // Per-day objective + optional manual emphasis override.
+    editWrap.appendChild(el("div", "prog-edit-lbl", "Días (objetivo y énfasis manual opcional)"));
+    pg.week.forEach(day => {
       const row = el("div", "prog-edit-row");
-      row.appendChild(el("span", "prog-edit-lbl", esc(day.label)));
+      const lblInp = document.createElement("input");
+      lblInp.type = "text"; lblInp.className = "manual-input"; lblInp.value = day.label;
+      lblInp.oninput = () => { day.label = lblInp.value; saveProgram(); };
+      lblInp.onchange = () => renderProgram();
+      row.appendChild(lblInp);
       const objSel = document.createElement("select"); objSel.className = "mk-select";
       ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER", "EMOM", "AMRAP"].forEach(o => {
         const op = document.createElement("option"); op.value = o; op.textContent = OBJ_LABEL[o] || o;
@@ -1189,21 +1301,25 @@
       });
       objSel.onchange = () => { day.objective = objSel.value; saveProgram(); };
       row.appendChild(objSel);
-      const emSel = document.createElement("select"); emSel.className = "mk-select";
-      const cur = (day.emphasis || []).join(",");
+      const daySel = document.createElement("select"); daySel.className = "mk-select";
+      const curDay = (day.emphasis || []).join(",");
       PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
-        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + label;
-        if (cur === v) op.selected = true; emSel.appendChild(op);
+        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + (v ? label : "auto");
+        if (curDay === v) op.selected = true; daySel.appendChild(op);
       });
-      emSel.onchange = () => { day.emphasis = emSel.value ? emSel.value.split(",") : []; saveProgram(); };
-      row.appendChild(emSel);
+      daySel.onchange = () => { day.emphasis = daySel.value ? daySel.value.split(",") : []; saveProgram(); renderProgram(); };
+      row.appendChild(daySel);
       editWrap.appendChild(row);
     });
     host.appendChild(editWrap);
 
-    const del = el("button", "btn btn-ghost", "Borrar programa");
+    const del = el("button", "btn btn-ghost", "Borrar este programa");
     del.style.marginTop = "12px";
-    del.onclick = () => { state.program = null; saveProgram(); renderProgram(); toast("Programa borrado"); };
+    del.onclick = () => {
+      state.programs = state.programs.filter(p => p.id !== pg.id);
+      state.activeProgramId = state.programs[0] ? state.programs[0].id : null;
+      saveProgram(); renderProgram(); toast("Programa borrado");
+    };
     host.appendChild(del);
   }
 
@@ -2270,7 +2386,7 @@
       cfg: state.cfg,
       paused: state.paused,
       templates: state.templates,
-      program: state.program,
+      program: { programs: state.programs, activeId: state.activeProgramId },
     };
   }
   function exportData() {
@@ -2309,7 +2425,13 @@
         if (data.cfg && typeof data.cfg === "object") Object.assign(state.cfg, data.cfg);
         if (Array.isArray(data.paused)) state.paused = data.paused;
         if (Array.isArray(data.templates)) state.templates = data.templates;
-        if (data.program && typeof data.program === "object") state.program = data.program;
+        if (data.program && typeof data.program === "object") {
+          // Accept both the new {programs, activeId} shape and the old single
+          // program object.
+          if (Array.isArray(data.program.programs)) { state.programs = data.program.programs; state.activeProgramId = data.program.activeId || null; }
+          else if (data.program.id) { state.programs = [data.program]; state.activeProgramId = data.program.id; }
+          if (!state.activeProgramId && state.programs[0]) state.activeProgramId = state.programs[0].id;
+        }
         await Promise.all([
           Store.set(K.HIST, JSON.stringify(state.hist)),
           Store.set(K.KG, JSON.stringify(state.kg)),

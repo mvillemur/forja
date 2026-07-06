@@ -403,6 +403,16 @@ setTimeout(() => {
   [...d.querySelectorAll("#program-body .btn")].find(b => /Crear programa/.test(b.textContent)).click();
   ok("program shows a week strip after creation", d.querySelectorAll("#program-body .prog-day").length >= 2);
   ok("program shows the accumulation phase", /Acumulación|Descarga/.test(d.querySelector("#program-body .prog-phase").textContent));
+
+  // Global cycle emphasis: pick a region, days lean toward it.
+  d.querySelector("#program-body .prog-edit summary").click();
+  const cycleSel = [...d.querySelectorAll("#program-body .mk-select")].find(s => [...s.options].some(o => o.textContent === "Piernas"));
+  ok("program has a cycle-emphasis selector", !!cycleSel);
+  cycleSel.value = "LEGS"; cycleSel.dispatchEvent(new window.Event("change"));
+  ok("cycle emphasis marks leaning days on the strip", d.querySelectorAll("#program-body .prog-day.leaning").length >= 1);
+  ok("cycle emphasis does NOT lean every day (más, no solo)",
+    d.querySelectorAll("#program-body .prog-day.leaning").length < d.querySelectorAll("#program-body .prog-day").length);
+
   const trainToday = [...d.querySelectorAll("#program-body .btn")].find(b => /Entrenar hoy/.test(b.textContent));
   ok("program has an Entrenar hoy button", !!trainToday);
   trainToday.click();
@@ -414,8 +424,18 @@ setTimeout(() => {
   d.querySelector('.nav button[data-view="prog"]').click();
   ok("cursor advanced to day 2 after saving",
     [...d.querySelectorAll("#program-body .prog-day")][1].classList.contains("current"));
-  // Clean up: delete the program so later state is neutral.
-  [...d.querySelectorAll("#program-body .btn")].find(b => /Borrar programa/.test(b.textContent)).click();
+
+  // Multiple programs: add a second, switch between them.
+  d.querySelector("#program-body .prog-tab.prog-add").click();
+  [...d.querySelectorAll("#program-body .btn")].find(b => /Crear programa/.test(b.textContent)).click();
+  ok("a second program can be created", d.querySelectorAll("#program-body .prog-tab").length >= 3);   // 2 programs + "+ Nuevo"
+  const firstTab = d.querySelector("#program-body .prog-tab");
+  firstTab.click();
+  ok("switching programs marks one active", d.querySelector("#program-body .prog-tab.current") === firstTab || !!d.querySelector("#program-body .prog-tab.current"));
+  // Clean up both programs so later state is neutral.
+  [...d.querySelectorAll("#program-body .btn")].find(b => /Borrar/.test(b.textContent)).click();
+  if (d.querySelector("#program-body .prog-tab:not(.prog-add)"))
+    [...d.querySelectorAll("#program-body .btn")].find(b => /Borrar/.test(b.textContent)).click();
 
   d.querySelector('.nav button[data-view="guia"]').click();
   ok("guide has 17 sections", d.querySelectorAll("#view-guia .acc").length === 17);
