@@ -235,10 +235,30 @@
     if (e.dynamics === DIN.ISO) e.holdSec = HOLD_BY_NAME[e.name] || 35;
   });
 
+  // Per-exercise seconds-per-rep override for COMPOUND "complex" lifts.
+  // The dynamics-based TEMPO below times one movement; a complex lift chains
+  // several sub-movements into a single rep, so a lone tempo undercounts it
+  // badly (a ballistic "Clean + Sentadilla Goblet" is a fast clean AND a full
+  // squat — ~4 s, not 1.2 s). Each value ≈ the sum of its components' cadence
+  // (ballistic pull ~1.5 s, squat ~2.5 s, press ~2 s). Names not listed fall
+  // back to TEMPO[dynamics].
+  const REP_SEC_BY_NAME = {
+    "Clean + Sentadilla Goblet": 4.0,          // clean + full goblet squat
+    "Clean + Sentadilla Goblet + Press": 6.0,  // clean + squat + overhead press
+    "Clean + Press": 3.5,                       // clean + press (per side)
+    "Curl + Press": 4.0,                        // curl + press, two controlled reps
+    "Thruster": 3.0,                            // front squat + push press
+    "Burpees": 3.5,                             // drop + push-up + jump
+    "Push Press": 2.0,                          // dip-drive + overhead + rack reset
+  };
+
   // --- Volume and time model -----------------------------------------
   function classifyVolume(reps) { return reps <= 5 ? REP_RANGE.SP : reps <= 11 ? REP_RANGE.HP : REP_RANGE.ME; }
 
   const TEMPO = { STRENGTH:3.0, BALLISTIC:1.2, METABOLIC:2.0, ISO:0.0 };
+  // Seconds of work for ONE rep of an exercise: a compound override when the
+  // movement chains sub-movements, else the plain dynamics tempo.
+  function repSecFor(e) { return REP_SEC_BY_NAME[e.name] || TEMPO[e.dynamics]; }
   const REST_TIME = { SP:150, HP:75, ME:40 };
   const DEFAULT_HOLD_ISO = 35, SS_TRANSITION = 20, INTER_SIDE_REST = 15;
   const SETS_RANGE = { SP:[3,6], HP:[3,5], ME:[3,5] };
@@ -251,7 +271,7 @@
   // Work time for one SET. ISO uses the per-exercise holdSec (default 35).
   // Unilateral work trains both sides: ~2x work + a small inter-side micro-rest.
   function setWorkSec(e, reps) {
-    const oneSide = e.dynamics === DIN.ISO ? (e.holdSec || DEFAULT_HOLD_ISO) : reps * TEMPO[e.dynamics];
+    const oneSide = e.dynamics === DIN.ISO ? (e.holdSec || DEFAULT_HOLD_ISO) : reps * repSecFor(e);
     if (e.symmetry === SIM.UNILATERAL) return oneSide * 2 + INTER_SIDE_REST;
     return oneSide;
   }
