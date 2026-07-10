@@ -108,6 +108,24 @@ setTimeout(() => {
     [...d.querySelectorAll("#hist-list .ex-kg")].some(n => n.textContent === kgTxt));
   d.querySelector("#hist-list .hist-meta").click();   // collapse for the rest
 
+  // Editor deletions: remove an exercise row and a whole block, then save.
+  [...d.querySelectorAll("#hist-list .icon-btn")].find(b => b.title === "Editar rutina").click();
+  const exBefore = d.querySelectorAll("#hist-list .red-row").length;
+  const blkBefore = d.querySelectorAll("#hist-list .red-block-head").length;
+  ok("routine editor offers a per-exercise delete", !!d.querySelector("#hist-list .red-row .icon-btn.del"));
+  d.querySelector("#hist-list .red-row .icon-btn.del").click();
+  ok("deleting an exercise removes its row", d.querySelectorAll("#hist-list .red-row").length < exBefore);
+  ok("routine editor offers a per-block delete", blkBefore > 0);
+  const exAfterRowDel = d.querySelectorAll("#hist-list .red-row").length;
+  d.querySelector("#hist-list .red-block-head .icon-btn.del").click();
+  ok("deleting a block removes its header", d.querySelectorAll("#hist-list .red-block-head").length < blkBefore);
+  ok("deleting a block removes its exercises too", d.querySelectorAll("#hist-list .red-row").length < exAfterRowDel);
+  [...d.querySelectorAll("#hist-list .btn")].find(b => /Guardar cambios/.test(b.textContent)).click();
+  d.querySelector("#hist-list .hist-meta").click();
+  ok("deletions persist on the saved session",
+    d.querySelectorAll("#hist-list .element").length > 0);
+  d.querySelector("#hist-list .hist-meta").click();   // collapse for the rest
+
   // Relative timestamp on the card sub-line.
   ok("history cards show a relative time", /hoy|ayer|hace/.test(d.querySelector("#hist-list .hist-sub").textContent));
 

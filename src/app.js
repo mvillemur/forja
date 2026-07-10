@@ -2004,9 +2004,15 @@
       host.innerHTML = "";
       const pool = filteredPool().filter(e => !isPaused(e.id)).sort((a, b) => a.name.localeCompare(b.name));
       host.appendChild(el("div", "label", "Editar rutina · ejercicio, series, reps y kg"));
-      draft.blocks.forEach(br => {
-        host.appendChild(el("div", "label red-block", "Bloque " + br.block));
-        br.elements.forEach(elm => elm.prescriptions.forEach(p => {
+      draft.blocks.forEach((br, bi) => {
+        const bhead = el("div", "red-block-head");
+        bhead.appendChild(el("div", "label red-block", "Bloque " + br.block));
+        const delBlk = el("button", "icon-btn del", "✕"); a11y(delBlk, "Borrar bloque entero");
+        delBlk.onclick = () => { draft.blocks.splice(bi, 1); paint(); };
+        bhead.appendChild(delBlk);
+        host.appendChild(bhead);
+        if (!br.elements.length) host.appendChild(el("div", "pin-empty", "Bloque vacío (se quitará al guardar)."));
+        br.elements.forEach((elm, ei) => elm.prescriptions.forEach((p, pi) => {
           const row = el("div", "red-row");
           // Exercise swap: any pool exercise; the current one stays listed
           // even if it has since left the pool.
@@ -2056,6 +2062,21 @@
               : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise) || range.min);
             ctl.appendChild(stepper("red-kg", " kg", effKg, v => { p.kg = v; }, range.min, range.max, 2));
           }
+          // Remove this exercise: from a superset it drops to a single (re-
+          // judged); a lone exercise removes its whole element.
+          const rm = el("button", "icon-btn del red-rm", "✕"); a11y(rm, "Quitar ejercicio");
+          rm.onclick = () => {
+            if (elm.prescriptions.length === 2) {
+              elm.prescriptions.splice(pi, 1);
+              elm.isSuperset = false;
+              elm.quality = F.QUALITY.ACCEPTABLE;
+              elm.note = "Editada por ti.";
+            } else {
+              br.elements.splice(ei, 1);
+            }
+            paint();
+          };
+          ctl.appendChild(rm);
           row.appendChild(ctl);
           host.appendChild(row);
         }));
@@ -2065,6 +2086,9 @@
       cancel.onclick = () => renderHistory();
       const save = el("button", "btn btn-forge", "Guardar cambios");
       save.onclick = () => {
+        // Drop blocks left empty by deletions; a routine can't be empty.
+        draft.blocks = draft.blocks.filter(b => b.elements.length);
+        if (!draft.blocks.length) { toast("La rutina no puede quedar vacía"); return; }
         // Swaps may have changed the lead ballistic: refresh the warm-up.
         draft.warmup = F.buildWarmup(draft.blocks);
         h.routine = draft;

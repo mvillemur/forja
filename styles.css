@@ -364,6 +364,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 
 /* --- Saved-routine editor --- */
 .red-block { margin: 12px 0 2px; }
+.red-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.red-block-head .icon-btn { width: 28px; height: 28px; font-size: 12px; }
+.red-rm { width: 28px; height: 28px; font-size: 12px; margin-left: auto; }
 .red-row { padding: 8px 0; border-top: 1px solid var(--line); }
 .red-name { font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
 
