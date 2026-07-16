@@ -25,6 +25,20 @@ setTimeout(() => {
   ok("generates elements", d.querySelectorAll("#routine-out .element").length > 0);
   ok("shows suggested kg", d.querySelectorAll("#routine-out .ex-kg").length > 0);
 
+  // Single-bell superset shares ONE weight for both exercises, even with the
+  // block-level "misma pesa" mode off (you alternate them with one kettlebell).
+  (() => {
+    let ss = null;
+    for (let i = 0; i < 8 && !ss; i++) {
+      d.querySelector("#btn-generar").click();
+      ss = [...d.querySelectorAll("#routine-out .element.ss")]
+        .map(el => [...el.querySelectorAll(".ex-kg")].map(n => n.textContent))
+        .find(kgs => kgs.length === 2);
+    }
+    ok("a superset renders two exercises with kg", !!ss);
+    ok("superset shares one weight for both exercises", ss && ss[0] === ss[1]);
+  })();
+
   // Arms focus: a muscle-emphasis tag (not a pattern) that boosts
   // elbow-flexion/extension work in selection.
   const armsChip = d.querySelector('#focus-chips .chip[data-val="ARMS"]');

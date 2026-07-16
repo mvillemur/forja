@@ -411,15 +411,23 @@
     const id = exId(p.exercise);
     const min = state.cfg.weightMin, max = state.cfg.weightMax;
     const rng = F.progressionRange(p.reps, p.exercise.dynamics);
-    // Use the same kg key the renderer uses: a shared circuit key in
-    // same-weight mode, otherwise per-exercise. Keeps the bump visible.
+    // Use the same kg key the renderer uses so the bump stays visible: a
+    // shared circuit key (same-weight mode), a shared superset key (single-bell
+    // pair), otherwise per-exercise.
     const sameW = !!state.cfg.sameWeight;
-    const kgKey = sameW ? ("__sw:" + p.block) : id;
+    let shareEl = null;
+    if (!sameW && state.routine) {
+      state.routine.blocks.forEach(b => b.elements.forEach(elm => { if (elm.prescriptions.indexOf(p) >= 0) shareEl = elm; }));
+    }
+    const share = shareEl ? supersetShare(shareEl, { min, max }) : null;
+    const kgKey = sameW ? ("__sw:" + p.block) : share ? share.key : id;
     let curKg = state.kg[kgKey];
     if (curKg == null) {
       if (sameW && state.routine) {
         const blk = state.routine.blocks.find(b => b.block === p.block);
         curKg = blk ? F.unifiedKg(blk.elements.flatMap(e => e.prescriptions), { min, max }, state.cfg.profile) : null;
+      } else if (share) {
+        curKg = share.kg;
       }
       if (curKg == null) curKg = F.suggestKg(p.exercise.load, min, max, state.cfg.profile, p.exercise, p.reps);
     }
@@ -575,6 +583,12 @@
         tag.appendChild(el("span", "el-kind", item.isSuperset ? "Superserie" : "Set directo"));
         tag.appendChild(el("span", "quality q-" + item.quality, F.QUALITY_NAME[item.quality]));
         node.appendChild(tag);
+
+        // Single-kettlebell superset: the two exercises are alternated with the
+        // SAME bell, so they share one suggested/dialed weight — even when the
+        // block-level "misma pesa" mode is off.
+        const ssInfo = supersetShare(item, range);
+        const ssShare = !!ssInfo, ssKey = ssInfo && ssInfo.key, ssKg = ssInfo && ssInfo.kg;
         item.prescriptions.forEach((p, pi) => {
           const name = p.exercise.name;
           const id = exId(p.exercise);
@@ -594,6 +608,9 @@
             // One weight for the whole circuit; the per-lift fatigue taper is
             // intentionally skipped — the point is a single, constant load.
             baseKg = blockKg;
+          } else if (ssShare) {
+            // One weight for the superset pair (single-bell alternation).
+            baseKg = ssKg;
           } else {
             // Prefer the trainee's tracked strength (e1RM) once it has enough
             // data points: load = inverse-Epley at this exercise's rep target.
@@ -615,8 +632,9 @@
             if (baseKg != null && ctxFactor < 1) baseKg = F.snapKg(baseKg * ctxFactor, range.min, range.max);
           }
           if (baseKg != null) {
-            // In same-weight mode the override is shared across the block.
-            const kgKey = sameW ? swKey : id;
+            // Shared override key: whole block (same-weight mode), the superset
+            // pair (single-bell superset), else per exercise.
+            const kgKey = sameW ? swKey : ssShare ? ssKey : id;
             const savedKg = state.kg[kgKey];
             if (editable) {
               // Default to the kg the user last dialed in for this exercise
@@ -630,8 +648,9 @@
               const set = v => {
                 curKg = Math.max(range.min, Math.min(range.max, v));
                 kgSpan.textContent = curKg + " kg"; state.kg[kgKey] = curKg; saveKg();
-                // Re-render so the shared circuit weight updates every exercise.
-                if (sameW) renderRoutine(r, into, range, editable);
+                // Re-render so a shared weight (circuit or superset) updates
+                // both exercises at once.
+                if (sameW || ssShare) renderRoutine(r, into, range, editable);
               };
               dec.onclick = () => set(curKg - 2);
               inc.onclick = () => set(curKg + 2);
@@ -642,6 +661,7 @@
                   ? (pi === 1 && item.quality === F.QUALITY.ACCEPTABLE ? " · ajustado 2º superserie" : " · ajustado fatiga")
                   : "";
                 const reason = sameW ? "misma pesa · circuito"
+                  : ssShare ? "misma pesa · superserie"
                   : usedE1 ? "según tu e1RM" + tapered
                   : tapered ? tapered.replace(" · ", "") : "sugerido";
                 doseEl.appendChild(el("div", "ex-kg-hint", reason));
@@ -764,7 +784,15 @@
       const tl = F.blockTimeline(br, routine.protocol || null);
       if (!tl.length) return;
       if (steps.length) steps.push({ kind: "rest", sec: F.CHANGEOVER_SEC, label: routine.protocol ? "Cambio de bloque" : "Cambio de ejercicio", block: br.block });
-      tl.forEach(ph => steps.push(Object.assign({ block: br.block }, ph)));
+      // Map each prescription to its shared superset weight (single-bell pair),
+      // so the timer logs/uses the same weight the routine shows.
+      const shareByP = new Map();
+      br.elements.forEach(elm => { const s = supersetShare(elm); if (s) elm.prescriptions.forEach(pp => shareByP.set(pp, s)); });
+      tl.forEach(ph => {
+        const step = Object.assign({ block: br.block }, ph);
+        if (ph.prescription && shareByP.has(ph.prescription)) step.shared = shareByP.get(ph.prescription);
+        steps.push(step);
+      });
     });
     return steps;
   }
@@ -800,11 +828,29 @@
     document.body.appendChild(o);
     return o;
   }
+  // One shared weight for a single-bell superset: both exercises are alternated
+  // with the same kettlebell, so they share one dial (keyed by the exercise
+  // pair) and one unified suggestion. Null when block same-weight mode is on
+  // (the whole block already shares) or the element isn't a 2-exercise superset.
+  function supersetShare(elm, range) {
+    if (!elm || state.cfg.sameWeight || !elm.isSuperset || elm.prescriptions.length !== 2) return null;
+    const r = range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
+    return {
+      key: "__ss:" + elm.prescriptions.map(pp => exId(pp.exercise)).slice().sort().join("+"),
+      kg: F.unifiedKg(elm.prescriptions, r, state.cfg.profile),
+    };
+  }
   // Working kg for a prescription right now: the dialed weight (shared circuit
-  // weight in same-weight mode), else the engine suggestion.
-  function currentKgFor(p) {
+  // weight in same-weight mode, or a shared superset weight), else the engine
+  // suggestion. `shared` is the supersetShare info for the prescription's
+  // element, when known.
+  function currentKgFor(p, shared) {
     const sameW = !!state.cfg.sameWeight;
     if (sameW && state.kg["__sw:" + p.block] != null) return state.kg["__sw:" + p.block];
+    if (shared) {
+      if (state.kg[shared.key] != null) return state.kg[shared.key];
+      if (shared.kg != null) return shared.kg;
+    }
     if (state.kg[exId(p.exercise)] != null) return state.kg[exId(p.exercise)];
     return F.suggestKg(p.exercise.load, state.cfg.weightMin, state.cfg.weightMax, state.cfg.profile, p.exercise, p.reps);
   }
@@ -866,7 +912,7 @@
       if (p.exercise.dynamics === F.DIN.ISO) { T.logged[i] = { name: p.exercise.name }; T.lastEntry = null; return; }
       // Same rule as timerDose: a hand-edited saved session logs the
       // trainee's numbers, not the live progression target.
-      const entry = { name: p.exercise.name, kg: currentKgFor(p), reps: p.edited ? p.reps : targetReps(p), p };
+      const entry = { name: p.exercise.name, kg: currentKgFor(p, s.shared), reps: p.edited ? p.reps : targetReps(p), p };
       T.logged[i] = entry; T.done.push(entry); T.lastEntry = entry;
     }
     function renderLog() {
@@ -1973,15 +2019,21 @@
     if (!h.routine) return 0;
     const range = h.range || { min: state.cfg.weightMin, max: state.cfg.weightMax };
     let vol = 0;
-    h.routine.blocks.forEach(b => b.elements.forEach(elm => elm.prescriptions.forEach(p => {
-      const id = exId(p.exercise);
-      // Prefer the per-exercise kg; fall back to a shared circuit weight
-      // (same-weight mode), then to the engine suggestion.
-      const kg = state.kg[id] != null ? state.kg[id]
-        : state.kg["__sw:" + p.block] != null ? state.kg["__sw:" + p.block]
-        : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, p.reps) || 0);
-      vol += kg * p.sets * p.reps;
-    })));
+    h.routine.blocks.forEach(b => b.elements.forEach(elm => {
+      const share = supersetShare(elm, range);
+      elm.prescriptions.forEach(p => {
+        const id = exId(p.exercise);
+        // Same precedence as currentKgFor: a shared weight (circuit or
+        // superset) wins over a stale per-exercise value, then per-exercise,
+        // then the engine suggestion.
+        const kg = (state.cfg.sameWeight && state.kg["__sw:" + p.block] != null) ? state.kg["__sw:" + p.block]
+          : (share && state.kg[share.key] != null) ? state.kg[share.key]
+          : (share && share.kg != null) ? share.kg
+          : state.kg[id] != null ? state.kg[id]
+          : (F.suggestKg(p.exercise.load, range.min, range.max, state.cfg.profile, p.exercise, p.reps) || 0);
+        vol += kg * p.sets * p.reps;
+      });
+    }));
     return Math.round(vol);
   }
 
