@@ -1252,12 +1252,14 @@
 
     const emphDays = cycleEmphasisDays(pg);
     const strip = el("div", "prog-strip");
+    const dayChips = [];   // kept so label edits below reflect live at the top
     pg.week.forEach((day, i) => {
       const lean = (day.emphasis && day.emphasis.length) || emphDays.has(i);
       const chip = el("button", "prog-day" + (i === pg.cursor.dayIndex ? " current" : "") + (lean ? " leaning" : ""), esc(day.label));
       a11y(chip, "Ir a este día");
       chip.onclick = () => { pg.cursor.dayIndex = i; saveProgram(); renderProgram(); };
       strip.appendChild(chip);
+      dayChips.push(chip);
     });
     host.appendChild(strip);
 
@@ -1355,11 +1357,17 @@
 
     // Per-day objective + optional manual emphasis override.
     editWrap.appendChild(el("div", "prog-edit-lbl", "Días (objetivo y énfasis manual opcional)"));
-    pg.week.forEach(day => {
+    pg.week.forEach((day, i) => {
       const row = el("div", "prog-edit-row");
       const lblInp = document.createElement("input");
       lblInp.type = "text"; lblInp.className = "manual-input"; lblInp.value = day.label;
-      lblInp.oninput = () => { day.label = lblInp.value; saveProgram(); };
+      // Reflect the new label at the top (day strip + train button) as it is
+      // typed, so the edit is visibly saved without waiting for a re-render.
+      lblInp.oninput = () => {
+        day.label = lblInp.value; saveProgram();
+        if (dayChips[i]) dayChips[i].textContent = day.label;
+        if (i === pg.cursor.dayIndex) trainBtn.textContent = "Entrenar hoy · " + day.label;
+      };
       lblInp.onchange = () => renderProgram();
       row.appendChild(lblInp);
       const objSel = document.createElement("select"); objSel.className = "mk-select";
