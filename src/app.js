@@ -1092,9 +1092,10 @@
   // normal history tagged with the program slot. Several programs can coexist;
   // one is active. Methodology: docs/program-generation-methodology.md.
   // Atomic emphasis tags for the multi-select chip rows (pick more than one).
+  // Same body-part focuses as the Generar "Foco" chips.
   const PROG_EMPHASIS_TAGS = [
-    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"],
-    ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"], ["SHOULDERS", "Hombros"],
+    ["CHEST", "Pecho"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
   ];
   const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
   // Toggle a key in an emphasis array (returns a new array).

@@ -947,7 +947,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p>En <b>Programa</b> creas un plan de varias semanas. A diferencia de generar sueltas, el programa da tres cosas: <b>continuidad</b> (mantiene tus ejercicios base cada semana, para que la progresión y el e1RM se acumulen sobre los mismos lifts), un <b>calendario</b> (un objetivo por día) y <b>periodización</b> (sube el volumen unas semanas y luego una de <b>descarga</b>).</p>
         <p class="gloss"><b>Cómo funciona.</b> Eliges días por semana y semanas por ciclo. Cada día tiene su objetivo (editable). <b>Entrenar hoy</b> genera la sesión del día <b>al momento</b>, con tus números más recientes, el volumen de la semana y tus anclas fijadas; la entrenas y la guardas como cualquier sesión (queda etiquetada "sem N"). Al guardar, el programa avanza al día siguiente.</p>
-        <p class="gloss"><b>Énfasis del ciclo.</b> Puedes decir "este ciclo quiero mejorar una o varias zonas" (piernas, empuje, pull, core, brazos, agarre) tocando sus chips — puedes elegir más de una. El programa <b>reparte</b> ese énfasis suave en varios días según la <b>dosis</b> (suave = 1 día, medio ≈ la mitad, fuerte = casi todos) — más frecuencia en esas zonas, pero <b>sin abandonar el resto</b> ni romper el balance. Los días con énfasis se marcan en la cinta. También puedes fijar un énfasis manual (también múltiple) por día.</p>
+        <p class="gloss"><b>Énfasis del ciclo.</b> Puedes decir "este ciclo quiero mejorar una o varias zonas" (piernas, empuje, pull, hombros, pecho, core, brazos, agarre) tocando sus chips — puedes elegir más de una. El programa <b>reparte</b> ese énfasis suave en varios días según la <b>dosis</b> (suave = 1 día, medio ≈ la mitad, fuerte = casi todos) — más frecuencia en esas zonas, pero <b>sin abandonar el resto</b> ni romper el balance. Los días con énfasis se marcan en la cinta. También puedes fijar un énfasis manual (también múltiple) por día.</p>
         <p class="gloss"><b>Varios programas.</b> Puedes tener más de un programa (p. ej. uno de fuerza y otro más metabólico) y cambiar entre ellos con las pestañas de arriba; cada uno guarda su propio progreso. En <b>Editar programa</b> cambias el nombre, el énfasis del ciclo, las semanas, los días por semana, la duración y el objetivo de cada día; los cambios se aplican al pulsar <b>Guardar programa</b> (mientras tanto verás "cambios sin guardar", y puedes <b>Descartar</b>).</p>
         <p class="gloss"><b>Descarga.</b> La última semana de cada ciclo baja el volumen (~½) manteniendo el movimiento, para soltar fatiga. Es automática y se ve en la cinta de progreso.</p>
         <p>La <b>disposición del día</b> (¿Cómo llegas hoy?) sigue mandando encima: una semana dura + un día roto igual afloja. El programa pone la intención de la semana; tú pones el día.</p>
@@ -3761,9 +3761,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // normal history tagged with the program slot. Several programs can coexist;
   // one is active. Methodology: docs/program-generation-methodology.md.
   // Atomic emphasis tags for the multi-select chip rows (pick more than one).
+  // Same body-part focuses as the Generar "Foco" chips.
   const PROG_EMPHASIS_TAGS = [
-    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"],
-    ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"], ["SHOULDERS", "Hombros"],
+    ["CHEST", "Pecho"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
   ];
   const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
   // Toggle a key in an emphasis array (returns a new array).
