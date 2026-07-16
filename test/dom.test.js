@@ -422,12 +422,15 @@ setTimeout(() => {
   ok("program shows a week strip after creation", d.querySelectorAll("#program-body .prog-day").length >= 2);
   ok("program shows the accumulation phase", /Acumulación|Descarga/.test(d.querySelector("#program-body .prog-phase").textContent));
 
-  // Global cycle emphasis: pick a region, days lean toward it.
+  // Global cycle emphasis: edits go to a draft and only apply on Guardar.
   d.querySelector("#program-body .prog-edit summary").click();
   const cycleSel = [...d.querySelectorAll("#program-body .mk-select")].find(s => [...s.options].some(o => o.textContent === "Piernas"));
   ok("program has a cycle-emphasis selector", !!cycleSel);
   cycleSel.value = "LEGS"; cycleSel.dispatchEvent(new window.Event("change"));
-  ok("cycle emphasis marks leaning days on the strip", d.querySelectorAll("#program-body .prog-day.leaning").length >= 1);
+  ok("editing the program flags unsaved changes", /sin guardar/.test(d.querySelector("#program-body .prog-edit summary").textContent));
+  ok("draft edits do NOT change the strip before saving", d.querySelectorAll("#program-body .prog-day.leaning").length === 0);
+  [...d.querySelectorAll("#program-body .btn")].find(b => /Guardar programa/.test(b.textContent)).click();
+  ok("saving applies the cycle emphasis to the strip", d.querySelectorAll("#program-body .prog-day.leaning").length >= 1);
   ok("cycle emphasis does NOT lean every day (más, no solo)",
     d.querySelectorAll("#program-body .prog-day.leaning").length < d.querySelectorAll("#program-body .prog-day").length);
 

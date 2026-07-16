@@ -350,6 +350,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .prog-day.leaning { box-shadow: inset 0 -2px 0 var(--gold); }
 .prog-edit { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
 .prog-edit summary { cursor: pointer; font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+.prog-edit summary.prog-dirty { color: var(--gold); }
 .prog-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 0; border-top: 1px solid var(--line); }
 .prog-edit-row:first-of-type { border-top: 0; }
 .prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }

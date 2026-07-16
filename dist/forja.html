@@ -364,6 +364,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .prog-day.leaning { box-shadow: inset 0 -2px 0 var(--gold); }
 .prog-edit { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
 .prog-edit summary { cursor: pointer; font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+.prog-edit summary.prog-dirty { color: var(--gold); }
 .prog-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 0; border-top: 1px solid var(--line); }
 .prog-edit-row:first-of-type { border-top: 0; }
 .prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }
@@ -944,7 +945,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         <p>En <b>Programa</b> creas un plan de varias semanas. A diferencia de generar sueltas, el programa da tres cosas: <b>continuidad</b> (mantiene tus ejercicios base cada semana, para que la progresión y el e1RM se acumulen sobre los mismos lifts), un <b>calendario</b> (un objetivo por día) y <b>periodización</b> (sube el volumen unas semanas y luego una de <b>descarga</b>).</p>
         <p class="gloss"><b>Cómo funciona.</b> Eliges días por semana y semanas por ciclo. Cada día tiene su objetivo (editable). <b>Entrenar hoy</b> genera la sesión del día <b>al momento</b>, con tus números más recientes, el volumen de la semana y tus anclas fijadas; la entrenas y la guardas como cualquier sesión (queda etiquetada "sem N"). Al guardar, el programa avanza al día siguiente.</p>
         <p class="gloss"><b>Énfasis del ciclo.</b> Puedes decir "este ciclo quiero mejorar una zona" (piernas, torso, agarre…). El programa <b>reparte</b> ese énfasis suave en varios días según la <b>dosis</b> (suave = 1 día, medio ≈ la mitad, fuerte = casi todos) — más frecuencia en esa zona, pero <b>sin abandonar el resto</b> ni romper el balance. Los días con énfasis se marcan en la cinta. También puedes fijar un énfasis manual por día.</p>
-        <p class="gloss"><b>Varios programas.</b> Puedes tener más de un programa (p. ej. uno de fuerza y otro más metabólico) y cambiar entre ellos con las pestañas de arriba; cada uno guarda su propio progreso. En <b>Editar programa</b> cambias el nombre, el énfasis del ciclo, las semanas, los días por semana y el objetivo de cada día.</p>
+        <p class="gloss"><b>Varios programas.</b> Puedes tener más de un programa (p. ej. uno de fuerza y otro más metabólico) y cambiar entre ellos con las pestañas de arriba; cada uno guarda su propio progreso. En <b>Editar programa</b> cambias el nombre, el énfasis del ciclo, las semanas, los días por semana, la duración y el objetivo de cada día; los cambios se aplican al pulsar <b>Guardar programa</b> (mientras tanto verás "cambios sin guardar", y puedes <b>Descartar</b>).</p>
         <p class="gloss"><b>Descarga.</b> La última semana de cada ciclo baja el volumen (~½) manteniendo el movimiento, para soltar fatiga. Es automática y se ve en la cinta de progreso.</p>
         <p>La <b>disposición del día</b> (¿Cómo llegas hoy?) sigue mandando encima: una semana dura + un día roto igual afloja. El programa pone la intención de la semana; tú pones el día.</p>
       </div>
@@ -3763,6 +3764,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
   let progCreating = false;   // UI flag: show the create form even if programs exist
   let progEditOpen = false;   // keep the editor <details> open across re-renders
+  // Editor works on a DRAFT (a copy of the active program); changes only take
+  // effect when the trainee presses "Guardar". Null when not editing.
+  let progDraft = null;
+  const discardDraft = () => { progDraft = null; };
 
   // Default anchors: one fundamental per distinct pattern, up to 3 — the lifts
   // kept every matching day so progression/e1RM compound (continuity).
@@ -3893,11 +3898,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       const bar = el("div", "prog-switch");
       state.programs.forEach(p => {
         const chip = el("button", "prog-tab" + (p.id === state.activeProgramId ? " current" : ""), esc(p.name));
-        chip.onclick = () => { state.activeProgramId = p.id; progCreating = false; saveProgram(); renderProgram(); };
+        chip.onclick = () => { state.activeProgramId = p.id; progCreating = false; discardDraft(); saveProgram(); renderProgram(); };
         bar.appendChild(chip);
       });
       const add = el("button", "prog-tab prog-add", "+ Nuevo");
-      add.onclick = () => { progCreating = true; renderProgram(); };
+      add.onclick = () => { progCreating = true; discardDraft(); renderProgram(); };
       bar.appendChild(add);
       host.appendChild(bar);
     }
@@ -3933,18 +3938,30 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     trainBtn.onclick = trainToday;
     host.appendChild(trainBtn);
 
-    // ---- Editor (open on demand): name, cycle emphasis, mesocycle, days.
+    // ---- Editor (open on demand): works on a DRAFT; changes only take effect
+    // on "Guardar". The strip/ribbon/train button above always reflect the
+    // SAVED program, so what you train is what you saved.
+    if (!progDraft || progDraft.id !== pg.id) progDraft = JSON.parse(JSON.stringify(pg));
+    const dr = progDraft;
+    const dirty = JSON.stringify(dr) !== JSON.stringify(pg);
+    // A field change re-renders to refresh previews/dirty state; keep the
+    // editor expanded so it never collapses mid-edit.
+    const reEdit = () => { progEditOpen = true; renderProgram(); };
+
     const editWrap = el("details", "prog-edit");
     editWrap.open = progEditOpen;
     editWrap.addEventListener("toggle", () => { progEditOpen = editWrap.open; });
-    const sum = document.createElement("summary"); sum.textContent = "Editar programa"; editWrap.appendChild(sum);
+    const sum = document.createElement("summary");
+    sum.textContent = "Editar programa" + (dirty ? " · cambios sin guardar" : "");
+    if (dirty) sum.classList.add("prog-dirty");
+    editWrap.appendChild(sum);
 
     const nameRow = el("div", "prog-edit-row");
     nameRow.appendChild(el("span", "prog-edit-lbl", "Nombre"));
     const nameInp = document.createElement("input");
-    nameInp.type = "text"; nameInp.className = "manual-input"; nameInp.value = pg.name;
-    nameInp.oninput = () => { pg.name = nameInp.value; saveProgram(); };
-    nameInp.onchange = () => renderProgram();
+    nameInp.type = "text"; nameInp.className = "manual-input"; nameInp.value = dr.name;
+    nameInp.oninput = () => { dr.name = nameInp.value; };
+    nameInp.onchange = () => reEdit();   // refresh the "sin guardar" state on blur
     nameRow.appendChild(nameInp);
     editWrap.appendChild(nameRow);
 
@@ -3952,19 +3969,19 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const emRow = el("div", "prog-edit-row");
     emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (mejora una zona; se reparte en varios días)"));
     const emSel = document.createElement("select"); emSel.className = "mk-select";
-    const curEm = (pg.cycleEmphasis || []).join(",");
+    const curEm = (dr.cycleEmphasis || []).join(",");
     PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
       const op = document.createElement("option"); op.value = v; op.textContent = label;
       if (curEm === v) op.selected = true; emSel.appendChild(op);
     });
-    emSel.onchange = () => { pg.cycleEmphasis = emSel.value ? emSel.value.split(",") : []; saveProgram(); renderProgram(); };
+    emSel.onchange = () => { dr.cycleEmphasis = emSel.value ? emSel.value.split(",") : []; reEdit(); };
     emRow.appendChild(emSel);
     const doseSel = document.createElement("select"); doseSel.className = "mk-select";
     PROG_DOSE_CHOICES.forEach(([v, label]) => {
       const op = document.createElement("option"); op.value = v; op.textContent = "Dosis: " + label;
-      if ((pg.cycleDose || "medium") === v) op.selected = true; doseSel.appendChild(op);
+      if ((dr.cycleDose || "medium") === v) op.selected = true; doseSel.appendChild(op);
     });
-    doseSel.onchange = () => { pg.cycleDose = doseSel.value; saveProgram(); renderProgram(); };
+    doseSel.onchange = () => { dr.cycleDose = doseSel.value; reEdit(); };
     emRow.appendChild(doseSel);
     editWrap.appendChild(emRow);
 
@@ -3972,75 +3989,68 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     const mesoRow = el("div", "prog-edit-row");
     mesoRow.appendChild(el("span", "prog-edit-lbl", "Semanas por ciclo"));
     const mesoStep = el("div", "stepper");
-    const mDec = el("button", null, "−"), mVal = el("span", "val", String(pg.mesocycle.deloadEveryWeeks)), mInc = el("button", null, "+");
-    const setMeso = v => { const n = Math.max(2, Math.min(8, v)); pg.mesocycle.lengthWeeks = n; pg.mesocycle.deloadEveryWeeks = n; mVal.textContent = n; saveProgram(); renderProgram(); };
-    mDec.onclick = () => setMeso(pg.mesocycle.deloadEveryWeeks - 1);
-    mInc.onclick = () => setMeso(pg.mesocycle.deloadEveryWeeks + 1);
+    const mDec = el("button", null, "−"), mVal = el("span", "val", String(dr.mesocycle.deloadEveryWeeks)), mInc = el("button", null, "+");
+    const setMeso = v => { const n = Math.max(2, Math.min(8, v)); dr.mesocycle.lengthWeeks = n; dr.mesocycle.deloadEveryWeeks = n; mVal.textContent = n; reEdit(); };
+    mDec.onclick = () => setMeso(dr.mesocycle.deloadEveryWeeks - 1);
+    mInc.onclick = () => setMeso(dr.mesocycle.deloadEveryWeeks + 1);
     mesoStep.appendChild(mDec); mesoStep.appendChild(mVal); mesoStep.appendChild(mInc);
     mesoRow.appendChild(mesoStep);
     editWrap.appendChild(mesoRow);
 
     // Session duration: the main volume knob (fewer minutes = fewer exercises).
     const minRow = el("div", "prog-edit-row");
-    const eff = Math.round((pg.baseMinutes || 40) * phase.volumeFactor);
+    const eff = Math.round((dr.baseMinutes || 40) * F.phaseFor(pg.cursor.week, dr.mesocycle).volumeFactor);
     minRow.appendChild(el("span", "prog-edit-lbl", "Duración por sesión (min) · esta semana ≈ " + eff + " min"));
     const minStep = el("div", "stepper");
-    const nDec = el("button", null, "−"), nVal = el("span", "val", String(pg.baseMinutes || 40)), nInc = el("button", null, "+");
-    const setMin = v => { pg.baseMinutes = Math.max(15, Math.min(75, v)); nVal.textContent = pg.baseMinutes; saveProgram(); renderProgram(); };
-    nDec.onclick = () => setMin((pg.baseMinutes || 40) - 5);
-    nInc.onclick = () => setMin((pg.baseMinutes || 40) + 5);
+    const nDec = el("button", null, "−"), nVal = el("span", "val", String(dr.baseMinutes || 40)), nInc = el("button", null, "+");
+    const setMin = v => { dr.baseMinutes = Math.max(15, Math.min(75, v)); nVal.textContent = dr.baseMinutes; reEdit(); };
+    nDec.onclick = () => setMin((dr.baseMinutes || 40) - 5);
+    nInc.onclick = () => setMin((dr.baseMinutes || 40) + 5);
     minStep.appendChild(nDec); minStep.appendChild(nVal); minStep.appendChild(nInc);
     minRow.appendChild(minStep);
     editWrap.appendChild(minRow);
 
-    // Days per week: add or drop a training day after creation. New days seed
-    // from the default schedule for the new frequency; existing (possibly
-    // edited) days are kept; dropping removes from the end. The cursor is
-    // clamped so it never points past the last remaining day.
+    // Days per week: add or drop a training day. New days seed from the default
+    // schedule; existing (possibly edited) days are kept; dropping removes from
+    // the end. The cursor is clamped so it never points past the last day.
     const daysRow = el("div", "prog-edit-row");
     daysRow.appendChild(el("span", "prog-edit-lbl", "Días por semana"));
     const daysStep = el("div", "stepper");
-    const dDec = el("button", null, "−"), dVal = el("span", "val", String(pg.week.length)), dInc = el("button", null, "+");
+    const dDec = el("button", null, "−"), dVal = el("span", "val", String(dr.week.length)), dInc = el("button", null, "+");
     const setDays = v => {
       const n = Math.max(2, Math.min(6, v));
-      if (n === pg.week.length) return;
-      if (n > pg.week.length) {
+      if (n === dr.week.length) return;
+      if (n > dr.week.length) {
         const defs = F.programWeekDefaults(n);
-        for (let i = pg.week.length; i < n; i++) pg.week.push(defs[i]);
+        for (let i = dr.week.length; i < n; i++) dr.week.push(defs[i]);
       } else {
-        pg.week = pg.week.slice(0, n);
-        if (pg.cursor.dayIndex >= n) pg.cursor.dayIndex = 0;
+        dr.week = dr.week.slice(0, n);
+        if (dr.cursor.dayIndex >= n) dr.cursor.dayIndex = 0;
       }
-      pg.daysPerWeek = n;
-      saveProgram(); renderProgram();
+      dr.daysPerWeek = n;
+      reEdit();
     };
-    dDec.onclick = () => setDays(pg.week.length - 1);
-    dInc.onclick = () => setDays(pg.week.length + 1);
+    dDec.onclick = () => setDays(dr.week.length - 1);
+    dInc.onclick = () => setDays(dr.week.length + 1);
     daysStep.appendChild(dDec); daysStep.appendChild(dVal); daysStep.appendChild(dInc);
     daysRow.appendChild(daysStep);
     editWrap.appendChild(daysRow);
 
-    // Per-day objective + optional manual emphasis override.
+    // Per-day label, objective and optional manual emphasis override.
     editWrap.appendChild(el("div", "prog-edit-lbl", "Días (objetivo y énfasis manual opcional)"));
-    pg.week.forEach((day, i) => {
+    dr.week.forEach(day => {
       const row = el("div", "prog-edit-row");
       const lblInp = document.createElement("input");
       lblInp.type = "text"; lblInp.className = "manual-input"; lblInp.value = day.label;
-      // Reflect the new label at the top (day strip + train button) as it is
-      // typed, so the edit is visibly saved without waiting for a re-render.
-      lblInp.oninput = () => {
-        day.label = lblInp.value; saveProgram();
-        if (dayChips[i]) dayChips[i].textContent = day.label;
-        if (i === pg.cursor.dayIndex) trainBtn.textContent = "Entrenar hoy · " + day.label;
-      };
-      lblInp.onchange = () => renderProgram();
+      lblInp.oninput = () => { day.label = lblInp.value; };
+      lblInp.onchange = () => reEdit();
       row.appendChild(lblInp);
       const objSel = document.createElement("select"); objSel.className = "mk-select";
       ["STRENGTH", "METABOLIC", "STRENGTH_ENDURANCE", "POWER", "EMOM", "AMRAP"].forEach(o => {
         const op = document.createElement("option"); op.value = o; op.textContent = OBJ_LABEL[o] || o;
         if (day.objective === o) op.selected = true; objSel.appendChild(op);
       });
-      objSel.onchange = () => { day.objective = objSel.value; saveProgram(); };
+      objSel.onchange = () => { day.objective = objSel.value; };
       row.appendChild(objSel);
       const daySel = document.createElement("select"); daySel.className = "mk-select";
       const curDay = (day.emphasis || []).join(",");
@@ -4048,10 +4058,24 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
         const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + (v ? label : "auto");
         if (curDay === v) op.selected = true; daySel.appendChild(op);
       });
-      daySel.onchange = () => { day.emphasis = daySel.value ? daySel.value.split(",") : []; saveProgram(); renderProgram(); };
+      daySel.onchange = () => { day.emphasis = daySel.value ? daySel.value.split(",") : []; };
       row.appendChild(daySel);
       editWrap.appendChild(row);
     });
+
+    // Save / discard the draft.
+    const editBtns = el("div", "btn-row"); editBtns.style.marginTop = "12px";
+    const saveBtn = el("button", "btn btn-forge", "Guardar programa");
+    saveBtn.onclick = () => {
+      const idx = state.programs.findIndex(p => p.id === pg.id);
+      if (idx >= 0) state.programs[idx] = JSON.parse(JSON.stringify(dr));
+      discardDraft();
+      saveProgram(); renderProgram(); toast("Programa guardado");
+    };
+    const discardBtn = el("button", "btn btn-ghost", "Descartar");
+    discardBtn.onclick = () => { discardDraft(); renderProgram(); toast("Cambios descartados"); };
+    editBtns.appendChild(discardBtn); editBtns.appendChild(saveBtn);
+    editWrap.appendChild(editBtns);
     host.appendChild(editWrap);
 
     const del = el("button", "btn btn-ghost", "Borrar este programa");
@@ -4059,7 +4083,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     del.onclick = () => {
       state.programs = state.programs.filter(p => p.id !== pg.id);
       state.activeProgramId = state.programs[0] ? state.programs[0].id : null;
-      saveProgram(); renderProgram(); toast("Programa borrado");
+      discardDraft(); saveProgram(); renderProgram(); toast("Programa borrado");
     };
     host.appendChild(del);
   }
