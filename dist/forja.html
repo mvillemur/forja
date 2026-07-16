@@ -369,6 +369,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .prog-edit-row:first-of-type { border-top: 0; }
 .prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }
 .prog-edit-row .mk-select { flex: 1; }
+.prog-emph { flex: 1 1 100%; gap: 6px; }
+.prog-emph .chip { font-size: 12px; padding: 5px 11px; }
+.prog-day-emp-row { padding-top: 0; border-top: 0; }
 
 /* --- Mis rutinas (saved templates) --- */
 .tpl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -944,7 +947,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       <div class="acc-body">
         <p>En <b>Programa</b> creas un plan de varias semanas. A diferencia de generar sueltas, el programa da tres cosas: <b>continuidad</b> (mantiene tus ejercicios base cada semana, para que la progresión y el e1RM se acumulen sobre los mismos lifts), un <b>calendario</b> (un objetivo por día) y <b>periodización</b> (sube el volumen unas semanas y luego una de <b>descarga</b>).</p>
         <p class="gloss"><b>Cómo funciona.</b> Eliges días por semana y semanas por ciclo. Cada día tiene su objetivo (editable). <b>Entrenar hoy</b> genera la sesión del día <b>al momento</b>, con tus números más recientes, el volumen de la semana y tus anclas fijadas; la entrenas y la guardas como cualquier sesión (queda etiquetada "sem N"). Al guardar, el programa avanza al día siguiente.</p>
-        <p class="gloss"><b>Énfasis del ciclo.</b> Puedes decir "este ciclo quiero mejorar una zona" (piernas, torso, agarre…). El programa <b>reparte</b> ese énfasis suave en varios días según la <b>dosis</b> (suave = 1 día, medio ≈ la mitad, fuerte = casi todos) — más frecuencia en esa zona, pero <b>sin abandonar el resto</b> ni romper el balance. Los días con énfasis se marcan en la cinta. También puedes fijar un énfasis manual por día.</p>
+        <p class="gloss"><b>Énfasis del ciclo.</b> Puedes decir "este ciclo quiero mejorar una o varias zonas" (piernas, empuje, pull, core, brazos, agarre) tocando sus chips — puedes elegir más de una. El programa <b>reparte</b> ese énfasis suave en varios días según la <b>dosis</b> (suave = 1 día, medio ≈ la mitad, fuerte = casi todos) — más frecuencia en esas zonas, pero <b>sin abandonar el resto</b> ni romper el balance. Los días con énfasis se marcan en la cinta. También puedes fijar un énfasis manual (también múltiple) por día.</p>
         <p class="gloss"><b>Varios programas.</b> Puedes tener más de un programa (p. ej. uno de fuerza y otro más metabólico) y cambiar entre ellos con las pestañas de arriba; cada uno guarda su propio progreso. En <b>Editar programa</b> cambias el nombre, el énfasis del ciclo, las semanas, los días por semana, la duración y el objetivo de cada día; los cambios se aplican al pulsar <b>Guardar programa</b> (mientras tanto verás "cambios sin guardar", y puedes <b>Descartar</b>).</p>
         <p class="gloss"><b>Descarga.</b> La última semana de cada ciclo baja el volumen (~½) manteniendo el movimiento, para soltar fatiga. Es automática y se ve en la cinta de progreso.</p>
         <p>La <b>disposición del día</b> (¿Cómo llegas hoy?) sigue mandando encima: una semana dura + un día roto igual afloja. El programa pone la intención de la semana; tú pones el día.</p>
@@ -3757,11 +3760,25 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   // numbers and the cycle emphasis distributed across the week, then saved to
   // normal history tagged with the program slot. Several programs can coexist;
   // one is active. Methodology: docs/program-generation-methodology.md.
-  const PROG_EMPHASIS_CHOICES = [
-    ["", "—"], ["LEGS", "Piernas"], ["PUSH,PULL", "Torso"],
-    ["PUSH", "Empuje"], ["PULL", "Pull"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+  // Atomic emphasis tags for the multi-select chip rows (pick more than one).
+  const PROG_EMPHASIS_TAGS = [
+    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"],
+    ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
   ];
   const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
+  // Toggle a key in an emphasis array (returns a new array).
+  const toggleEmph = (arr, v) => (arr || []).includes(v) ? arr.filter(x => x !== v) : (arr || []).concat([v]);
+  // A row of toggleable emphasis chips bound to a getter/setter.
+  function emphasisChips(cls, get, set) {
+    const wrap = el("div", "chips prog-emph " + cls);
+    PROG_EMPHASIS_TAGS.forEach(([v, label]) => {
+      const c = el("button", "chip filter-chip", label);
+      c.setAttribute("aria-pressed", String((get() || []).includes(v)));
+      c.onclick = () => { set(toggleEmph(get(), v)); };
+      wrap.appendChild(c);
+    });
+    return wrap;
+  }
   let progCreating = false;   // UI flag: show the create form even if programs exist
   let progEditOpen = false;   // keep the editor <details> open across re-renders
   // Editor works on a DRAFT (a copy of the active program); changes only take
@@ -3965,17 +3982,12 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     nameRow.appendChild(nameInp);
     editWrap.appendChild(nameRow);
 
-    // Global cycle emphasis + dose: bring up a region across the whole cycle.
+    // Global cycle emphasis + dose: bring up one or more regions across the
+    // whole cycle. Multi-select chips — pick as many zones as you want.
     const emRow = el("div", "prog-edit-row");
-    emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (mejora una zona; se reparte en varios días)"));
-    const emSel = document.createElement("select"); emSel.className = "mk-select";
-    const curEm = (dr.cycleEmphasis || []).join(",");
-    PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
-      const op = document.createElement("option"); op.value = v; op.textContent = label;
-      if (curEm === v) op.selected = true; emSel.appendChild(op);
-    });
-    emSel.onchange = () => { dr.cycleEmphasis = emSel.value ? emSel.value.split(",") : []; reEdit(); };
-    emRow.appendChild(emSel);
+    emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (una o varias zonas; se reparten en varios días)"));
+    emRow.appendChild(emphasisChips("prog-cycle-emph",
+      () => dr.cycleEmphasis, arr => { dr.cycleEmphasis = arr; reEdit(); }));
     const doseSel = document.createElement("select"); doseSel.className = "mk-select";
     PROG_DOSE_CHOICES.forEach(([v, label]) => {
       const op = document.createElement("option"); op.value = v; op.textContent = "Dosis: " + label;
@@ -4052,15 +4064,13 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
       });
       objSel.onchange = () => { day.objective = objSel.value; };
       row.appendChild(objSel);
-      const daySel = document.createElement("select"); daySel.className = "mk-select";
-      const curDay = (day.emphasis || []).join(",");
-      PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
-        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + (v ? label : "auto");
-        if (curDay === v) op.selected = true; daySel.appendChild(op);
-      });
-      daySel.onchange = () => { day.emphasis = daySel.value ? daySel.value.split(",") : []; };
-      row.appendChild(daySel);
       editWrap.appendChild(row);
+      // Manual emphasis override for this day (empty = usa el del ciclo).
+      const empRow = el("div", "prog-edit-row prog-day-emp-row");
+      empRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del día (vacío = auto)"));
+      empRow.appendChild(emphasisChips("prog-day-emph",
+        () => day.emphasis, arr => { day.emphasis = arr; reEdit(); }));
+      editWrap.appendChild(empRow);
     });
 
     // Save / discard the draft.

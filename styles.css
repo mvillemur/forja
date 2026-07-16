@@ -355,6 +355,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .prog-edit-row:first-of-type { border-top: 0; }
 .prog-edit-lbl { flex: 1 1 100%; font-size: 12.5px; font-weight: 600; }
 .prog-edit-row .mk-select { flex: 1; }
+.prog-emph { flex: 1 1 100%; gap: 6px; }
+.prog-emph .chip { font-size: 12px; padding: 5px 11px; }
+.prog-day-emp-row { padding-top: 0; border-top: 0; }
 
 /* --- Mis rutinas (saved templates) --- */
 .tpl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }

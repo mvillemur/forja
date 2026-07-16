@@ -422,11 +422,16 @@ setTimeout(() => {
   ok("program shows a week strip after creation", d.querySelectorAll("#program-body .prog-day").length >= 2);
   ok("program shows the accumulation phase", /Acumulación|Descarga/.test(d.querySelector("#program-body .prog-phase").textContent));
 
-  // Global cycle emphasis: edits go to a draft and only apply on Guardar.
+  // Global cycle emphasis: multi-select chips; edits go to a draft and only
+  // apply on Guardar.
   d.querySelector("#program-body .prog-edit summary").click();
-  const cycleSel = [...d.querySelectorAll("#program-body .mk-select")].find(s => [...s.options].some(o => o.textContent === "Piernas"));
-  ok("program has a cycle-emphasis selector", !!cycleSel);
-  cycleSel.value = "LEGS"; cycleSel.dispatchEvent(new window.Event("change"));
+  const cycleChips = [...d.querySelectorAll("#program-body .prog-cycle-emph .chip")];
+  ok("cycle emphasis is a multi-select chip row", cycleChips.length >= 4);
+  // Toggling a chip re-renders, so re-query for each click.
+  [...d.querySelectorAll("#program-body .prog-cycle-emph .chip")].find(c => c.textContent === "Piernas").click();
+  [...d.querySelectorAll("#program-body .prog-cycle-emph .chip")].find(c => c.textContent === "Brazos").click();
+  ok("more than one cycle emphasis can be selected",
+    [...d.querySelectorAll('#program-body .prog-cycle-emph .chip[aria-pressed="true"]')].length === 2);
   ok("editing the program flags unsaved changes", /sin guardar/.test(d.querySelector("#program-body .prog-edit summary").textContent));
   ok("draft edits do NOT change the strip before saving", d.querySelectorAll("#program-body .prog-day.leaning").length === 0);
   [...d.querySelectorAll("#program-body .btn")].find(b => /Guardar programa/.test(b.textContent)).click();

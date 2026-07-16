@@ -1091,11 +1091,25 @@
   // numbers and the cycle emphasis distributed across the week, then saved to
   // normal history tagged with the program slot. Several programs can coexist;
   // one is active. Methodology: docs/program-generation-methodology.md.
-  const PROG_EMPHASIS_CHOICES = [
-    ["", "—"], ["LEGS", "Piernas"], ["PUSH,PULL", "Torso"],
-    ["PUSH", "Empuje"], ["PULL", "Pull"], ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
+  // Atomic emphasis tags for the multi-select chip rows (pick more than one).
+  const PROG_EMPHASIS_TAGS = [
+    ["LEGS", "Piernas"], ["PUSH", "Empuje"], ["PULL", "Pull"],
+    ["CORE", "Core"], ["ARMS", "Brazos"], ["GRIP", "Agarre"],
   ];
   const PROG_DOSE_CHOICES = [["soft", "Suave"], ["medium", "Medio"], ["strong", "Fuerte"]];
+  // Toggle a key in an emphasis array (returns a new array).
+  const toggleEmph = (arr, v) => (arr || []).includes(v) ? arr.filter(x => x !== v) : (arr || []).concat([v]);
+  // A row of toggleable emphasis chips bound to a getter/setter.
+  function emphasisChips(cls, get, set) {
+    const wrap = el("div", "chips prog-emph " + cls);
+    PROG_EMPHASIS_TAGS.forEach(([v, label]) => {
+      const c = el("button", "chip filter-chip", label);
+      c.setAttribute("aria-pressed", String((get() || []).includes(v)));
+      c.onclick = () => { set(toggleEmph(get(), v)); };
+      wrap.appendChild(c);
+    });
+    return wrap;
+  }
   let progCreating = false;   // UI flag: show the create form even if programs exist
   let progEditOpen = false;   // keep the editor <details> open across re-renders
   // Editor works on a DRAFT (a copy of the active program); changes only take
@@ -1299,17 +1313,12 @@
     nameRow.appendChild(nameInp);
     editWrap.appendChild(nameRow);
 
-    // Global cycle emphasis + dose: bring up a region across the whole cycle.
+    // Global cycle emphasis + dose: bring up one or more regions across the
+    // whole cycle. Multi-select chips — pick as many zones as you want.
     const emRow = el("div", "prog-edit-row");
-    emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (mejora una zona; se reparte en varios días)"));
-    const emSel = document.createElement("select"); emSel.className = "mk-select";
-    const curEm = (dr.cycleEmphasis || []).join(",");
-    PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
-      const op = document.createElement("option"); op.value = v; op.textContent = label;
-      if (curEm === v) op.selected = true; emSel.appendChild(op);
-    });
-    emSel.onchange = () => { dr.cycleEmphasis = emSel.value ? emSel.value.split(",") : []; reEdit(); };
-    emRow.appendChild(emSel);
+    emRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del ciclo (una o varias zonas; se reparten en varios días)"));
+    emRow.appendChild(emphasisChips("prog-cycle-emph",
+      () => dr.cycleEmphasis, arr => { dr.cycleEmphasis = arr; reEdit(); }));
     const doseSel = document.createElement("select"); doseSel.className = "mk-select";
     PROG_DOSE_CHOICES.forEach(([v, label]) => {
       const op = document.createElement("option"); op.value = v; op.textContent = "Dosis: " + label;
@@ -1386,15 +1395,13 @@
       });
       objSel.onchange = () => { day.objective = objSel.value; };
       row.appendChild(objSel);
-      const daySel = document.createElement("select"); daySel.className = "mk-select";
-      const curDay = (day.emphasis || []).join(",");
-      PROG_EMPHASIS_CHOICES.forEach(([v, label]) => {
-        const op = document.createElement("option"); op.value = v; op.textContent = "Énfasis: " + (v ? label : "auto");
-        if (curDay === v) op.selected = true; daySel.appendChild(op);
-      });
-      daySel.onchange = () => { day.emphasis = daySel.value ? daySel.value.split(",") : []; };
-      row.appendChild(daySel);
       editWrap.appendChild(row);
+      // Manual emphasis override for this day (empty = usa el del ciclo).
+      const empRow = el("div", "prog-edit-row prog-day-emp-row");
+      empRow.appendChild(el("span", "prog-edit-lbl", "Énfasis del día (vacío = auto)"));
+      empRow.appendChild(emphasisChips("prog-day-emph",
+        () => day.emphasis, arr => { day.emphasis = arr; reEdit(); }));
+      editWrap.appendChild(empRow);
     });
 
     // Save / discard the draft.
