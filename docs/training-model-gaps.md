@@ -124,6 +124,26 @@ full SP rest for SP-range antagonist pairs (e.g. a smaller reduction factor for
 
 ---
 
+## 7. Compound "complex" lifts timed as a single fast rep (≈3–4× under-count) — HIGH
+
+**Where:** `setWorkSec` → `TEMPO[e.dynamics]` (`src/engine.js`).
+
+Per-rep work time came only from `dynamics`, so every ballistic rep counted as
+1.2 s regardless of what the rep actually is. But several catalog movements are
+**complexes** — multiple sub-movements chained into one rep: Clean + Sentadilla
+Goblet (clean *and* a full front squat), Clean + Sentadilla Goblet + Press,
+Clean + Press, plus Thruster / Curl + Press / Burpees. Timing a clean-and-squat
+as 1.2 s undercounts it ~3–4×, deflating both the block/session duration and the
+guided timer for exactly the highest-effort slots.
+
+**Direction (implemented):** a per-exercise `REP_SEC_BY_NAME` seconds-per-rep
+override (mirroring the per-exercise ISO `HOLD_BY_NAME` from Gap 2), applied via
+`repSecFor(e)` in `setWorkSec`. Each value ≈ the sum of the component cadences
+(ballistic pull ~1.5 s, squat ~2.5 s, press ~2 s). Single-movement ballistics
+(Swing, Snatch, High Pull) keep the plain `TEMPO` tempo.
+
+---
+
 ### Summary
 
 | # | Gap | Severity | Primary fix surface |
@@ -134,6 +154,7 @@ full SP rest for SP-range antagonist pairs (e.g. a smaller reduction factor for
 | 4 | HIP↔KNEE labeled antagonist recovery | Medium | `validateBlockA` quality |
 | 5 | No warm-up before ballistic Block A | Medium | `TEMPLATES` / output |
 | 6 | Superset rest halved for strength pairs | Low | `elementTimeSec` rest factor |
+| 7 | Compound complex lifts timed as one fast rep (~3–4× off) | High | `setWorkSec` → `REP_SEC_BY_NAME` |
 
 Gaps 1–3 are concrete model/accuracy fixes. Gaps 4–5 are programming-philosophy
 calls a coach should sign off on. Gap 6 is a tuning note.

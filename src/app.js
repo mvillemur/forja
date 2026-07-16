@@ -1326,6 +1326,33 @@
     minRow.appendChild(minStep);
     editWrap.appendChild(minRow);
 
+    // Days per week: add or drop a training day after creation. New days seed
+    // from the default schedule for the new frequency; existing (possibly
+    // edited) days are kept; dropping removes from the end. The cursor is
+    // clamped so it never points past the last remaining day.
+    const daysRow = el("div", "prog-edit-row");
+    daysRow.appendChild(el("span", "prog-edit-lbl", "Días por semana"));
+    const daysStep = el("div", "stepper");
+    const dDec = el("button", null, "−"), dVal = el("span", "val", String(pg.week.length)), dInc = el("button", null, "+");
+    const setDays = v => {
+      const n = Math.max(2, Math.min(6, v));
+      if (n === pg.week.length) return;
+      if (n > pg.week.length) {
+        const defs = F.programWeekDefaults(n);
+        for (let i = pg.week.length; i < n; i++) pg.week.push(defs[i]);
+      } else {
+        pg.week = pg.week.slice(0, n);
+        if (pg.cursor.dayIndex >= n) pg.cursor.dayIndex = 0;
+      }
+      pg.daysPerWeek = n;
+      saveProgram(); renderProgram();
+    };
+    dDec.onclick = () => setDays(pg.week.length - 1);
+    dInc.onclick = () => setDays(pg.week.length + 1);
+    daysStep.appendChild(dDec); daysStep.appendChild(dVal); daysStep.appendChild(dInc);
+    daysRow.appendChild(daysStep);
+    editWrap.appendChild(daysRow);
+
     // Per-day objective + optional manual emphasis override.
     editWrap.appendChild(el("div", "prog-edit-lbl", "Días (objetivo y énfasis manual opcional)"));
     pg.week.forEach(day => {
